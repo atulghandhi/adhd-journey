@@ -15,7 +15,7 @@ FocusLab should feel like a calm, confident coach in your pocket. It is warm but
 ### Color
 
 - Primary palette: deep navy/charcoal base with warm accent tones
-- Accent palette: a vibrant but not harsh primary accent (coral, warm orange, or electric teal — TBD with prototyping) for CTAs, progress, and active states
+- Accent palette: a vibrant but not harsh primary accent (coral, warm orange, or electric teal — finalize during Milestone 16 UX polish) for CTAs, progress, and active states
 - Success states: warm green for completions and streaks
 - Warning/attention: amber for reminders and nudges
 - Surface palette: off-white and warm gray surfaces with generous whitespace

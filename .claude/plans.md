@@ -7,393 +7,437 @@ Guiding principles:
 - Task-first UX: the actionable task is always the first thing visible. Explanation is secondary.
 - Algorithm-driven: spaced repetition adapts to each user, not a fixed schedule.
 - Content-managed: tasks are authored via CMS, not hardcoded.
+- Managed services: Supabase for backend, FCM for push, Resend for email, RevenueCat for payments. No self-hosted infra.
 
 ## Verification checklist (kept current)
 
 Core commands (run after every milestone):
-- [ ] lint
-- [ ] typecheck
-- [ ] test
+- [ ] `npx turbo lint`
+- [ ] `npx turbo typecheck`
+- [ ] `npx turbo test`
+- [ ] `supabase db reset` (verify migrations + seed apply cleanly)
 - Last verified: not yet started
 
 ## Milestones (executed in order)
 
-Each milestone includes scope, key files/modules, acceptance criteria, and verification steps.
+Each milestone includes scope, key files/modules, acceptance criteria (tagged with verification category), and verification steps. Categories: **[AUTO]**, **[LOCAL]**, **[MANUAL]**, **[CREDENTIALS]** — see `implement.md` for definitions.
 
-### Milestone 01 - Repo scaffold + tooling foundation [ ]
+### Milestone 01 — Repo scaffold + tooling foundation [ ]
 Scope:
-- Initialize monorepo structure (mobile app, web dashboard, backend API, shared types).
-- Set up TypeScript, linting, testing framework, and CI config.
-- Establish path aliases, shared type packages, and base folder structure.
-- Finalize tech stack decision and document in Implementation Notes.
+- Initialize Turborepo monorepo with three workspaces: `apps/mobile` (Expo), `apps/web` (Next.js), `packages/shared`.
+- Initialize Supabase project (`supabase init`) in repo root — creates `supabase/` directory.
+- Set up TypeScript (strict), ESLint, Prettier across all workspaces.
+- Set up testing: Vitest for `packages/shared` and `apps/web`, Jest for `apps/mobile`.
+- Create `.env.example` with all required environment variables (from `architecture.md`).
+- Create root `turbo.json` with `dev`, `build`, `lint`, `typecheck`, `test` pipelines.
+- Verify shared package imports correctly from both apps.
 
 Key files/modules:
-- `package.json` (root workspace)
-- `apps/mobile/` — React Native / Expo project
-- `apps/web/` — Next.js or Vite + React dashboard
-- `apps/api/` — Backend API project
-- `packages/shared/` — shared TypeScript types and utilities
-- `tsconfig.json` (root + per-app configs)
-- Linting and formatting config
+- `package.json` (root workspace config)
+- `turbo.json`
+- `apps/mobile/` — Expo project (`npx create-expo-app`)
+- `apps/web/` — Next.js project (`npx create-next-app`)
+- `packages/shared/package.json` + `src/index.ts`
+- `supabase/config.toml`
+- `.env.example`
+- `tsconfig.json` (root + per-workspace)
+- `.eslintrc.js` + `.prettierrc`
 
 Acceptance criteria:
-- Monorepo installs cleanly.
-- Each app starts in dev mode.
-- Shared types import correctly across apps.
-- Lint/typecheck/test run (even if minimal).
+- `npm install` succeeds from root. **[AUTO]**
+- `npx turbo dev` starts Expo + Next.js dev servers without errors. **[LOCAL]**
+- `npx turbo lint && npx turbo typecheck && npx turbo test` all pass (even if tests are trivial). **[AUTO]**
+- `supabase start` launches local stack successfully. **[LOCAL]**
+- Shared package exports a placeholder and is importable from both apps. **[AUTO]**
+- `.env.example` exists with all variables from `architecture.md`. **[AUTO]**
 
-Verification commands:
-- Install + dev start for each app
-- Lint, typecheck, test across workspace
-
-### Milestone 02 - Backend API scaffold + database schema [ ]
+### Milestone 02 — Database schema + migrations + seed data [ ]
 Scope:
-- Set up backend framework (Node.js + Express/Fastify or equivalent).
-- Define database schema (users, tasks, progress, check-ins, community, notifications, spaced-repetition state).
-- Set up ORM/query builder and migrations.
-- Set up Redis for session/cache if needed.
-- Seed database with placeholder task data.
+- Write SQL migration(s) creating all tables from `architecture.md`: profiles, tasks, user_progress, check_ins, spaced_repetition_state, community_posts, community_reactions, community_replies, notification_log, notification_templates, spaced_repetition_config, push_tokens.
+- Write database trigger: auto-create `profiles` row when a new `auth.users` row is inserted.
+- Write RLS policies for all tables (as specified in `architecture.md`).
+- Write `supabase/seed.sql` with: 30 placeholder tasks (order 1–30, with realistic titles and placeholder markdown bodies), 8–12 notification templates (mix of push/email, varied tone_tags), default spaced_repetition_config row.
+- Generate TypeScript types: `supabase gen types typescript --local > packages/shared/src/types/database.ts`.
+- Export types from shared package.
 
 Key files/modules:
-- `apps/api/src/server.ts`
-- `apps/api/src/db/schema.ts` or migrations directory
-- `apps/api/src/db/seed.ts`
-- `packages/shared/src/types/` — shared model types
+- `supabase/migrations/00001_initial_schema.sql`
+- `supabase/seed.sql`
+- `packages/shared/src/types/database.ts` (auto-generated)
+- `packages/shared/src/types/index.ts` (re-exports)
 
 Acceptance criteria:
-- Database migrations run successfully.
-- Seed script populates 30 placeholder tasks.
-- API starts and responds to health check.
+- `supabase db reset` applies migrations + seed without errors. **[AUTO]**
+- All 30 tasks are present in the `tasks` table after seeding. **[AUTO]**
+- Notification templates and SR config are seeded. **[AUTO]**
+- Profile trigger works: creating a user via Supabase Auth auto-creates a profiles row (test via `supabase/seed.sql` or manual Studio check). **[LOCAL]**
+- RLS policies prevent unauthorized access (test with different user tokens). **[AUTO]**
+- Generated types compile and export correctly from shared package. **[AUTO]**
 
-### Milestone 03 - Auth system (email/password + social) [ ]
+### Milestone 03 — Auth integration (Supabase Auth) [ ]
 Scope:
-- Implement registration, login, token refresh, and profile endpoints.
-- Support email/password and social auth (Apple, Google) — at minimum email/password for V1.
-- JWT-based auth with refresh tokens.
-- Rate limiting on auth endpoints.
-- Mobile + web auth flows.
+- Set up Supabase JS client in mobile app (`apps/mobile/src/lib/supabase.ts`) using `@supabase/supabase-js` + `@react-native-async-storage/async-storage` for session persistence.
+- Set up Supabase JS clients in web app: server-side (`apps/web/src/lib/supabase-server.ts`) and client-side (`apps/web/src/lib/supabase-client.ts`) using `@supabase/ssr`.
+- Build mobile auth screens: login (email/password), register, forgot password.
+- Build web auth pages: login, register (in `apps/web/src/app/auth/`).
+- Auth state management: Zustand store or React context wrapping Supabase session.
+- Protected route wrappers for both mobile and web.
 
 Key files/modules:
-- `apps/api/src/routes/auth.ts`
-- `apps/api/src/middleware/auth.ts`
-- `apps/api/src/services/authService.ts`
-- `apps/mobile/src/screens/auth/`
-- `apps/web/src/pages/auth/`
+- `apps/mobile/src/lib/supabase.ts`
+- `apps/mobile/src/screens/auth/LoginScreen.tsx`
+- `apps/mobile/src/screens/auth/RegisterScreen.tsx`
+- `apps/mobile/src/hooks/useAuth.ts`
+- `apps/web/src/lib/supabase-server.ts`
+- `apps/web/src/lib/supabase-client.ts`
+- `apps/web/src/app/auth/login/page.tsx`
+- `apps/web/src/app/auth/register/page.tsx`
 
 Acceptance criteria:
-- User can register, login, and receive tokens.
-- Protected endpoints reject unauthenticated requests.
-- Token refresh works.
-- Auth screens render on mobile and web.
+- User can register with email/password on mobile and web (against local Supabase). **[LOCAL]**
+- User can login and session persists across app restart (mobile) and page refresh (web). **[LOCAL]**
+- Protected screens/pages redirect unauthenticated users to login. **[AUTO]** (test with mock)
+- Supabase Auth handles JWT, refresh tokens, and session management automatically — no custom auth middleware. **[AUTO]**
 
-### Milestone 04 - Admin CMS: task CRUD + preview [ ]
+Note: Social auth (Apple, Google) requires OAuth credentials. Implement the UI buttons but gate behind env var checks. Tag as **[CREDENTIALS]** for live testing.
+
+### Milestone 04 — Mobile app shell + onboarding flow [ ]
 Scope:
-- Build admin panel in web dashboard (role-gated).
-- CRUD for tasks: create, read, update, delete, reorder.
-- Markdown editor for task body, explanation, and deeper reading.
-- Mobile preview mode (shows how a task will render on phone).
-- Task fields: title, body, explanation, deeper reading, difficulty, duration, tags, active flag.
+- Set up navigation: bottom tab bar (Journey, Community, Progress, Settings) using Expo Router or React Navigation.
+- Implement onboarding flow (< 60 seconds): welcome screen → name entry → one motivating question → redirect to Day 1 task.
+- Onboarding state stored in `profiles.onboarding_complete` + `profiles.motivating_answer`.
+- App shell: show correct tab based on auth + onboarding state.
+- NativeWind setup for styling.
 
 Key files/modules:
-- `apps/api/src/routes/admin/tasks.ts`
-- `apps/web/src/pages/admin/TaskEditor.tsx`
-- `apps/web/src/pages/admin/TaskList.tsx`
-- `apps/web/src/components/MobilePreview.tsx`
-
-Acceptance criteria:
-- Admin can create, edit, reorder, and delete tasks.
-- Task preview matches intended mobile layout.
-- Non-admin users cannot access admin routes.
-
-### Milestone 05 - Mobile app shell + onboarding flow [ ]
-Scope:
-- Build mobile app shell: bottom tab navigation, screen structure.
-- Implement onboarding flow (< 60 seconds): name entry, one motivating question, straight to Day 1.
-- Auth integration (login/register screens).
-- App shell shows: Journey tab, Community tab, Progress tab, Settings tab.
-
-Key files/modules:
-- `apps/mobile/src/navigation/`
-- `apps/mobile/src/screens/onboarding/`
-- `apps/mobile/src/screens/auth/`
+- `apps/mobile/src/navigation/` (or `apps/mobile/app/` if using Expo Router)
+- `apps/mobile/src/screens/onboarding/WelcomeScreen.tsx`
+- `apps/mobile/src/screens/onboarding/NameScreen.tsx`
+- `apps/mobile/src/screens/onboarding/MotivationScreen.tsx`
 - `apps/mobile/src/components/TabBar.tsx`
+- `apps/mobile/tailwind.config.js`
 
 Acceptance criteria:
-- New user flows: launch → onboarding → Day 1 task in < 60 seconds.
-- Tab navigation works across all shells.
-- Auth state persists across app restarts.
+- New user flow: launch → onboarding → Day 1 task. **[LOCAL]**
+- Onboarding completes in < 60 seconds (3 screens max). **[MANUAL]**
+- Tab navigation works across all tabs. **[LOCAL]**
+- Auth state persists across app restarts. **[LOCAL]**
+- NativeWind classes render correctly. **[LOCAL]**
 
-### Milestone 06 - Journey engine: task display + progression [ ]
+### Milestone 05 — Journey engine: task display + progression [ ]
 Scope:
-- Fetch tasks from API with user progress state.
+- Fetch tasks from Supabase with user's progress state (joined query: tasks + user_progress).
+- Build `get-journey-state` Edge Function: returns current task, streak count, progress map, reinforcement review (if any).
 - Render task screen: task-first layout (action above fold, explanation below, deeper reading expandable).
-- Journey list showing completed / active / locked states.
-- Gated progression: "Mark as done" triggers check-in flow.
-- Time-gating: next task unlocks no earlier than the following calendar day.
+- Journey list showing completed / active / locked states with visual indicators.
+- Gated progression: "I did it" button triggers check-in sheet (Milestone 06).
+- Time-gating: next task unlocks no earlier than the following calendar day (enforced server-side).
+- Initialize user_progress rows for all 30 tasks on first journey start (task 1 = 'active', rest = 'locked').
 
 Key files/modules:
-- `apps/api/src/routes/tasks.ts`
-- `apps/api/src/routes/progress.ts`
-- `apps/api/src/services/journeyService.ts`
+- `supabase/functions/get-journey-state/index.ts`
 - `apps/mobile/src/screens/journey/TaskScreen.tsx`
 - `apps/mobile/src/screens/journey/JourneyList.tsx`
-- `packages/shared/src/types/task.ts`
-- `packages/shared/src/types/progress.ts`
+- `apps/mobile/src/hooks/useJourneyState.ts` (TanStack Query hook calling Edge Function)
+- `packages/shared/src/types/journey.ts` (JourneyState type)
 
 Acceptance criteria:
-- Active task renders with correct layout hierarchy.
-- Locked tasks show but cannot be accessed.
-- Completed tasks are reviewable.
-- Next task does not unlock until the following day.
+- Active task renders with task body above fold, explanation below. **[LOCAL]**
+- Locked tasks show title + lock icon, cannot be tapped into. **[LOCAL]**
+- Completed tasks are reviewable (show content + check-in data). **[LOCAL]**
+- `get-journey-state` Edge Function returns correct data. **[AUTO]** (test with Deno test)
+- Time-gating enforced: completing a check-in today does not unlock next task until tomorrow. **[AUTO]**
 
-### Milestone 07 - Check-in system (quick + optional depth) [ ]
+### Milestone 06 — Check-in system (quick + optional depth) [ ]
 Scope:
-- Build check-in flow: quick rating (emoji/1-5) + "did you try it?" toggle.
-- Optional deeper prompts (what happened, what was hard, what surprised you).
-- Check-in submission unlocks next task (respecting time gate).
-- Check-in history stored and accessible.
-- Offline queue: check-ins submitted offline sync when connectivity returns.
+- Build `complete-check-in` Edge Function: validates check-in data, inserts into `check_ins` table, updates `user_progress` (marks current task completed, unlocks next if time-gate allows), creates/updates `spaced_repetition_state` for the completed task.
+- Build check-in bottom sheet UI: emoji/1-5 rating selector, "did you try it?" toggle, submit button.
+- Optional deeper prompts (expandable section): what happened, what was hard, what surprised you.
+- Check-in history: viewable per task on the task detail screen.
+- Offline queue: if no connectivity, store check-in in Zustand persist store, replay on reconnect.
 
 Key files/modules:
-- `apps/api/src/routes/progress.ts` (check-in endpoint)
-- `apps/api/src/services/checkInService.ts`
+- `supabase/functions/complete-check-in/index.ts`
 - `apps/mobile/src/screens/journey/CheckInSheet.tsx`
-- `apps/mobile/src/stores/offlineQueue.ts`
+- `apps/mobile/src/components/EmojiRating.tsx`
+- `apps/mobile/src/stores/offlineQueueStore.ts`
+- `apps/mobile/src/hooks/useCheckIn.ts`
 
 Acceptance criteria:
-- Quick check-in takes < 10 seconds.
-- Optional prompts are skippable.
-- Check-in submission triggers task progression.
-- Offline check-ins sync correctly on reconnect.
+- Quick check-in UI takes < 10 seconds to complete. **[MANUAL]**
+- Optional prompts are visible but skippable. **[LOCAL]**
+- `complete-check-in` Edge Function validates and persists correctly. **[AUTO]** (Deno test)
+- Check-in triggers task progression (respecting time-gate). **[AUTO]**
+- Offline check-ins queue and replay on reconnect. **[LOCAL]**
 
-### Milestone 08 - Spaced-repetition engine [ ]
+### Milestone 07 — Spaced-repetition engine [ ]
 Scope:
-- Implement SM-2 based algorithm with ADHD modifications.
-- Track per-user per-task: ease factor, interval, review count, next review date.
-- Daily job computes reinforcement reviews for each user.
-- Reinforcement appears as a lightweight review card on the journey screen.
-- Multi-day task extension when struggle is detected.
-- Admin-tunable parameters (base interval, ease floor, struggle threshold, max reviews/day, decay multiplier).
+- Implement SM-2 algorithm with ADHD modifications as a pure function in `packages/shared/src/algorithm/spacedRepetition.ts`. See `architecture.md` for formula and modifications.
+- Build `daily-reviews` Edge Function: reads `spaced_repetition_state` for all users, computes which tasks need review today, marks them in a `reinforcement_reviews` concept (could be a computed field or separate lightweight table/view).
+- Update `get-journey-state` to include today's reinforcement review task (if any).
+- Build review card UI on mobile: shows past task as a lightweight reminder + mini check-in (rating only).
+- Admin-tunable parameters via `spaced_repetition_config` table.
+- Comprehensive deterministic tests for the algorithm.
 
 Key files/modules:
-- `apps/api/src/services/spacedRepetitionService.ts`
-- `apps/api/src/jobs/dailyReviewJob.ts`
-- `apps/api/src/routes/progress.ts` (reinforcement endpoints)
-- `apps/mobile/src/screens/journey/ReviewCard.tsx`
 - `packages/shared/src/algorithm/spacedRepetition.ts`
 - `packages/shared/src/algorithm/__tests__/spacedRepetition.test.ts`
+- `supabase/functions/daily-reviews/index.ts`
+- `apps/mobile/src/screens/journey/ReviewCard.tsx`
 
 Acceptance criteria:
-- Same inputs produce same scheduling output (deterministic tests).
-- Reinforcement reviews surface at correct intervals.
-- Struggling tasks extend to multi-day.
-- Max 1 reinforcement review per day.
-- Admin can tune parameters via CMS.
+- Same inputs always produce same scheduling output. **[AUTO]**
+- Reinforcement reviews surface at correct intervals based on algorithm. **[AUTO]**
+- Struggling tasks (rating ≤ 2 or tried_it = false) trigger multi-day extension. **[AUTO]**
+- Max 1 reinforcement review per day. **[AUTO]**
+- Admin can change SR config via Supabase Studio (and later CMS). **[LOCAL]**
+- Algorithm test file has ≥ 15 test cases covering all ADHD modifications. **[AUTO]**
 
-### Milestone 09 - Notification engine (push + email) [ ]
+### Milestone 08 — Notification engine (push + email) [NEEDS CREDENTIALS] [ ]
 Scope:
-- Push notification infrastructure (APNs + FCM).
-- Email service integration (SendGrid, Resend, or equivalent).
-- Template system with variable interpolation.
-- Daily notification job: selects channel (rotating), selects template (tone diversity), sends.
-- Quiet hours enforcement.
-- User notification preferences (channels, quiet hours, timezone).
-- Device token registration endpoint.
+- Build `daily-notifications` Edge Function: cron-triggered, iterates active users, selects channel (rotating push/email), selects template (tone diversity, recency weighting), interpolates variables, dispatches.
+- Push: send via FCM HTTP v1 API. Mobile app registers for push via `expo-notifications`, stores token in `push_tokens` table.
+- Email: send via Resend API.
+- Quiet hours: skip users outside their notification window.
+- Notification log: record every send in `notification_log`.
+- Template rotation logic: don't repeat same tone_tag two days in a row, don't reuse same template within 7 days for a user.
+- User notification preferences UI in mobile settings screen.
+- **Stub mode**: if `FCM_SERVER_KEY` or `RESEND_API_KEY` env vars are missing, log `[STUB]` warnings and skip actual sends.
 
 Key files/modules:
-- `apps/api/src/services/notificationService.ts`
-- `apps/api/src/jobs/dailyNotificationJob.ts`
-- `apps/api/src/routes/notifications.ts`
-- `apps/api/src/db/templates/` (seed notification templates)
-- `apps/web/src/pages/admin/NotificationTemplates.tsx`
+- `supabase/functions/daily-notifications/index.ts`
+- `apps/mobile/src/hooks/usePushNotifications.ts`
+- `apps/mobile/src/screens/settings/NotificationPrefsScreen.tsx`
+- Seed templates in `supabase/seed.sql` (already done in M02)
 
 Acceptance criteria:
-- Push notifications deliver to iOS and Android.
-- Email notifications deliver with varied templates.
-- Channel rotates daily (not both on same day).
-- Tone tags don't repeat consecutively.
-- Quiet hours are respected.
-- Admin can manage templates via CMS.
+- Template rotation selects diverse tones and avoids recent repeats. **[AUTO]**
+- Channel rotates daily per user (push → email → push...). **[AUTO]**
+- Quiet hours are respected. **[AUTO]**
+- Notification log is populated after each send. **[AUTO]**
+- Push token registration works on mobile. **[LOCAL]**
+- Stub mode logs warnings and doesn't crash when credentials are missing. **[AUTO]**
+- Live push/email delivery works with real credentials. **[CREDENTIALS]**
 
-### Milestone 10 - Community: per-task discussion threads [ ]
+### Milestone 09 — Community: per-task discussion threads [ ]
 Scope:
-- Per-task discussion threads, gated by task unlock.
-- Create posts, reply, react (emoji).
-- Author display: first name + day number.
-- Report button for moderation.
-- Admin moderation in CMS (view, hide/delete posts).
+- Mobile screens: community tab shows list of unlocked task threads; tapping opens thread with posts, replies, reactions.
+- Create post, reply, react (emoji) — all via direct Supabase client calls (RLS handles gating).
+- Author display: first name + day number (e.g., "Sarah — Day 12").
+- Report button: inserts a report record (or flags the post).
+- Admin moderation page in web dashboard: view reported/all posts, hide/unhide, delete.
+- Optional: Supabase Realtime subscription for live thread updates.
 
 Key files/modules:
-- `apps/api/src/routes/community.ts`
-- `apps/api/src/services/communityService.ts`
-- `apps/mobile/src/screens/community/TaskThread.tsx`
 - `apps/mobile/src/screens/community/CommunityList.tsx`
-- `apps/web/src/pages/admin/Moderation.tsx`
+- `apps/mobile/src/screens/community/TaskThread.tsx`
+- `apps/mobile/src/components/PostCard.tsx`
+- `apps/web/src/app/admin/moderation/page.tsx`
 
 Acceptance criteria:
-- Users can only see threads for tasks they've unlocked.
-- Posts, replies, and reactions work.
-- Reported posts appear in admin moderation queue.
-- Admin can hide/delete posts.
+- Users can only see threads for tasks they've unlocked (RLS enforced). **[AUTO]** (test with two different user tokens)
+- Posts, replies, and reactions create/read correctly. **[LOCAL]**
+- Reported posts appear in admin moderation page. **[LOCAL]**
+- Admin can hide/delete posts. **[LOCAL]**
+- Non-admin users cannot hide/delete other users' posts (RLS). **[AUTO]**
 
-### Milestone 11 - Payment + freemium gate [ ]
+### Milestone 10 — Admin CMS: task CRUD + templates + SR config [ ]
 Scope:
-- Paywall screen at task 16 with value proposition.
-- In-app purchase integration (StoreKit for iOS, Google Play Billing for Android).
-- Server-side receipt validation.
-- Entitlement checking on task access.
-- Graceful handling: free users can see task 16 title but not content.
+- Build admin section in web dashboard (gated by `profiles.role = 'admin'`).
+- Task management: list, create, edit, reorder (drag-and-drop), delete tasks. Markdown editor for body fields.
+- Mobile preview: render task content in a phone-shaped frame.
+- Notification template management: CRUD on `notification_templates` table.
+- Spaced-repetition config: edit `spaced_repetition_config` values.
+- Reward bundle management: upload/link resources via Supabase Storage.
 
 Key files/modules:
-- `apps/api/src/routes/payment.ts`
-- `apps/api/src/services/paymentService.ts`
-- `apps/mobile/src/screens/payment/PaywallScreen.tsx`
-- `apps/mobile/src/services/iapService.ts`
+- `apps/web/src/app/admin/layout.tsx` (admin layout with role check)
+- `apps/web/src/app/admin/tasks/page.tsx` (task list + reorder)
+- `apps/web/src/app/admin/tasks/[id]/page.tsx` (task editor)
+- `apps/web/src/app/admin/templates/page.tsx`
+- `apps/web/src/app/admin/settings/page.tsx` (SR config)
+- `apps/web/src/app/admin/rewards/page.tsx`
+- `apps/web/src/components/MobilePreview.tsx`
+- `apps/web/src/components/MarkdownEditor.tsx`
 
 Acceptance criteria:
-- Free users are blocked at task 16 with paywall screen.
-- Purchase flow works on both platforms (sandbox/test mode).
-- Receipt validation confirms entitlement.
-- Paid users access tasks 16–30 seamlessly.
+- Admin can create, edit, reorder, and delete tasks. **[LOCAL]**
+- Markdown editor renders preview correctly. **[LOCAL]**
+- Mobile preview shows task in phone-shaped frame. **[MANUAL]**
+- Non-admin users are redirected away from admin pages. **[AUTO]**
+- Notification templates CRUD works. **[LOCAL]**
+- SR config update persists. **[LOCAL]**
 
-### Milestone 12 - Progress + stats (in-app + web dashboard) [ ]
+### Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS] [ ]
 Scope:
-- In-app journey map / progress bar showing all 30 tasks with status.
-- Streak counter and streak display.
-- "Your journey" timeline with check-in history.
-- Web dashboard user stats: completion rate, average ratings, time per task, reinforcement history.
+- Paywall screen at task 16: value proposition, testimonials placeholder, purchase button.
+- RevenueCat SDK integration (`react-native-purchases`): configure offerings, trigger purchase.
+- Build `verify-payment` Edge Function: receives RevenueCat webhook, validates, updates `profiles.payment_status = 'paid'`.
+- Entitlement checking: on task navigation, check RevenueCat entitlements + `profiles.payment_status`.
+- Free users see task 16 title but paywall blocks content.
+- **Stub mode**: if `REVENUECAT_PUBLIC_SDK_KEY` is missing, show paywall UI but skip actual purchase flow with a "dev mode" bypass button.
+
+Key files/modules:
+- `apps/mobile/src/screens/payment/PaywallScreen.tsx`
+- `apps/mobile/src/lib/revenuecat.ts`
+- `apps/mobile/src/hooks/useEntitlement.ts`
+- `supabase/functions/verify-payment/index.ts`
+
+Acceptance criteria:
+- Free users are blocked at task 16 with paywall screen. **[AUTO]** (test progression logic)
+- Paywall UI renders with value proposition. **[LOCAL]**
+- `verify-payment` Edge Function updates payment_status correctly. **[AUTO]** (Deno test with mock webhook)
+- Dev mode bypass works when RevenueCat key is missing. **[LOCAL]**
+- Live purchase flow works in sandbox with real RevenueCat credentials. **[CREDENTIALS]**
+
+### Milestone 12 — Progress + stats (in-app + web dashboard) [ ]
+Scope:
+- In-app progress screen: visual journey map / progress bar showing all 30 tasks with status (completed/active/locked).
+- Streak counter: consecutive days with a check-in (computed from `check_ins` table).
+- "Your journey" timeline: scrollable history of completed tasks with check-in data.
+- Web dashboard user stats page: completion rate, average ratings, time per task, reinforcement history.
+- `admin-analytics` Edge Function: aggregates stats across all users for admin view.
 
 Key files/modules:
 - `apps/mobile/src/screens/progress/ProgressScreen.tsx`
 - `apps/mobile/src/components/JourneyMap.tsx`
 - `apps/mobile/src/components/StreakBadge.tsx`
-- `apps/web/src/pages/dashboard/UserStats.tsx`
-- `apps/api/src/routes/progress.ts` (stats endpoints)
+- `apps/web/src/app/dashboard/page.tsx`
+- `apps/web/src/app/admin/analytics/page.tsx`
+- `supabase/functions/admin-analytics/index.ts`
 
 Acceptance criteria:
-- Progress map accurately reflects user state.
-- Streak counter increments/resets correctly.
-- Web dashboard shows aggregate stats for admin view.
-- User can view their own history on web.
+- Progress map accurately reflects user state (tested with seeded data). **[LOCAL]**
+- Streak counter increments/resets correctly. **[AUTO]** (test streak calculation logic)
+- Web dashboard shows user's own stats. **[LOCAL]**
+- Admin analytics page shows aggregate data. **[LOCAL]**
+- `admin-analytics` Edge Function returns correct aggregations. **[AUTO]** (Deno test)
 
-### Milestone 13 - Home screen widget (iOS + Android) [ ]
+### Milestone 13 — Home screen widget (iOS + Android) [NEEDS CREDENTIALS] [ ]
 Scope:
-- iOS WidgetKit widget: progress ring, streak, task title, tap-to-open.
+- iOS WidgetKit widget: progress ring, streak, task title, tap-to-open deep link.
 - Android Glance/AppWidget: same display.
-- Data flow: API → app → shared storage → widget.
-- Widget refreshes on task unlock and periodic schedule.
+- Widget data flow: `get-journey-state` response → app writes to shared storage → widget reads from shared storage.
+- `expo-shared-preferences` or native module for shared storage bridge.
+- Widget refreshes on task unlock + periodic WidgetKit timeline / WorkManager.
 
 Key files/modules:
-- `apps/mobile/ios/Widget/` (WidgetKit extension)
-- `apps/mobile/android/app/src/main/java/.../widget/`
-- `apps/api/src/routes/widget.ts`
-- `apps/mobile/src/services/widgetService.ts`
+- `apps/mobile/ios/Widget/` (WidgetKit Swift extension)
+- `apps/mobile/android/app/src/main/java/.../widget/` (Kotlin/Java)
+- `apps/mobile/src/hooks/useWidgetUpdate.ts`
 
 Acceptance criteria:
-- Widget displays current day/30, streak, and task title on both platforms.
-- Tapping widget opens app to current task.
-- Widget updates when a new task is unlocked.
+- Widget code exists for both platforms. **[AUTO]** (compiles)
+- Widget displays day/30, streak, task title. **[MANUAL]** (requires native build)
+- Tapping widget deep links to current task. **[MANUAL]**
+- Widget data updates on task unlock. **[MANUAL]**
 
-### Milestone 14 - Mindful gateway (V1: guided tutorial) [ ]
+Note: Widgets require native builds (EAS Build or local Xcode/Android Studio). Cannot be tested in Expo Go. Tag fully as **[MANUAL]**.
+
+### Milestone 14 — Mindful gateway (V1: guided tutorial) [ ]
 Scope:
 - In-app tutorial screen for setting up iOS Shortcuts / Android automation.
-- Step-by-step instructions with screenshots/illustrations.
-- Deep links to Shortcuts app / automation settings where possible.
-- "Test it now" verification step.
-- This is one of the 30 journey tasks (authored in CMS).
+- Step-by-step instructions with illustrations (can use simple SVG or styled text cards — no need for screenshot assets in V1).
+- Deep links to iOS Shortcuts app / Android automation settings where possible.
+- "Test it now" verification step (prompt user to open a target app, check if shortcut fired).
+- This is one of the 30 journey tasks — the task content references this tutorial screen.
 
 Key files/modules:
 - `apps/mobile/src/screens/journey/MindfulGatewayTutorial.tsx`
 - `apps/mobile/src/components/StepByStepGuide.tsx`
-- Static assets: tutorial screenshots/illustrations
 
 Acceptance criteria:
-- Tutorial is clear and followable on both iOS and Android.
-- Deep links work where supported.
-- Tutorial is integrated as a journey task via CMS content.
+- Tutorial renders with clear steps on both platforms. **[LOCAL]**
+- Deep links open Shortcuts/automation settings. **[MANUAL]**
+- Tutorial is accessible from the relevant journey task. **[LOCAL]**
 
-### Milestone 15 - Post-completion phase [ ]
+### Milestone 15 — Post-completion phase [ ]
 Scope:
-- After task 30: random task reminders via notifications.
-- Knowledge quiz: 10–15 questions drawn from the 30 tasks.
+- Completion screen after task 30: congratulations, stats summary, options.
+- Knowledge quiz: 10–15 questions drawn from the 30 tasks (questions stored in Supabase or hardcoded in V1).
 - Quiz result: score + recommendation (restart or maintain).
-- Reward bundle: screen with links to digital resources (Notion boards, cheatsheet, book list, YouTube channels).
-- Option to restart the journey.
+- Reward bundle screen: links to digital resources stored in Supabase Storage or external URLs (Notion boards, cheatsheet, book list, YouTube channels).
+- "Restart journey" option: resets user_progress and spaced_repetition_state.
+- Post-completion random task reminders: `daily-notifications` Edge Function checks if user is in post-completion state and sends reminder for a random past task.
 
 Key files/modules:
-- `apps/api/src/services/postCompletionService.ts`
-- `apps/api/src/routes/quiz.ts`
+- `apps/mobile/src/screens/completion/CompletionScreen.tsx`
 - `apps/mobile/src/screens/completion/QuizScreen.tsx`
 - `apps/mobile/src/screens/completion/RewardScreen.tsx`
-- `apps/mobile/src/screens/completion/CompletionScreen.tsx`
-- `apps/web/src/pages/admin/RewardBundle.tsx`
+- `apps/web/src/app/admin/rewards/page.tsx` (manage reward links)
 
 Acceptance criteria:
-- Post-completion users receive random task reminders.
-- Quiz generates correctly and scores accurately.
-- Reward bundle is accessible after completion.
-- Restart resets progress and begins at task 1.
+- Completion screen shows after task 30 check-in. **[LOCAL]**
+- Quiz generates and scores correctly. **[AUTO]** (test quiz logic)
+- Reward bundle links are accessible. **[LOCAL]**
+- Restart resets progress and begins at task 1. **[AUTO]** (test reset logic)
+- Post-completion reminders are included in notification scheduling. **[AUTO]**
 
-### Milestone 16 - UX polish + animations [ ]
+### Milestone 16 — UX polish + animations [ ]
 Scope:
-- Spring-based animations for task cards, check-in, progress, and unlocks.
-- Haptic feedback on key interactions.
-- Empty states, toasts, and loading skeletons.
-- Dark mode support.
-- Reduced motion support.
-- Forgiveness UX: "Welcome back!" for returning users, no shame on missed days.
+- Spring-based animations via react-native-reanimated: task card entrance, check-in completion pop, progress bar fill, day unlock.
+- Haptic feedback via `expo-haptics`: light tap on check-in, medium on task unlock, success on day completion.
+- Loading skeletons for task screen, journey list, community threads.
+- Empty states: no tasks yet, no community posts, no check-in history.
+- Toasts for success/error feedback.
+- Dark mode: implement using NativeWind dark variant + Supabase user preference.
+- Reduced motion: respect OS `prefers-reduced-motion`, fall back to opacity fades.
+- Forgiveness UX: "Welcome back!" message for returning users after inactivity.
 
 Key files/modules:
-- `apps/mobile/src/animations/`
+- `apps/mobile/src/animations/springs.ts`
 - `apps/mobile/src/components/ui/Toast.tsx`
-- `apps/mobile/src/theme/`
+- `apps/mobile/src/components/ui/Skeleton.tsx`
+- `apps/mobile/src/components/ui/EmptyState.tsx`
 - `apps/mobile/src/hooks/useHaptics.ts`
+- `apps/mobile/src/theme/`
 
 Acceptance criteria:
-- Animations feel bouncy and quick (spring physics, not linear).
-- Dark mode works across all screens.
-- Reduced motion preference is respected.
-- Empty states are helpful, not blank.
-- Returning users see encouragement, not guilt.
+- Animations use spring physics, not linear easing. **[MANUAL]**
+- Dark mode toggles correctly across all screens. **[LOCAL]**
+- Reduced motion preference disables animations. **[LOCAL]**
+- Empty states display helpful content. **[LOCAL]**
+- Returning users see "Welcome back!" not shame. **[MANUAL]**
+- Haptics fire on correct interactions. **[MANUAL]**
 
-### Milestone 17 - Admin analytics + moderation dashboard [ ]
+### Milestone 17 — Admin analytics + moderation dashboard [ ]
 Scope:
-- Aggregate analytics: active users, drop-off points (which task loses users), completion rates, popular threads.
-- Moderation queue: reported posts with hide/delete actions.
-- Notification template management UI.
-- Spaced-repetition parameter tuning UI.
-- Reward bundle content management.
+- Analytics page: active users, drop-off points (which task number loses users), completion rates, popular discussion threads, notification open rates.
+- Charts/visualizations (use a simple charting lib like recharts).
+- Moderation queue: filter by reported posts, bulk actions.
+- This milestone polishes the admin sections built in M10 with richer data and better UX.
 
 Key files/modules:
-- `apps/web/src/pages/admin/Analytics.tsx`
-- `apps/web/src/pages/admin/Moderation.tsx`
-- `apps/web/src/pages/admin/Settings.tsx`
-- `apps/api/src/routes/admin/analytics.ts`
+- `apps/web/src/app/admin/analytics/page.tsx` (enhanced)
+- `apps/web/src/components/charts/` (DropOffChart, CompletionChart, etc.)
+- `apps/web/src/app/admin/moderation/page.tsx` (enhanced)
 
 Acceptance criteria:
-- Analytics dashboard shows actionable retention data.
-- Drop-off chart identifies which tasks lose users.
-- Admin can tune all configurable parameters.
+- Analytics dashboard shows drop-off chart by task number. **[LOCAL]**
+- Completion rate and active user counts are accurate. **[AUTO]** (test aggregation logic)
+- Moderation queue shows reported posts with bulk hide/delete. **[LOCAL]**
+- All admin pages are role-gated. **[AUTO]**
 
-### Milestone 18 - Testing hardening + final sweep [ ]
+### Milestone 18 — Testing hardening + final sweep [ ]
 Scope:
-- Comprehensive unit tests for: spaced-repetition, journey progression, check-in validation, notification scheduling, paywall gating.
-- Integration tests for: auth flow, full task unlock sequence, payment verification.
-- Accessibility audit: contrast, screen reader, touch targets.
-- Performance audit: app launch time, animation frame rate.
-- Documentation finalization.
+- Fill test coverage gaps: spaced-repetition edge cases, journey progression edge cases, RLS policy tests, notification scheduling edge cases, paywall gating logic.
+- Integration tests: full auth flow (register → login → access protected resource), full task unlock sequence (start → check-in → next task), payment verification (mock webhook).
+- Accessibility audit: contrast ratios (AA), VoiceOver/TalkBack labels, touch target sizes.
+- Documentation finalization: update `documentation.md` to match final state.
+- Final `plans.md` sweep: mark all milestones complete, verify checklist.
 
 Key files/modules:
-- Test files across all apps
+- Test files across all packages
 - `documentation.md` (final pass)
 - `plans.md` (final verification)
 
 Acceptance criteria:
-- All tests pass.
-- Accessibility meets AA standard.
-- App launch to current task < 2 seconds.
-- Animations at 60fps.
-- Documentation is accurate and complete.
+- All tests pass: `npx turbo lint && npx turbo typecheck && npx turbo test`. **[AUTO]**
+- Accessibility meets AA standard. **[MANUAL]**
+- App launch to current task < 2 seconds. **[MANUAL]**
+- Animations at 60fps. **[MANUAL]**
+- `documentation.md` is accurate and complete. **[MANUAL]**
+- All milestones in this file are checked off. **[AUTO]**
 
 ## Risk register (top technical risks + mitigations)
 
@@ -403,27 +447,31 @@ Acceptance criteria:
 
 ### 2) Spaced-repetition tuning
 - Risk: Algorithm is too aggressive (overwhelms user) or too passive (user forgets past tasks).
-- Mitigation: Conservative defaults, admin-tunable parameters, A/B testing infrastructure (V2), monitor review completion rates in analytics dashboard.
+- Mitigation: Conservative defaults, admin-tunable parameters via `spaced_repetition_config`, monitor review completion rates in analytics dashboard, adjust in real-time.
 
 ### 3) Notification deliverability
 - Risk: Push notifications silenced by OS, emails land in spam.
-- Mitigation: Follow platform best practices (notification channels on Android, provisional auth on iOS), monitor delivery rates, keep email sending domain warm, offer multiple channels.
+- Mitigation: Follow platform best practices (notification channels on Android, provisional auth on iOS), use FCM (well-supported), Resend (good deliverability), monitor open rates in `notification_log`, offer multiple channels.
 
 ### 4) Cross-platform widget
 - Risk: WidgetKit and Android widgets have very different APIs and constraints.
-- Mitigation: Keep widget simple (read-only, no interaction beyond tap), abstract data layer behind shared storage, accept visual differences between platforms.
+- Mitigation: Keep widget simple (read-only, no interaction beyond tap), abstract data layer behind shared storage, accept visual differences between platforms. Widget is a "nice to have" — core retention comes from notifications and the journey itself.
 
 ### 5) Payment integration
-- Risk: App Store / Google Play IAP is complex, receipt validation has edge cases (refunds, family sharing, sandbox vs production).
-- Mitigation: Use a library like RevenueCat or build minimal receipt validation, test thoroughly in sandbox, handle edge cases gracefully (re-validate on app launch).
+- Risk: IAP is complex, receipt validation has edge cases (refunds, family sharing, sandbox vs production).
+- Mitigation: RevenueCat handles all receipt validation, entitlement management, and cross-platform syncing. Dramatically reduces risk vs building from scratch. Free tier covers our needs.
 
 ### 6) Community moderation
 - Risk: Toxic posts, spam, or harmful content in discussion threads.
-- Mitigation: Report button, admin moderation queue, consider basic word filter, start with manual moderation given small initial user base.
+- Mitigation: Report button, admin moderation queue, RLS ensures content gating, start with manual moderation given small initial user base. Add word filter in V2 if needed.
 
 ### 7) Offline/sync conflicts
 - Risk: User submits check-in offline, then again on another device before sync.
-- Mitigation: Check-ins are append-only (no conflict), progression uses server as source of truth, offline queue syncs with idempotent operations.
+- Mitigation: Check-ins are append-only (no conflict), progression uses server (`complete-check-in` Edge Function) as source of truth, offline queue replays with idempotent check.
+
+### 8) Supabase Edge Function limitations
+- Risk: Edge Functions have cold starts, 60s timeout, limited runtime (Deno).
+- Mitigation: Keep functions small and focused. Heavy computation (like daily-notifications for many users) can be batched. Algorithm is a pure function in shared package, not an Edge Function. Monitor execution times.
 
 ## Retention strategy
 
@@ -454,38 +502,39 @@ Every feature in FocusLab is designed to combat the specific ways ADHD users dis
 
 See `architecture.md` for the full technical architecture. Key decisions:
 
-### Data model
-- Users, tasks, progress, check-ins, community posts, notification logs, spaced-repetition state.
-- Tasks are admin-authored via CMS, stored in database, fetched by mobile app.
-- Progress tracks per-user per-task state with unlock timestamps and algorithm metadata.
+### Backend
+- **Supabase** replaces a custom API server. CRUD operations use the Supabase JS client directly. Business logic lives in Edge Functions.
+- **No apps/api/ directory**, no ORM, no Redis, no custom auth middleware.
 
-### API design
-- RESTful JSON API with JWT auth.
-- Resource groups: auth, tasks, progress, community, notifications, payment, admin.
-- Rate limiting on auth and community endpoints.
+### Data model
+- Profiles (extends auth.users), tasks, user_progress, check_ins, spaced_repetition_state, community_posts/reactions/replies, notification_log/templates, spaced_repetition_config, push_tokens.
+- All tables have RLS policies. Schema managed via SQL migrations.
+- Types auto-generated from Postgres schema.
+
+### Auth
+- Supabase Auth handles everything: email/password, OAuth (Apple, Google), JWT, refresh tokens, rate limiting.
+- App stores session in AsyncStorage (mobile) / cookies (web).
 
 ### Spaced-repetition algorithm
-- SM-2 based with ADHD-specific modifications (shorter initial intervals, struggle detection, multi-day extension, review cap, decay boost).
-- Admin-tunable parameters.
-- Deterministic: same inputs always produce same scheduling output.
+- SM-2 based with ADHD modifications (shorter initial intervals, struggle detection, multi-day extension, review cap, decay boost).
+- Pure function in `packages/shared/` — no DB deps, fully testable.
+- Admin-tunable via `spaced_repetition_config` table.
 
 ### Notification engine
-- Daily per-user job: select channel (rotating), select template (tone diversity), interpolate variables, send.
+- `daily-notifications` Edge Function: cron-triggered, selects channel (rotating), selects template (tone diversity), interpolates variables, sends via FCM/Resend.
 - Quiet hours enforcement.
-- Push (APNs + FCM) + email for V1.
+- Stubs when credentials are missing.
 
 ### Payment
-- In-app purchase (StoreKit + Google Play Billing).
-- Server-side receipt validation.
-- Entitlement stored on user record.
+- RevenueCat SDK handles StoreKit + Google Play Billing + receipt validation + entitlements.
+- `verify-payment` Edge Function receives webhook and updates DB.
 
 ### Offline strategy
-- Current task and check-in history cached locally.
-- Check-ins queued offline and synced on reconnect.
-- Server is source of truth for progression.
+- TanStack Query caches reads. Zustand + persist queues offline check-ins.
+- Server (Edge Functions) is source of truth for progression.
 
 ### Widget
-- Lightweight API endpoint → app caches to shared storage → widget reads from shared storage.
+- `get-journey-state` response → app writes to shared storage → widget reads from shared storage.
 - Refreshes on task unlock + periodic schedule.
 
 ## Implementation notes and decision log (updated as we go)

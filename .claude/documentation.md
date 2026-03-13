@@ -7,86 +7,143 @@ This document is updated continuously as milestones land so it reflects reality.
 - A mobile-first ADHD journey app that guides users through a 30-task sequential program designed to build lasting focus habits.
 - Content is drawn from ADHD research (Dr. Alok Kanojia's "30 Days with ADHD", HealthyGamerGG, motivational literature).
 - The app uses gated progression, spaced reinforcement (SM-2 inspired algorithm), novelty-driven notifications, and community accountability to maximize retention for ADHD users.
-- Platforms: iOS + Android (native, primary), web dashboard (admin CMS + user stats, secondary).
+- Platforms: iOS + Android (React Native + Expo, primary), Next.js web dashboard (admin CMS + user stats, secondary).
+- Backend: Supabase (Postgres, Auth, Storage, Edge Functions). No custom API server.
 
 ## Status
 
-- Milestone 01: not started
-- Milestone 02: not started
-- Milestone 03: not started
-- Milestone 04: not started
-- Milestone 05: not started
-- Milestone 06: not started
-- Milestone 07: not started
-- Milestone 08: not started
-- Milestone 09: not started
-- Milestone 10: not started
-- Milestone 11: not started
-- Milestone 12: not started
-- Milestone 13: not started
-- Milestone 14: not started
-- Milestone 15: not started
-- Milestone 16: not started
-- Milestone 17: not started
-- Milestone 18: not started
+- Milestone 01 — Repo scaffold + tooling: not started
+- Milestone 02 — Database schema + migrations + seed: not started
+- Milestone 03 — Auth integration (Supabase Auth): not started
+- Milestone 04 — Mobile app shell + onboarding: not started
+- Milestone 05 — Journey engine: task display + progression: not started
+- Milestone 06 — Check-in system: not started
+- Milestone 07 — Spaced-repetition engine: not started
+- Milestone 08 — Notification engine [NEEDS CREDENTIALS]: not started
+- Milestone 09 — Community threads: not started
+- Milestone 10 — Admin CMS: not started
+- Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS]: not started
+- Milestone 12 — Progress + stats: not started
+- Milestone 13 — Home screen widget [NEEDS CREDENTIALS]: not started
+- Milestone 14 — Mindful gateway tutorial: not started
+- Milestone 15 — Post-completion phase: not started
+- Milestone 16 — UX polish + animations: not started
+- Milestone 17 — Admin analytics + moderation: not started
+- Milestone 18 — Testing hardening + final sweep: not started
 
 ## Local setup
 
-(Will be populated when tech stack is finalized and Milestone 01 is complete.)
-
 ### Prerequisites
-- Node LTS on macOS
-- iOS: Xcode + iOS Simulator (for iOS development)
-- Android: Android Studio + emulator (for Android development)
-- Database: PostgreSQL (local or Docker)
-- Redis: local or Docker (for caching/sessions)
+- **Node.js 20+** (LTS)
+- **Supabase CLI**: `brew install supabase/tap/supabase`
+- **Docker Desktop**: required by `supabase start` to run the local Postgres, Auth, Storage, and Studio
+- **Expo CLI**: included via `npx expo`
+- **iOS development** (optional): Xcode + iOS Simulator
+- **Android development** (optional): Android Studio + emulator
 
-### Dev commands (TBD — will match chosen framework)
-- Mobile app dev server
-- Web dashboard dev server
-- Backend API dev server
-- Run all services concurrently
+### First-time setup
+```bash
+# Clone the repo
+git clone <repo-url> && cd focuslab
+
+# Install dependencies
+npm install
+
+# Start local Supabase stack (requires Docker Desktop running)
+supabase start
+
+# Apply migrations and seed data
+supabase db reset
+
+# Generate TypeScript types from schema
+supabase gen types typescript --local > packages/shared/src/types/database.ts
+
+# Copy environment template and fill in local values
+cp .env.example .env.local
+# Local Supabase values are printed by `supabase start` — copy them into .env.local
+
+# Start all dev servers
+npx turbo dev
+```
+
+### Dev commands
+- `supabase start` — Start local Supabase stack (Postgres, Auth, Storage, Studio at localhost:54323)
+- `supabase functions serve` — Serve Edge Functions locally (Deno runtime)
+- `npx turbo dev` — Start mobile (Expo) + web (Next.js) dev servers concurrently
+- `npx expo start` (from `apps/mobile/`) — Start Expo dev server only
+- `npm run dev` (from `apps/web/`) — Start Next.js dev server only
+- `supabase stop` — Stop local Supabase stack
 
 ## Verification commands
 
-(Will be populated per chosen stack.)
-- Lint
-- Typecheck
-- Unit tests
-- Integration tests
-- Build
+Run after every milestone:
+```bash
+npx turbo lint        # ESLint across monorepo (zero warnings)
+npx turbo typecheck   # Strict TypeScript checks
+npx turbo test        # All unit + integration tests
+supabase db reset     # Verify migrations + seed apply cleanly
+```
+
+Build:
+```bash
+npx turbo build       # Production builds for all apps
+```
+
+Database:
+```bash
+supabase db push                           # Apply pending migrations
+supabase db reset                          # Reset + re-apply all migrations + seed
+supabase gen types typescript --local > packages/shared/src/types/database.ts  # Regenerate types
+supabase functions deploy <function-name>  # Deploy Edge Function to production
+```
 
 ## Admin CMS usage
 
-(Will be documented when Milestone 04 is complete.)
-- How to access the admin panel
-- How to create / edit / reorder tasks
-- How to manage notification templates
-- How to tune spaced-repetition parameters
-- How to moderate community posts
-- How to manage reward bundle content
+(Will be documented when Milestone 10 is complete.)
+- Access: navigate to `/admin` on the web dashboard. Requires `profiles.role = 'admin'`.
+- Task management: create, edit, reorder (drag-and-drop), delete the 30 journey tasks. Markdown editor for body fields.
+- Notification templates: CRUD on `notification_templates` table — manage push and email templates with tone tags.
+- Spaced-repetition config: edit base intervals, ease floor, struggle threshold, max reviews/day, decay multiplier.
+- Community moderation: view reported posts, hide/unhide, delete.
+- Reward bundle: upload files to Supabase Storage or manage external links.
 
 ## Notification configuration
 
-(Will be documented when Milestone 09 is complete.)
-- Push notification setup (APNs + FCM credentials)
-- Email service setup (API keys, sender domain)
-- Template management via CMS
-- Quiet hours and timezone handling
+(Will be documented when Milestone 08 is complete.)
+
+### Required credentials
+- **FCM_SERVER_KEY**: Firebase Cloud Messaging server key. Get from Firebase Console → Project Settings → Cloud Messaging.
+- **RESEND_API_KEY**: Resend API key. Get from [resend.com/api-keys](https://resend.com/api-keys).
+- **RESEND_FROM_EMAIL**: Verified sender email in Resend (e.g., `hello@focuslab.app`).
+
+### Stub mode
+If credentials are missing, the notification Edge Function logs `[STUB]` warnings and skips actual sends. The rest of the flow (template selection, channel rotation, notification log) still executes.
+
+### Template management
+- Templates are stored in the `notification_templates` table and managed via the admin CMS.
+- Each template has: channel (push/email), subject/title, body with `{{variable}}` interpolation, tone_tag for diversity rotation.
+- The `daily-notifications` Edge Function is triggered by pg_cron and handles channel rotation, template selection, quiet hours, and dispatch.
 
 ## Payment flow testing
 
 (Will be documented when Milestone 11 is complete.)
-- Sandbox/test environment setup for iOS and Android
-- How to trigger test purchases
-- How to verify receipt validation
-- How to test entitlement gating
+
+### Required credentials
+- **REVENUECAT_PUBLIC_SDK_KEY**: RevenueCat public SDK key for mobile app.
+- **REVENUECAT_SECRET_KEY**: RevenueCat secret key for webhook verification in `verify-payment` Edge Function.
+
+### Dev mode bypass
+If `REVENUECAT_PUBLIC_SDK_KEY` is missing, the paywall screen shows a "Dev mode: bypass payment" button that sets `profiles.payment_status = 'paid'` directly.
+
+### Sandbox testing
+- iOS: use App Store sandbox test accounts (Settings → App Store → Sandbox Account).
+- Android: use Google Play test tracks or license testing.
+- RevenueCat sandbox mode: SDK automatically uses sandbox when the app is in debug/development.
 
 ## Demo flow
 
-(Will be refined as milestones land.)
 1. Launch app → onboarding (name + motivating question) → Day 1 task appears
-2. Read task, try it, tap "Done" → quick check-in (emoji rating + did-you-try-it)
+2. Read task, try it, tap "I did it" → quick check-in (emoji rating + did-you-try-it toggle)
 3. Optional: fill in deeper reflection prompts
 4. Next day: new task unlocked, previous task enters spaced-repetition pool
 5. Reinforcement review card appears alongside active task when algorithm schedules it
@@ -98,72 +155,82 @@ This document is updated continuously as milestones land so it reflects reality.
 
 ## Repo structure overview
 
-(Will be finalized in Milestone 01.)
+See `agents.md` for the full annotated project structure. Key points:
 
 ```
 focuslab/
 ├── apps/
-│   ├── mobile/          # React Native / Expo — iOS + Android
-│   │   ├── src/
-│   │   │   ├── screens/       # Screen components by feature
-│   │   │   ├── components/    # Shared UI components
-│   │   │   ├── navigation/    # Tab + stack navigation
-│   │   │   ├── stores/        # State management
-│   │   │   ├── services/      # API client, IAP, widget bridge
-│   │   │   ├── hooks/         # Custom hooks
-│   │   │   ├── animations/    # Spring animation configs
-│   │   │   └── theme/         # Colors, typography, spacing tokens
-│   │   ├── ios/               # iOS native (WidgetKit extension)
-│   │   └── android/           # Android native (widget, etc.)
-│   │
-│   ├── web/             # Next.js or Vite + React — admin CMS + user dashboard
-│   │   ├── src/
-│   │   │   ├── pages/         # Route pages (admin/, dashboard/)
-│   │   │   ├── components/    # Shared UI components
-│   │   │   └── services/      # API client
-│   │   └── ...
-│   │
-│   └── api/             # Backend API (Node.js)
-│       ├── src/
-│       │   ├── routes/        # REST endpoints by resource
-│       │   ├── services/      # Business logic (journey, spaced-rep, notifications)
-│       │   ├── jobs/          # Scheduled jobs (daily notifications, reviews)
-│       │   ├── middleware/    # Auth, rate limiting, error handling
-│       │   ├── db/            # Schema, migrations, seed
-│       │   └── utils/         # Helpers
-│       └── ...
-│
+│   ├── mobile/                # React Native + Expo — iOS + Android
+│   │   └── src/screens/       # Organized by feature (journey/, community/, progress/, auth/, etc.)
+│   └── web/                   # Next.js 14+ (App Router) — admin CMS + user dashboard
+│       └── src/app/           # App Router pages (admin/, dashboard/, auth/)
 ├── packages/
-│   └── shared/          # Shared TypeScript types + utilities
-│       └── src/
-│           ├── types/         # Task, Progress, CheckIn, User, etc.
-│           └── algorithm/     # Spaced-repetition (pure, testable)
-│
-├── .claude/             # Project spec files (this directory)
-├── docs/                # Additional documentation
-└── package.json         # Workspace root
+│   └── shared/                # Shared TS types (auto-generated from DB) + spaced-repetition algorithm
+├── supabase/
+│   ├── migrations/            # SQL schema migrations
+│   ├── functions/             # Edge Functions (Deno) — business logic
+│   ├── seed.sql               # 30 tasks, notification templates, SR config
+│   └── config.toml            # Local dev config
+├── .claude/                   # Project spec files
+├── .env.example               # All required environment variables
+└── turbo.json                 # Turborepo pipeline config
 ```
+
+**No `apps/api/` directory.** Supabase replaces the custom API server. CRUD via Supabase JS client, business logic via Edge Functions.
+
+## Edge Functions reference
+
+| Function | Trigger | Description |
+|---|---|---|
+| `get-journey-state` | HTTP (client call) | Returns current task, streak, progress map, reinforcement review |
+| `complete-check-in` | HTTP (client call) | Validates check-in, updates progress, triggers SR recalculation |
+| `daily-notifications` | pg_cron (daily) | Selects channel + template per user, dispatches via FCM/Resend |
+| `daily-reviews` | pg_cron (daily) | Computes reinforcement reviews from SR algorithm |
+| `verify-payment` | Webhook (RevenueCat) | Validates purchase, updates payment_status |
+| `admin-analytics` | HTTP (admin call) | Aggregates stats for admin dashboard |
+
+## Environment variables reference
+
+All variables are documented in `.env.example`. Required for production:
+
+| Variable | Required | Description |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL (local: from `supabase start` output) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Edge Functions only | Service role key (never expose to client) |
+| `FCM_SERVER_KEY` | For push notifications | Firebase Cloud Messaging server key |
+| `RESEND_API_KEY` | For email | Resend API key |
+| `RESEND_FROM_EMAIL` | For email | Verified sender email address |
+| `REVENUECAT_PUBLIC_SDK_KEY` | For payments (mobile) | RevenueCat public SDK key |
+| `REVENUECAT_SECRET_KEY` | For payments (webhook) | RevenueCat secret key for verification |
+
+For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required (printed by `supabase start`). All other services gracefully stub when their keys are missing.
 
 ## Data model overview (high level)
 
-- **Users**: auth credentials, profile, payment status, notification preferences
-- **Tasks**: admin-authored content (title, task body, explanation, deeper reading, difficulty, tags)
-- **User Progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking
-- **Check-ins**: quick rating + optional deeper reflections, tied to task + user
-- **Spaced Repetition State**: per-user per-task algorithm state (ease factor, interval, next review date)
-- **Community Posts**: text posts on per-task threads, with replies and emoji reactions
-- **Notification Log**: sent notifications with template, channel, and open tracking
-- **Notification Templates**: admin-managed templates with tone tags for diversity rotation
+- **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state
+- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags
+- **user_progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking
+- **check_ins**: quick rating + optional deeper reflections, tied to task + user
+- **spaced_repetition_state**: per-user per-task algorithm state (ease factor, interval, review count, next review date)
+- **spaced_repetition_config**: admin-tunable algorithm parameters (singleton row)
+- **community_posts / community_reactions / community_replies**: per-task discussion threads with reactions and replies
+- **notification_log**: record of every sent notification (template, channel, status)
+- **notification_templates**: admin-managed push/email templates with tone tags
+- **push_tokens**: device tokens for FCM push notifications
 
-See `architecture.md` for the complete schema and API design.
+All tables have Row Level Security (RLS) policies. See `architecture.md` for the complete schema.
 
 ## Troubleshooting
 
-(Will be populated as issues are discovered during implementation.)
-
 ### Common issues
-- **Database connection fails**: Ensure PostgreSQL is running locally or via Docker. Check connection string in `.env`.
-- **Push notifications not delivering**: Verify APNs/FCM credentials are configured. Check device token registration.
-- **Widget not updating**: Widget reads from shared app storage. Ensure the app has written fresh data after task unlock.
-- **Payment sandbox issues**: Ensure you're using sandbox/test accounts for App Store and Google Play. Production receipts won't validate in sandbox mode.
-- **Auth token expired**: The app should auto-refresh tokens. If it fails, log out and back in.
+
+- **`supabase start` fails**: Ensure Docker Desktop is running. Check that ports 54321–54324 are not in use. Try `supabase stop` then `supabase start` again.
+- **`supabase db reset` fails**: Check SQL syntax in migrations. Look at the error message — it usually points to the exact line. Ensure `seed.sql` doesn't reference tables not yet created.
+- **Types out of date**: After any migration change, regenerate: `supabase gen types typescript --local > packages/shared/src/types/database.ts`
+- **Push notifications not delivering**: Check `FCM_SERVER_KEY` env var. If missing, stub mode is active (check logs for `[STUB]`). Verify device token is registered in `push_tokens` table.
+- **Email not sending**: Check `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. Verify sender domain in Resend dashboard.
+- **Widget not updating**: Widget reads from shared app storage. Ensure the app has written fresh data after task unlock. Widgets cannot be tested in Expo Go — requires native build.
+- **Payment sandbox issues**: Ensure RevenueCat is configured with sandbox credentials. Check `verify-payment` Edge Function logs. Dev mode bypass is available when `REVENUECAT_PUBLIC_SDK_KEY` is missing.
+- **Auth token expired**: Supabase JS client auto-refreshes tokens. If it fails, the user will be redirected to login. Check Supabase Auth logs in Studio (localhost:54323).
+- **Edge Function not responding**: Run `supabase functions serve` to serve locally. Check Deno runtime errors in terminal output. Ensure the function directory name matches the invocation URL.
