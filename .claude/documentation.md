@@ -208,7 +208,7 @@ For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 ## Data model overview (high level)
 
-- **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state
+- **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state, theme preference (light/dark/system)
 - **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags
 - **user_progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking
 - **check_ins**: quick rating + optional deeper reflections, tied to task + user

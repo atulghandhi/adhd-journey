@@ -56,7 +56,7 @@ Scope:
 - Write SQL migration(s) creating all tables from `architecture.md`: profiles, tasks, user_progress, check_ins, spaced_repetition_state, community_posts, community_reactions, community_replies, notification_log, notification_templates, spaced_repetition_config, push_tokens.
 - Write database trigger: auto-create `profiles` row when a new `auth.users` row is inserted.
 - Write RLS policies for all tables (as specified in `architecture.md`).
-- Write `supabase/seed.sql` with: 30 placeholder tasks (order 1–30, with realistic titles and placeholder markdown bodies), 8–12 notification templates (mix of push/email, varied tone_tags), default spaced_repetition_config row.
+- Write `supabase/seed.sql` with: 30 tasks sourced from `content/30-tasks-draft.md` (use the real titles and task bodies from that file, not placeholders), 8–12 notification templates (mix of push/email, varied tone_tags), default spaced_repetition_config row.
 - Generate TypeScript types: `supabase gen types typescript --local > packages/shared/src/types/database.ts`.
 - Export types from shared package.
 
@@ -103,14 +103,15 @@ Note: Social auth (Apple, Google) requires OAuth credentials. Implement the UI b
 
 ### Milestone 04 — Mobile app shell + onboarding flow [ ]
 Scope:
-- Set up navigation: bottom tab bar (Journey, Community, Progress, Settings) using Expo Router or React Navigation.
-- Implement onboarding flow (< 60 seconds): welcome screen → name entry → one motivating question → redirect to Day 1 task.
+- Set up navigation: bottom tab bar with 4 tabs (Journey, Community, Progress, Account) using **Expo Router** (file-based routing). Do not use React Navigation directly. See `design.md` for tab icons (lucide-react-native: compass, message-circle, bar-chart-2, user).
+- Implement onboarding flow (< 60 seconds, 3 screens max): welcome screen → name entry → motivating question ("What's the one thing you'd do if you could actually focus?" — single text input, placeholder: "Write a book, learn guitar, finish my project...", max 200 chars) → redirect to Day 1 task.
 - Onboarding state stored in `profiles.onboarding_complete` + `profiles.motivating_answer`.
+- The motivating answer is resurfaced on Day 15 (paywall) and Day 30 (completion).
 - App shell: show correct tab based on auth + onboarding state.
 - NativeWind setup for styling.
 
 Key files/modules:
-- `apps/mobile/src/navigation/` (or `apps/mobile/app/` if using Expo Router)
+- `apps/mobile/app/` (Expo Router file-based routing)
 - `apps/mobile/src/screens/onboarding/WelcomeScreen.tsx`
 - `apps/mobile/src/screens/onboarding/NameScreen.tsx`
 - `apps/mobile/src/screens/onboarding/MotivationScreen.tsx`
@@ -151,7 +152,7 @@ Acceptance criteria:
 ### Milestone 06 — Check-in system (quick + optional depth) [ ]
 Scope:
 - Build `complete-check-in` Edge Function: validates check-in data, inserts into `check_ins` table, updates `user_progress` (marks current task completed, unlocks next if time-gate allows), creates/updates `spaced_repetition_state` for the completed task.
-- Build check-in bottom sheet UI: emoji/1-5 rating selector, "did you try it?" toggle, submit button.
+- Build check-in bottom sheet UI: 5 emoji faces in a horizontal row (😫 😕 😐 🙂 🤩, mapped to values 1–5), "did you try it?" pill toggle (`green-500` when on, `green-200` when off), submit button. See `design.md` for animation specs (snappy spring on selection).
 - Optional deeper prompts (expandable section): what happened, what was hard, what surprised you.
 - Check-in history: viewable per task on the task detail screen.
 - Offline queue: if no connectivity, store check-in in Zustand persist store, replay on reconnect.
@@ -222,7 +223,8 @@ Acceptance criteria:
 ### Milestone 09 — Community: per-task discussion threads [ ]
 Scope:
 - Mobile screens: community tab shows list of unlocked task threads; tapping opens thread with posts, replies, reactions.
-- Create post, reply, react (emoji) — all via direct Supabase client calls (RLS handles gating).
+- Create post, reply, react — all via direct Supabase client calls (RLS handles gating).
+- Reactions: fixed emoji set below each post: 👎 👍 🔥 ❤️ 😮. Tap to toggle. Active reaction shows count in a `green-100` pill.
 - Author display: first name + day number (e.g., "Sarah — Day 12").
 - Report button: inserts a report record (or flags the post).
 - Admin moderation page in web dashboard: view reported/all posts, hide/unhide, delete.
@@ -270,7 +272,12 @@ Acceptance criteria:
 
 ### Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS] [ ]
 Scope:
-- Paywall screen at task 16: value proposition, testimonials placeholder, purchase button.
+- Paywall screen at task 16 (layout top to bottom):
+    1. User's `motivating_answer` from onboarding ("You said you wanted to: [answer]")
+    2. "You've completed 15 days. The next 15 unlock:" + 3 bullet points (deeper strategies, community access for all tasks, reward bundle)
+    3. Price display: "$X.XX one time — not a subscription" (price from RevenueCat offering)
+    4. Purchase button (primary CTA, `green-500`, full width)
+    5. "Maybe later" ghost text link (dismisses paywall, user stays on Day 15)
 - RevenueCat SDK integration (`react-native-purchases`): configure offerings, trigger purchase.
 - Build `verify-payment` Edge Function: receives RevenueCat webhook, validates, updates `profiles.payment_status = 'paid'`.
 - Entitlement checking: on task navigation, check RevenueCat entitlements + `profiles.payment_status`.
@@ -353,10 +360,14 @@ Acceptance criteria:
 
 ### Milestone 15 — Post-completion phase [ ]
 Scope:
-- Completion screen after task 30: congratulations, stats summary, options.
-- Knowledge quiz: 10–15 questions drawn from the 30 tasks (questions stored in Supabase or hardcoded in V1).
-- Quiz result: score + recommendation (restart or maintain).
-- Reward bundle screen: links to digital resources stored in Supabase Storage or external URLs (Notion boards, cheatsheet, book list, YouTube channels).
+- Completion screen after task 30: congratulations with user's `motivating_answer` resurfaced, stats summary, options.
+- Knowledge quiz: 15 questions, one derived per task from task content. Multiple choice (4 options, one correct). Select 15 random questions per attempt. Store in `quiz_questions` table or JSON in `content/`.
+- Quiz result: score + recommendation ("Great retention!" or "Consider restarting the areas you missed").
+- Reward bundle screen: links to digital resources via CMS. Seed with 4 placeholder items:
+    * "ADHD Focus Toolkit" (Notion template) — placeholder URL
+    * "30-Day Cheatsheet" (PDF) — placeholder URL
+    * "Top 10 ADHD Books" — placeholder URL
+    * "Focus YouTube Channels" — placeholder URL
 - "Restart journey" option: resets user_progress and spaced_repetition_state.
 - Post-completion random task reminders: `daily-notifications` Edge Function checks if user is in post-completion state and sends reminder for a random past task.
 
@@ -375,14 +386,18 @@ Acceptance criteria:
 
 ### Milestone 16 — UX polish + animations [ ]
 Scope:
-- Spring-based animations via react-native-reanimated: task card entrance, check-in completion pop, progress bar fill, day unlock.
-- Haptic feedback via `expo-haptics`: light tap on check-in, medium on task unlock, success on day completion.
-- Loading skeletons for task screen, journey list, community threads.
-- Empty states: no tasks yet, no community posts, no check-in history.
-- Toasts for success/error feedback.
-- Dark mode: implement using NativeWind dark variant + Supabase user preference.
-- Reduced motion: respect OS `prefers-reduced-motion`, fall back to opacity fades.
-- Forgiveness UX: "Welcome back!" message for returning users after inactivity.
+- Spring-based animations via react-native-reanimated `withSpring`. Use exact spring configs from `design.md`: `default` (damping:15, stiffness:150), `snappy` (damping:12, stiffness:200), `gentle` (damping:20, stiffness:80), `quick` (damping:20, stiffness:300). Implement all signature motions from `design.md`.
+- Confetti burst on check-in completion: `react-native-confetti-cannon` or custom Skia/reanimated particles. 15-20 colored circles (`green-500` + `success` + `green-200`), localized burst from button, 400ms. NOT full-screen.
+- Haptic feedback via `expo-haptics`: see `design.md` haptics table for exact calls per interaction.
+- Loading skeletons for task screen, journey list, community threads. Use `moti/skeleton` or custom reanimated shimmer (`green-100` → `green-50` → `green-100`).
+- Empty states with centered illustration + message + CTA (see `design.md` for copy).
+- Toasts: bottom-positioned (60px above tab bar), `green-900` bg, `white` text, `quick` spring entrance, 3s auto-dismiss.
+- Dark mode: **manual toggle** in Settings (Light / Dark / System, default Light). Store in `profiles.theme_preference`. Implement using NativeWind dark variant.
+- Reduced motion: respect OS `prefers-reduced-motion` + manual toggle in Settings. When on: replace springs with 150ms opacity fades, disable confetti, keep haptics.
+- Forgiveness UX:
+    * 24–47h inactive: "Welcome back! Ready to pick up where you left off?" — dismissible banner, `green-100` bg.
+    * 48h+ inactive: "Hey — starting again is the hardest part, and you just did it. Let’s go." — dismissible banner, `green-100` bg.
+    * Never mention days missed. Hide streak badge if broken; re-show after next check-in.
 
 Key files/modules:
 - `apps/mobile/src/animations/springs.ts`

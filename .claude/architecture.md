@@ -124,7 +124,8 @@ All tables live in Supabase Postgres. Schema is managed via SQL migration files 
 - `payment_receipt` (jsonb, nullable)
 - `notification_preferences` (jsonb — `{ channels: [], quiet_start: "21:00", quiet_end: "08:00", timezone: "America/New_York" }`)
 - `onboarding_complete` (boolean, default false)
-- `motivating_answer` (text, nullable — from onboarding)
+- `motivating_answer` (text, nullable — from onboarding, max 200 chars)
+- `theme_preference` (text, default 'light' — values: 'light', 'dark', 'system')
 - `created_at`, `last_active_at`
 
 Note: Supabase Auth handles email, password hash, OAuth providers, JWT tokens, and refresh tokens automatically. The `profiles` table stores app-specific data, linked by `id` to `auth.users.id`. A database trigger auto-creates a profile row on signup.

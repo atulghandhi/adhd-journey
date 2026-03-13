@@ -9,11 +9,11 @@ focuslab/
 │   │   ├── src/
 │   │   │   ├── screens/       # Screen components by feature (journey/, community/, progress/, auth/, onboarding/, payment/, completion/, settings/)
 │   │   │   ├── components/    # Shared UI components
-│   │   │   ├── navigation/    # Tab + stack navigation (Expo Router or React Navigation)
+│   │   │   ├── navigation/    # Tab + stack navigation (Expo Router — file-based routing)
 │   │   │   ├── stores/        # Zustand stores (local UI state, offline queue)
 │   │   │   ├── hooks/         # Custom hooks (useHaptics, useJourneyProgress, useSupabase)
 │   │   │   ├── lib/           # Supabase client init, RevenueCat init, query keys
-│   │   │   ├── animations/    # Spring animation configs (react-native-reanimated)
+│   │   │   ├── animations/    # Spring animation configs (react-native-reanimated withSpring — see design.md for values)
 │   │   │   └── theme/         # Colors, typography, spacing tokens (NativeWind)
 │   │   ├── app.json           # Expo config
 │   │   └── tailwind.config.js # NativeWind config
@@ -46,6 +46,8 @@ focuslab/
 │   ├── seed.sql               # Seed data (30 placeholder tasks, notification templates, SR config)
 │   └── config.toml            # Supabase local dev config
 │
+├── content/                   # Source content for the 30 journey tasks (human-authored drafts)
+│   └── 30-tasks-draft.md      # The 30 task definitions — use this to populate seed data and CMS
 ├── .claude/                   # Project spec files (prompt, plans, architecture, design, implementation rules)
 ├── .env.example               # Required environment variables (never real values)
 ├── turbo.json                 # Turborepo config
@@ -147,7 +149,10 @@ Key differences from a traditional API server setup:
 - Auth pages: `src/app/auth/`
 - Supabase clients: `src/lib/supabase-server.ts` (server components) + `src/lib/supabase-client.ts` (client components)
 
+### Task content source
+- `content/30-tasks-draft.md` — The human-authored 30 task definitions. Use this as the source of truth when writing `supabase/seed.sql` task rows and when populating the admin CMS.
+
 ### Database schema
 - Managed via SQL migrations in `supabase/migrations/`.
-- Seed data in `supabase/seed.sql` — 30 placeholder tasks, sample notification templates, default SR config.
+- Seed data in `supabase/seed.sql` — 30 tasks (sourced from `content/30-tasks-draft.md`), sample notification templates, default SR config.
 - See `architecture.md` for full table definitions and RLS policies.
