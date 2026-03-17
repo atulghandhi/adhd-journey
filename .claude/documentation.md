@@ -24,12 +24,13 @@ This document is updated continuously as milestones land so it reflects reality.
 - Milestone 10 — Admin CMS: not started
 - Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS]: not started
 - Milestone 12 — Progress + stats: not started
-- Milestone 13 — Home screen widget [NEEDS CREDENTIALS]: not started
-- Milestone 14 — Mindful gateway tutorial: not started
-- Milestone 15 — Post-completion phase: not started
-- Milestone 16 — UX polish + animations: not started
-- Milestone 17 — Admin analytics + moderation: not started
-- Milestone 18 — Testing hardening + final sweep: not started
+- Milestone 13 — Mindful gateway tutorial: not started
+- Milestone 14 — Post-completion phase: not started
+- Milestone 15 — UX polish + animations: not started
+- Milestone 16 — Admin analytics + moderation: not started
+- Milestone 17 — Testing hardening + final sweep: not started
+
+Note: Home screen widget is deferred to V2.
 
 ## Local setup
 
@@ -67,12 +68,13 @@ npx turbo dev
 ```
 
 ### Dev commands
-- `supabase start` — Start local Supabase stack (Postgres, Auth, Storage, Studio at localhost:54323)
-- `supabase functions serve` — Serve Edge Functions locally (Deno runtime)
+- `supabase start` — Start local Supabase stack (Postgres, Auth, Storage, Studio at localhost:54323, Inbucket email at localhost:54324)
+- `supabase functions serve --env-file .env.local` — Serve Edge Functions locally with environment variables (Deno runtime)
 - `npx turbo dev` — Start mobile (Expo) + web (Next.js) dev servers concurrently
 - `npx expo start` (from `apps/mobile/`) — Start Expo dev server only
 - `npm run dev` (from `apps/web/`) — Start Next.js dev server only
 - `supabase stop` — Stop local Supabase stack
+- `npx tsx scripts/make-admin.ts admin@example.com` — Promote a user to admin role
 
 ## Verification commands
 
@@ -122,7 +124,7 @@ If credentials are missing, the notification Edge Function logs `[STUB]` warning
 ### Template management
 - Templates are stored in the `notification_templates` table and managed via the admin CMS.
 - Each template has: channel (push/email), subject/title, body with `{{variable}}` interpolation, tone_tag for diversity rotation.
-- The `daily-notifications` Edge Function is triggered by pg_cron and handles channel rotation, template selection, quiet hours, and dispatch.
+- The `daily-notifications` Edge Function is triggered by pg_cron → pg_net and handles channel rotation, template selection, quiet hours, and dispatch.
 
 ## Payment flow testing
 
@@ -182,12 +184,16 @@ focuslab/
 
 | Function | Trigger | Description |
 |---|---|---|
-| `get-journey-state` | HTTP (client call) | Returns current task, streak, progress map, reinforcement review |
-| `complete-check-in` | HTTP (client call) | Validates check-in, updates progress, triggers SR recalculation |
-| `daily-notifications` | pg_cron (daily) | Selects channel + template per user, dispatches via FCM/Resend |
-| `daily-reviews` | pg_cron (daily) | Computes reinforcement reviews from SR algorithm |
+| `get-journey-state` | HTTP (client call) | Returns current task, streak (timezone-aware), progress map, reinforcement review |
+| `complete-check-in` | HTTP (client call) | Validates check-in (accepts `checked_in_at` for offline), updates progress, triggers SR recalculation |
+| `daily-notifications` | pg_cron → pg_net (hourly) | Selects channel + template per user, dispatches via FCM/Resend. Handles post-completion users too. |
+| `daily-reviews` | pg_cron → pg_net (daily) | Computes reinforcement reviews from SR algorithm |
 | `verify-payment` | Webhook (RevenueCat) | Validates purchase, updates payment_status |
 | `admin-analytics` | HTTP (admin call) | Aggregates stats for admin dashboard |
+
+All Edge Functions return CORS headers via shared utility at `supabase/functions/_shared/cors.ts`.
+
+pg_cron triggers Edge Functions via pg_net HTTP POST (pg_cron runs SQL only, cannot call HTTP directly). See `architecture.md` for the exact SQL setup.
 
 ## Environment variables reference
 
@@ -208,18 +214,30 @@ For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 ## Data model overview (high level)
 
-- **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state, theme preference (light/dark/system)
-- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags
-- **user_progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking
-- **check_ins**: quick rating + optional deeper reflections, tied to task + user
-- **spaced_repetition_state**: per-user per-task algorithm state (ease factor, interval, review count, next review date)
+- **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state, theme preference (light/dark/system), current_journey_id
+- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags, journey_id
+- **user_progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking, journey_id
+- **check_ins**: quick rating + optional deeper reflections, tied to task + user + journey_id, includes `checked_in_at` (client timestamp for offline support)
+- **spaced_repetition_state**: per-user per-task algorithm state (ease factor, interval, review count, next review date), journey_id
 - **spaced_repetition_config**: admin-tunable algorithm parameters (singleton row)
-- **community_posts / community_reactions / community_replies**: per-task discussion threads with reactions and replies
+- **community_posts / community_reactions / community_replies**: per-task discussion threads with reactions and replies. Thread access persists across journey restarts.
+- **community_reports**: user-submitted reports for moderation
 - **notification_log**: record of every sent notification (template, channel, status)
 - **notification_templates**: admin-managed push/email templates with tone tags
 - **push_tokens**: device tokens for FCM push notifications
+- **quiz_questions**: per-task quiz questions (placeholder content for V1)
 
 All tables have Row Level Security (RLS) policies. See `architecture.md` for the complete schema.
+
+## Security
+
+- **RLS on all tables**: Each user can only read/write their own data. Admin role has broader read access.
+- **Never log PII**: No user emails, passwords, or payment details in any log output. Use user IDs (UUIDs) only.
+- **Service role key**: NEVER exposed to client code. Only used in Edge Functions and pg_net calls.
+- **XSS prevention**: Community post content sanitized on insert.
+- **Auth**: Supabase Auth handles password hashing (bcrypt), JWT, refresh tokens, rate limiting. Email confirmation required.
+- **Payment**: Entitlements validated server-side by RevenueCat. Never trust client-side payment status alone.
+- **CORS**: Edge Functions return CORS headers for web dashboard access. Scope origin in production.
 
 ## Troubleshooting
 
@@ -230,7 +248,7 @@ All tables have Row Level Security (RLS) policies. See `architecture.md` for the
 - **Types out of date**: After any migration change, regenerate: `supabase gen types typescript --local > packages/shared/src/types/database.ts`
 - **Push notifications not delivering**: Check `FCM_SERVER_KEY` env var. If missing, stub mode is active (check logs for `[STUB]`). Verify device token is registered in `push_tokens` table.
 - **Email not sending**: Check `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. Verify sender domain in Resend dashboard.
-- **Widget not updating**: Widget reads from shared app storage. Ensure the app has written fresh data after task unlock. Widgets cannot be tested in Expo Go — requires native build.
+- **Widget not updating (V2)**: Home screen widget is deferred to V2. If building it later: widget reads from shared app storage; ensure the app has written fresh data after task unlock. Requires native build.
 - **Payment sandbox issues**: Ensure RevenueCat is configured with sandbox credentials. Check `verify-payment` Edge Function logs. Dev mode bypass is available when `REVENUECAT_PUBLIC_SDK_KEY` is missing.
 - **Auth token expired**: Supabase JS client auto-refreshes tokens. If it fails, the user will be redirected to login. Check Supabase Auth logs in Studio (localhost:54323).
 - **Edge Function not responding**: Run `supabase functions serve` to serve locally. Check Deno runtime errors in terminal output. Ensure the function directory name matches the invocation URL.

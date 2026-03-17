@@ -112,8 +112,8 @@
 **Day 29 — Design Your Daily Default**
 - Combine the practices that worked best into a simple daily default: morning ritual (Day 26), dopamine lemon rule (Day 06), one breathing session (Day 08/09), work via rotation (Day 16), exercise (Day 14), one urge surf (Day 03), wind-down (Day 27), probiotic (Day 12). Write it on one card or one phone note.
 
-**Day 30 — The Letter to Future You**
-- Write a short letter to yourself for when things get hard again. Remind yourself what you learned, what surprised you, what works for your brain. The app will resurface this letter during post-completion reminders.
+**Day 30 — The Journal**
+- Journal all the things that are hard right now, and why they are hard and what it would take to do them. Just build that awareness. 
 
 ---
 

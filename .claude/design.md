@@ -132,17 +132,34 @@ Vertical scrollable list with 30 nodes (circles) connected by a line — a visua
 - The active node is always auto-scrolled into view on screen load.
 - Day number labels appear to the left of each node. Task title appears to the right.
 
-### Journey progress (widget)
-Progress ring (arc) showing day/30 as fill percentage. Ring stroke in `green-500`, background stroke in `green-200`. Center text: "Day 12" in bold. Below ring: truncated task title. Tap → deep link to current task.
+### Journey progress (widget) — V2
+Widget is deferred to V2. When built: progress ring (arc) showing day/30 as fill percentage. Ring stroke in `green-500`, background stroke in `green-200`. Center text: "Day 12" in bold. Below ring: truncated task title. Tap → deep link to current task.
 
 ### Task card
 The hero element. White card on `green-50` background. Rounded corners (16px). Soft shadow (`0 2px 8px rgba(27,67,50,0.08)`). Large task title (`screen title` weight), task body below. Inviting but not intimidating.
+
+**Multi-day display**: When the SR algorithm extends a task, show a subtitle below the title: "Day 1 of 2" (or "Day X of N") in `caption / meta` typography, `text-secondary` color. The card layout itself does not change — build it so we can later add different card variants (e.g., breaking tasks into smaller steps) without restructuring.
+
+### Reinforcement review card
+Positioned **below the main active task card**, partially visible (top ~60px peeking up from below, showing a subtle "Review a past task" label and the task title). User **swipes up** to reveal the full card. This creates a sense of "there's more" without overwhelming the primary task.
+
+- Card style: same as task card but with a `green-100` background (slightly different from the white active card) and a small 🔄 icon next to the title.
+- When expanded: shows the past task's title + task body (condensed) + mini check-in (rating emoji row only, no deeper prompts).
+- Swipe down or tap outside to collapse back to peek state.
+- Use `default` spring for the swipe animation.
+- If no reinforcement review is scheduled for today, this card is not shown.
 
 ### Streak badge
 Small pill-shaped badge showing 🔥 + streak count (e.g., "🔥 7"). Displayed in the journey screen header, next to the day number. Uses `success` background with white text. When streak is 0 or user returns after absence: badge is hidden (not shown as "0" — no shame).
 
 ### Locked tasks
 Visible in the journey list but clearly gated: muted colors (`green-200` text, `green-100` background), lock icon, cannot be tapped. Title is visible (teasing anticipation), but task body is hidden (no spoilers).
+
+### Post-completion state
+After Day 30, the Journey tab shows the full journey list with all 30 nodes completed (filled circles, checkmarks). The active node pulsing animation stops — all nodes are in "completed" state. A one-time "Congratulations" modal appears with the user's `motivating_answer` resurfaced, stats summary, and buttons for: Quiz, Resources, Restart Journey. After dismissal, the journey list is the default view. Reinforcement review cards continue to appear based on the SR algorithm — the user's journey with the app continues post-completion.
+
+### Resources page
+Accessible from Account tab or a "Resources" button in the journey header (post-completion only). Simple list of cards, each with: title, short description, and external link icon. Uses standard card style. Seed with 4 placeholder items.
 
 ## Component Guidance
 

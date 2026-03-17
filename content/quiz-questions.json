@@ -1,0 +1,182 @@
+[
+  {
+    "task_order": 1,
+    "question": "What is the primary goal of the first task in the FocusLab journey?",
+    "options": ["Build a complex habit system", "Take one small immediate action", "Read a long article about ADHD", "Set up a detailed planner"],
+    "correct_index": 1
+  },
+  {
+    "task_order": 2,
+    "question": "Placeholder question for Task 2 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 3,
+    "question": "Placeholder question for Task 3 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 4,
+    "question": "Placeholder question for Task 4 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 5,
+    "question": "Placeholder question for Task 5 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 6,
+    "question": "Placeholder question for Task 6 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 7,
+    "question": "Placeholder question for Task 7 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 8,
+    "question": "Placeholder question for Task 8 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 9,
+    "question": "Placeholder question for Task 9 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 10,
+    "question": "Placeholder question for Task 10 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 11,
+    "question": "Placeholder question for Task 11 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 12,
+    "question": "Placeholder question for Task 12 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 13,
+    "question": "Placeholder question for Task 13 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 14,
+    "question": "Placeholder question for Task 14 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 15,
+    "question": "Placeholder question for Task 15 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 16,
+    "question": "Placeholder question for Task 16 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 17,
+    "question": "Placeholder question for Task 17 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 18,
+    "question": "Placeholder question for Task 18 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 19,
+    "question": "Placeholder question for Task 19 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 20,
+    "question": "Placeholder question for Task 20 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 21,
+    "question": "Placeholder question for Task 21 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 22,
+    "question": "Placeholder question for Task 22 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 23,
+    "question": "Placeholder question for Task 23 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 24,
+    "question": "Placeholder question for Task 24 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 25,
+    "question": "Placeholder question for Task 25 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 26,
+    "question": "Placeholder question for Task 26 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 27,
+    "question": "Placeholder question for Task 27 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 28,
+    "question": "Placeholder question for Task 28 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 29,
+    "question": "Placeholder question for Task 29 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  },
+  {
+    "task_order": 30,
+    "question": "Placeholder question for Task 30 — will be replaced with real content.",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  }
+]

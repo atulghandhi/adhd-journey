@@ -15,7 +15,8 @@ focuslab/
 │   │   │   ├── lib/           # Supabase client init, RevenueCat init, query keys
 │   │   │   ├── animations/    # Spring animation configs (react-native-reanimated withSpring — see design.md for values)
 │   │   │   └── theme/         # Colors, typography, spacing tokens (NativeWind)
-│   │   ├── app.json           # Expo config
+│   │   ├── app.config.ts      # Expo config (with plugins for notifications, RevenueCat)
+│   │   ├── eas.json           # EAS Build profiles (development, preview, production)
 │   │   └── tailwind.config.js # NativeWind config
 │   │
 │   └── web/                   # Next.js 14+ (App Router) — admin CMS + user dashboard
@@ -37,17 +38,22 @@ focuslab/
 ├── supabase/                  # Supabase project config (managed by Supabase CLI)
 │   ├── migrations/            # SQL migration files (schema changes)
 │   ├── functions/             # Edge Functions (Deno runtime)
+│   │   ├── _shared/           # Shared utilities (CORS headers, response helpers)
+│   │   │   └── cors.ts
 │   │   ├── complete-check-in/
 │   │   ├── get-journey-state/
 │   │   ├── daily-notifications/
 │   │   ├── daily-reviews/
 │   │   ├── verify-payment/
 │   │   └── admin-analytics/
-│   ├── seed.sql               # Seed data (30 placeholder tasks, notification templates, SR config)
+│   ├── seed.sql               # Seed data (30 tasks, quiz questions, notification templates, SR config, admin user)
 │   └── config.toml            # Supabase local dev config
 │
 ├── content/                   # Source content for the 30 journey tasks (human-authored drafts)
-│   └── 30-tasks-draft.md      # The 30 task definitions — use this to populate seed data and CMS
+│   ├── 30-tasks-draft.md      # The 30 task definitions — use this to populate seed data and CMS
+│   └── quiz-questions.json    # Placeholder quiz questions (30 items, one per task)
+├── scripts/
+│   └── make-admin.ts          # CLI script to promote a user to admin role
 ├── .claude/                   # Project spec files (prompt, plans, architecture, design, implementation rules)
 ├── .env.example               # Required environment variables (never real values)
 ├── turbo.json                 # Turborepo config
@@ -78,7 +84,8 @@ Key differences from a traditional API server setup:
 
 ### Build
 - `npx turbo build` — Production builds for all apps
-- `npx expo build` or `eas build` — Native mobile builds
+- `eas build --profile development` — Expo Development Build (required for native modules: RevenueCat, push notifications)
+- `eas build --profile production` — Production mobile builds
 
 ### Verification (run after every milestone)
 - `npx turbo lint` — ESLint across monorepo (zero warnings)
@@ -92,6 +99,9 @@ Key differences from a traditional API server setup:
 - `supabase gen types typescript --local > packages/shared/src/types/database.ts` — Regenerate TS types after schema changes
 - `supabase functions deploy <name>` — Deploy an Edge Function to production
 
+### Admin
+- `npx tsx scripts/make-admin.ts admin@example.com` — Promote a user to admin role
+
 ## Coding Style & Naming Conventions
 - Language: TypeScript (`.ts` / `.tsx`) across all apps and packages. Edge Functions use TypeScript on Deno runtime.
 - Indentation: 2 spaces; prefer clear, explicit code over cleverness.
@@ -102,6 +112,9 @@ Key differences from a traditional API server setup:
 - Supabase client: initialized once in `lib/supabase.ts` per app, imported everywhere.
 - Styling: NativeWind (Tailwind for RN) on mobile, Tailwind CSS on web. Use design tokens from `theme/` for colors, spacing, typography.
 - Linting: ESLint + Prettier. Zero warnings allowed. Run lint before all commits.
+- **Error handling**: Every network call in try/catch. Show user-friendly toast messages on failure — never raw errors or stack traces. Edge Functions return structured JSON errors.
+- **Security**: Never log PII (emails, passwords, payment info). Log user IDs (UUIDs) only. Service role key never in client code.
+- **CORS**: All Edge Functions return CORS headers via `supabase/functions/_shared/cors.ts`.
 
 ## Testing Guidelines
 - Framework: Vitest for `packages/shared/` and `apps/web/`. Jest + React Native Testing Library for `apps/mobile/`. Deno test for Edge Functions.
@@ -155,4 +168,6 @@ Key differences from a traditional API server setup:
 ### Database schema
 - Managed via SQL migrations in `supabase/migrations/`.
 - Seed data in `supabase/seed.sql` — 30 tasks (sourced from `content/30-tasks-draft.md`), sample notification templates, default SR config.
-- See `architecture.md` for full table definitions and RLS policies.
+- See `architecture.md` for full table definitions, RLS policies, timezone handling, and security rules.
+
+Note: Home screen widget is deferred to V2. Do not build native Swift/Kotlin widget code in V1.

@@ -11,10 +11,10 @@ Hard requirements
 
 * Platforms: iOS + Android via React Native + Expo (primary), Next.js web dashboard (secondary — admin CMS + user stats/history).
 * Auth + cloud sync from day 1 via Supabase Auth. Users must be able to switch devices seamlessly.
-* Freemium model: first 15 tasks free (no payment info required), tasks 16–30 require a flat one-time purchase via RevenueCat.
+* Freemium model: first 15 tasks free (no payment info required), tasks 16–30 require a flat one-time purchase (£8 / ~$10 USD) via RevenueCat.
 * Push notifications (FCM via expo-notifications) + email (Resend) for V1 with varied templates/copy to exploit ADHD novelty-seeking.
-* Home screen widget (iOS + Android) showing journey progress.
 * Admin CMS for the owner to create, edit, and reorder task content without code changes.
+* Email confirmation enabled for auth (Supabase Auth). App includes "Check your email" screen after registration.
 * Every milestone must include verification steps (tests, lint, typecheck).
 
 Tech stack (locked — see `architecture.md` for full details)
@@ -87,7 +87,7 @@ D) Notification engine — novelty-driven engagement
 * Notification content is context-aware: references the user's current task, days active, streak
 * Quiet hours respect + user-configurable notification preferences (stored in `profiles.notification_preferences`)
 * Templates stored in `notification_templates` table, managed via admin CMS
-* Scheduling via `daily-notifications` Edge Function triggered by pg_cron
+* Scheduling via `daily-notifications` Edge Function triggered by pg_cron → pg_net (see `architecture.md` for setup)
 * V2 roadmap: SMS, richer novelty (different notification sounds, widget animations)
 
 E) Onboarding
@@ -116,14 +116,10 @@ G) Community — per-task discussion threads
 * Author display: first name + day number (e.g., "Sarah — Day 12")
 * Optional: use Supabase Realtime for live updates on threads
 
-H) Home screen widget
+H) Home screen widget — V2 (not in V1)
 
-* Native iOS widget (WidgetKit) and Android widget (Glance / AppWidgets)
-* Shows: current day / 30, streak count, today's task title (truncated)
-* Tapping the widget opens the app to the current task
-* Visual progress bar or ring
-* Data flow: `get-journey-state` Edge Function → app caches to shared storage → widget reads from shared storage
-* Updates daily when a new task unlocks
+* Deferred to V2. Native iOS (WidgetKit) + Android (Glance) widget.
+* Keep architecture extensible for this — `get-journey-state` already returns all needed data.
 
 I) Progress + stats
 
@@ -150,10 +146,11 @@ K) Payment + freemium gate
 * Task 16: paywall screen layout (top to bottom):
     1. User's `motivating_answer` from onboarding (personalized hook: "You said you wanted to: [answer]")
     2. "You've completed 15 days. The next 15 unlock:" followed by 3 bullet points (deeper strategies, community access for all tasks, reward bundle)
-    3. Price display: "$X.XX one time — not a subscription" (price from RevenueCat offering)
+    3. Price display: "£8 one time — not a subscription" (price from RevenueCat offering; ~$10 USD equivalent)
     4. Purchase button (primary CTA, `green-500`, full width)
     5. "Maybe later" ghost text link below (dismisses paywall, user stays on Day 15)
-* Flat one-time purchase (not subscription) via RevenueCat SDK (`react-native-purchases`)
+* Flat one-time purchase (not subscription) via RevenueCat SDK (`react-native-purchases`). Requires Expo Development Build (not Expo Go).
+* Dev mode bypass: when `REVENUECAT_PUBLIC_SDK_KEY` is missing, show a "Dev mode: tap to unlock" button that sets payment_status directly.
 * RevenueCat handles StoreKit + Google Play Billing, receipt validation, and entitlement management
 * `verify-payment` Edge Function receives RevenueCat webhook and updates `profiles.payment_status`
 * Web dashboard access is free for all users (view-only stats + community)
@@ -161,16 +158,18 @@ K) Payment + freemium gate
 
 L) Post-completion phase
 
-* Completion screen after task 30: congratulations, stats summary, options.
-* Knowledge quiz: 15 questions, one per task (drawn from task content). Multiple choice, 4 options, one correct. Select 15 random questions per attempt. Store questions in a `quiz_questions` table or JSON in `content/`.
-* Quiz result: score + recommendation ("Great retention!" or "Consider restarting the areas you missed").
-* Reward bundle screen: links to digital resources. For V1 use placeholder links — admin manages via CMS. Seed with 4 items:
+* Completion screen after task 30: congratulations with `motivating_answer` resurfaced, stats summary, options. Shows once as a modal, then the Journey tab returns to the full journey list.
+* **Post-completion app state**: Journey tab shows all 30 completed tasks. Community threads remain accessible. Spaced repetition continues — reinforcement review cards and notifications keep appearing based on the algorithm. This keeps the user engaged long-term.
+* **Resources page**: Accessible from Account tab post-completion. Links to curated digital resources. Seed with 4 placeholder items:
     * "ADHD Focus Toolkit" (Notion template) — placeholder URL
     * "30-Day Cheatsheet" (PDF) — placeholder URL
     * "Top 10 ADHD Books" — placeholder URL
     * "Focus YouTube Channels" — placeholder URL
-* "Restart journey" option: resets user_progress and spaced_repetition_state.
-* Post-completion random task reminders via `daily-notifications` Edge Function.
+    Admin manages via CMS.
+* Knowledge quiz: 15 questions drawn from `content/quiz-questions.json` (placeholder content). Multiple choice, 4 options, one correct. Select 15 random per attempt.
+* Quiz result: score + recommendation ("Great retention!" or "Consider revisiting the areas you missed").
+* **Restart journey**: Creates a new `journey_id`. Old progress, check-ins, and SR state are preserved under the old `journey_id`. Community thread access is NOT affected (once unlocked, stays unlocked).
+* Post-completion notifications via `daily-notifications` Edge Function — sends SR-selected review reminders.
 
 M) Markdown rendering
 
@@ -182,10 +181,27 @@ M) Markdown rendering
 N) Quality and engineering
 
 * Strong TypeScript types: auto-generated from Postgres schema via `supabase gen types typescript`, plus app-level types in `packages/shared/src/types/`
-* Unit tests for: spaced-repetition algorithm, journey progression logic, check-in validation, notification scheduling, paywall gating
-* Integration tests for: auth flow, task unlock sequence, payment verification
+* Unit tests for: spaced-repetition algorithm, journey progression logic (including journey restart with journey_id), check-in validation (timezone-aware), notification scheduling, paywall gating
+* Integration tests for: auth flow (including email confirmation), task unlock sequence, payment verification, journey restart
 * Accessibility: minimum AA contrast, VoiceOver/TalkBack support, reduced motion preference
 * Performance: app launch to current task visible in < 2 seconds, animations at 60fps, offline-capable for current task view
+* **Error handling**: Global error boundary (never blank screens), user-friendly toast messages for network errors, TanStack Query error/retry states. Never show raw errors or stack traces.
+* **Security**: All tables use RLS — each user can only see their own data. Never log PII (emails, passwords, payment info). Service role key never exposed to clients. Community posts sanitized for XSS.
+* **CORS**: All Edge Functions return CORS headers for web dashboard access.
+
+O) Timezone handling
+
+* All time-sensitive operations use the user's device timezone (stored in `profiles.notification_preferences.timezone`).
+* Calendar day: 00:00 to 23:59 in user's timezone. Check-in at 23:59 = same day. 00:00 = next day.
+* Time-gating, streak calculation, notification quiet hours all use this rule.
+* Offline check-ins record client-side timestamp; server uses it for time-gate calculations.
+
+P) Journey restart + journey_id
+
+* `journey_id` column on `tasks`, `user_progress`, `check_ins`, `spaced_repetition_state`.
+* Default UUID for V1's single journey. When user restarts, a new UUID is generated.
+* Old data preserved under old `journey_id`. Community thread access persists across all journeys.
+* `profiles.current_journey_id` tracks the active journey.
 
 Process requirements (follow strictly)
 
@@ -227,8 +243,10 @@ Process requirements (follow strictly)
 
     * For initial development, use `supabase start` (local Supabase stack) — no cloud credentials needed.
     * Stub external service calls (FCM, Resend, RevenueCat) with console.log in dev mode. Use environment variable checks: if the key is missing, log a warning and skip the external call.
+    * RevenueCat (`react-native-purchases`) requires Expo Development Build. Dev mode bypass available when SDK key is missing.
     * Mark milestones that require real credentials with a `[NEEDS CREDENTIALS]` tag. The human operator will provide these before those milestones can be fully tested.
     * Never hardcode API keys. Always read from environment variables.
+    * Edge Functions use `supabase functions serve --env-file .env.local` for local dev.
 
 Start now.
-First, read `plans.md`. If it needs updating to match this spec and the architecture in `architecture.md`, update it. Then begin Milestone 1. Do NOT start coding until `plans.md` is coherent and aligned with `architecture.md`.
+First, read `plans.md`. If it needs updating to match this spec and the architecture in `architecture.md`, update it. Then begin Milestone 1. The repo is empty — no package.json exists yet. Do NOT start coding until `plans.md` is coherent and aligned with `architecture.md`.
