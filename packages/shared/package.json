@@ -7,7 +7,12 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./algorithm": "./src/algorithm/spacedRepetition.ts",
     "./constants": "./src/constants/index.ts",
+    "./journey": "./src/journey/progression.ts",
+    "./notifications": "./src/notifications/engine.ts",
+    "./quiz": "./src/quiz/index.ts",
+    "./timezone": "./src/timezone.ts",
     "./types": "./src/types/index.ts"
   },
   "scripts": {

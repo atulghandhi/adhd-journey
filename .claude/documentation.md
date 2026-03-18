@@ -15,20 +15,20 @@ This document is updated continuously as milestones land so it reflects reality.
 - Milestone 01 — Repo scaffold + tooling: complete
 - Milestone 02 — Database schema + migrations + seed: complete
 - Milestone 03 — Auth integration (Supabase Auth): complete
-- Milestone 04 — Mobile app shell + onboarding: not started
-- Milestone 05 — Journey engine: task display + progression: not started
-- Milestone 06 — Check-in system: not started
-- Milestone 07 — Spaced-repetition engine: not started
-- Milestone 08 — Notification engine [NEEDS CREDENTIALS]: not started
-- Milestone 09 — Community threads: not started
-- Milestone 10 — Admin CMS: not started
-- Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS]: not started
-- Milestone 12 — Progress + stats: not started
-- Milestone 13 — Mindful gateway tutorial: not started
-- Milestone 14 — Post-completion phase: not started
-- Milestone 15 — UX polish + animations: not started
-- Milestone 16 — Admin analytics + moderation: not started
-- Milestone 17 — Testing hardening + final sweep: not started
+- Milestone 04 — Mobile app shell + onboarding: complete
+- Milestone 05 — Journey engine: task display + progression: complete
+- Milestone 06 — Check-in system: complete
+- Milestone 07 — Spaced-repetition engine: complete
+- Milestone 08 — Notification engine [NEEDS CREDENTIALS]: implemented with stubs; local edge runtime still blocked by Supabase certificate issue
+- Milestone 09 — Community threads: complete
+- Milestone 10 — Admin CMS: complete
+- Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS]: implemented with RevenueCat wrapper + dev bypass
+- Milestone 12 — Progress + stats: complete
+- Milestone 13 — Mindful gateway tutorial: complete
+- Milestone 14 — Post-completion phase: complete
+- Milestone 15 — UX polish + animations: partially complete (error UX, toasts, theme preference persistence; full dark mode/animation pass still pending)
+- Milestone 16 — Admin analytics + moderation: complete
+- Milestone 17 — Testing hardening + final sweep: in progress
 
 Note: Home screen widget is deferred to V2.
 
@@ -37,6 +37,9 @@ Bootstrap note:
 - 2026-03-17: Milestone 01 completed with a working npm workspace, Expo mobile app, Next.js web app, shared package, Turbo pipelines, tests, and local startup verification.
 - 2026-03-17: Milestone 02 completed with the initial Postgres schema, RLS policies, seed data, generated database types, and a verified auth-to-profile trigger.
 - 2026-03-17: Milestone 03 completed with Supabase auth clients, email/password flows on mobile and web, confirmation screens, password reset screens, and protected dashboard/journey route guards.
+- 2026-03-17: Milestones 04-07 landed together around the new shared domain layer, Expo Router app shell, onboarding flow, journey screen, check-in flow, streak/progression logic, review scheduling, and offline queue replay.
+- 2026-03-17: Milestones 08-16 now include Supabase Edge Functions for journey/check-in/reviews/notifications/payment/analytics, mobile community/progress/paywall/completion/account flows, a web admin CMS, moderation tools, analytics charts, and an admin-managed `reward_resources` table.
+- 2026-03-17: `supabase functions serve --env-file .env.local` still fails locally before user code boots because the bundled Edge Runtime tries to import `https://deno.land/std/http/status.ts` and rejects the certificate chain with `UnknownIssuer`. This is an environment/runtime issue, not a FocusLab function syntax failure.
 
 ## Local setup
 
@@ -80,7 +83,7 @@ npx turbo dev
 - `npx expo start` (from `apps/mobile/`) — Start Expo dev server only
 - `npm run dev` (from `apps/web/`) — Start Next.js dev server only
 - `supabase stop` — Stop local Supabase stack
-- `npx tsx scripts/make-admin.ts admin@example.com` — Promote a user to admin role
+- `npm run make-admin -- admin@example.com` — Promote a user to admin role
 
 Verification notes from Milestone 01:
 - In this environment, `supabase start` required `--exclude edge-runtime` because the bundled local Edge Runtime failed on a certificate error while fetching a remote Deno import. The rest of the stack started cleanly.
@@ -111,17 +114,15 @@ supabase functions deploy <function-name>  # Deploy Edge Function to production
 
 ## Admin CMS usage
 
-(Will be documented when Milestone 10 is complete.)
-- Access: navigate to `/admin` on the web dashboard. Requires `profiles.role = 'admin'`.
-- Task management: create, edit, reorder (drag-and-drop), delete the 30 journey tasks. Markdown editor for body fields.
-- Notification templates: CRUD on `notification_templates` table — manage push and email templates with tone tags.
-- Spaced-repetition config: edit base intervals, ease floor, struggle threshold, max reviews/day, decay multiplier.
-- Community moderation: view reported posts, hide/unhide, delete.
-- Reward bundle: upload files to Supabase Storage or manage external links.
+- Access: navigate to `/admin` on the web dashboard. The server layout checks `profiles.role = 'admin'` and redirects non-admins back to `/dashboard`.
+- Tasks: `/admin/tasks` lists all journey tasks with create, delete, and move up/down ordering controls. `/admin/tasks/[id]` provides markdown editing for the action/explanation/deeper-reading fields plus a phone-frame mobile preview.
+- Notification templates: `/admin/templates` manages `notification_templates` rows for push/email copy, tone tags, and activation state.
+- Spaced repetition config: `/admin/settings` edits the singleton `spaced_repetition_config` row.
+- Rewards: `/admin/rewards` manages the `reward_resources` table used by the mobile Resources screen.
+- Moderation: `/admin/moderation` loads reported/all/hidden community posts and lets admins hide/unhide/delete posts.
+- Analytics: `/admin/analytics` visualizes completion rate, drop-off by task, notification open rate, popular threads, and moderation counts using `recharts`.
 
 ## Notification configuration
-
-(Will be documented when Milestone 08 is complete.)
 
 ### Required credentials
 - **FCM_SERVER_KEY**: Firebase Cloud Messaging server key. Get from Firebase Console → Project Settings → Cloud Messaging.
@@ -135,17 +136,24 @@ If credentials are missing, the notification Edge Function logs `[STUB]` warning
 - Templates are stored in the `notification_templates` table and managed via the admin CMS.
 - Each template has: channel (push/email), subject/title, body with `{{variable}}` interpolation, tone_tag for diversity rotation.
 - The `daily-notifications` Edge Function is triggered by pg_cron → pg_net and handles channel rotation, template selection, quiet hours, and dispatch.
+- Mobile registration: the Account screen can request notification permissions and store a device token in `push_tokens`.
+- Local blocker: the local Supabase Edge Runtime currently fails before booting functions because of the `UnknownIssuer` certificate error described above, so local HTTP smoke-testing of Edge Functions remains blocked even though DB-triggered scheduling and code compilation are in place.
 
 ## Payment flow testing
 
 (Will be documented when Milestone 11 is complete.)
 
 ### Required credentials
-- **REVENUECAT_PUBLIC_SDK_KEY**: RevenueCat public SDK key for mobile app.
+- **EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY**: RevenueCat public SDK key for the Expo mobile app.
 - **REVENUECAT_SECRET_KEY**: RevenueCat secret key for webhook verification in `verify-payment` Edge Function.
 
 ### Dev mode bypass
-If `REVENUECAT_PUBLIC_SDK_KEY` is missing, the paywall screen shows a "Dev mode: bypass payment" button that sets `profiles.payment_status = 'paid'` directly.
+If `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` is missing, the paywall screen shows a "Dev mode: tap to unlock paid tier" button that sets `profiles.payment_status = 'paid'` directly.
+
+### In-app flow
+- `apps/mobile/src/lib/revenuecat.ts` lazy-loads `react-native-purchases`, configures the SDK when the public key is present, loads the current offering, and attempts to purchase the primary package.
+- `apps/mobile/src/hooks/useEntitlement.ts` combines profile payment status with RevenueCat entitlement/offering checks for the paywall screen.
+- The paywall price label falls back to `£8` when no live offering is available.
 
 ### Sandbox testing
 - iOS: use App Store sandbox test accounts (Settings → App Store → Sandbox Account).
@@ -160,10 +168,10 @@ If `REVENUECAT_PUBLIC_SDK_KEY` is missing, the paywall screen shows a "Dev mode:
 4. Next day: new task unlocked, previous task enters spaced-repetition pool
 5. Reinforcement review card appears alongside active task when algorithm schedules it
 6. Community: tap into task thread, see other users' experiences, post a win
-7. Widget: home screen shows Day X/30 + streak + task title
-8. Notification: receive a push notification with varied copy encouraging today's task
-9. Day 16: paywall for free users, seamless continuation for paid users
-10. Day 30: completion screen → quiz → reward bundle → option to restart
+7. Progress tab: journey map + recent check-ins + streak snapshot
+8. Notification: receive a push/email reminder with varied copy encouraging today's task
+9. Day 16: paywall for free users, seamless continuation for paid users or dev bypass in Expo Go
+10. Day 30: completion summary → quiz → reward bundle → option to restart
 
 ## Repo structure overview
 
@@ -178,6 +186,8 @@ focuslab/
 │       └── src/app/           # App Router pages (admin/, dashboard/, auth/)
 ├── packages/
 │   └── shared/                # Shared TS types (auto-generated from DB) + spaced-repetition algorithm
+├── scripts/
+│   └── make-admin.ts          # Promote a signed-up user to admin role
 ├── supabase/
 │   ├── migrations/            # SQL schema migrations
 │   ├── functions/             # Edge Functions (Deno) — business logic
@@ -217,7 +227,7 @@ All variables are documented in `.env.example`. Required for production:
 | `FCM_SERVER_KEY` | For push notifications | Firebase Cloud Messaging server key |
 | `RESEND_API_KEY` | For email | Resend API key |
 | `RESEND_FROM_EMAIL` | For email | Verified sender email address |
-| `REVENUECAT_PUBLIC_SDK_KEY` | For payments (mobile) | RevenueCat public SDK key |
+| `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` | For payments (mobile) | RevenueCat public SDK key exposed to Expo |
 | `REVENUECAT_SECRET_KEY` | For payments (webhook) | RevenueCat secret key for verification |
 
 For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required (printed by `supabase start`). All other services gracefully stub when their keys are missing.
@@ -258,6 +268,7 @@ All tables have Row Level Security (RLS) policies. See `architecture.md` for the
 - **Types out of date**: After any migration change, regenerate: `supabase gen types typescript --local > packages/shared/src/types/database.ts`
 - **Push notifications not delivering**: Check `FCM_SERVER_KEY` env var. If missing, stub mode is active (check logs for `[STUB]`). Verify device token is registered in `push_tokens` table.
 - **Email not sending**: Check `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. Verify sender domain in Resend dashboard.
+- **`supabase functions serve` fails immediately**: In this environment the bundled Edge Runtime aborts before loading project code because it cannot validate `https://deno.land/std/http/status.ts` (`invalid peer certificate: UnknownIssuer`). This is currently an external runtime/certificate problem rather than a FocusLab import or syntax error.
 - **Widget not updating (V2)**: Home screen widget is deferred to V2. If building it later: widget reads from shared app storage; ensure the app has written fresh data after task unlock. Requires native build.
 - **Payment sandbox issues**: Ensure RevenueCat is configured with sandbox credentials. Check `verify-payment` Edge Function logs. Dev mode bypass is available when `REVENUECAT_PUBLIC_SDK_KEY` is missing.
 - **Auth token expired**: Supabase JS client auto-refreshes tokens. If it fails, the user will be redirected to login. Check Supabase Auth logs in Studio (localhost:54323).

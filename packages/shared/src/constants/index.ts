@@ -5,3 +5,5 @@ export const appMetadata = {
 } as const;
 
 export const sharedPlaceholder = "FocusLab shared package is wired up.";
+
+export * from "./journey";

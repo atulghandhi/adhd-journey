@@ -1,0 +1,231 @@
+import { useEffect, useMemo, useState } from "react";
+import type {
+  Database,
+} from "@focuslab/shared/types";
+
+import { AppCard } from "../../components/ui/AppCard";
+import {
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "../../components/primitives";
+import { PrimaryButton } from "../../components/ui/PrimaryButton";
+import { useCommunityActions, useCommunityThread } from "../../hooks/useCommunity";
+import { useJourneyState } from "../../hooks/useJourneyState";
+import { useToast } from "../../providers/ToastProvider";
+
+const reactionOptions = ["👎", "👍", "🔥", "❤️", "😮"] as const;
+type CommunityPost = Database["public"]["Tables"]["community_posts"]["Row"];
+type CommunityReaction =
+  Database["public"]["Tables"]["community_reactions"]["Row"];
+type CommunityReply = Database["public"]["Tables"]["community_replies"]["Row"];
+type ThreadPost = CommunityPost & {
+  authorName: string;
+  reactions: CommunityReaction[];
+  replies: CommunityReply[];
+};
+
+export function CommunityScreen() {
+  const { showToast } = useToast();
+  const { data: journeyState } = useJourneyState();
+  const unlockedTasks = useMemo(
+    () => (journeyState?.tasks ?? []).filter((task) => !task.isLocked),
+    [journeyState?.tasks],
+  );
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const { data: thread, isLoading } = useCommunityThread(selectedTaskId);
+  const actions = useCommunityActions(selectedTaskId);
+
+  useEffect(() => {
+    if (!selectedTaskId && unlockedTasks[0]) {
+      setSelectedTaskId(unlockedTasks[0].task.id);
+    }
+  }, [selectedTaskId, unlockedTasks]);
+
+  const handleCreatePost = async () => {
+    if (draft.trim().length === 0) {
+      return;
+    }
+
+    try {
+      await actions.createPost.mutateAsync(draft.trim());
+      setDraft("");
+      showToast("Post shared.");
+    } catch {
+      showToast("Couldn’t post right now.", "error");
+    }
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-focuslab-background">
+      <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
+        <View>
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+            Community
+          </Text>
+          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark">
+            One thread per task.
+          </Text>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="flex-row gap-3">
+            {unlockedTasks.map((task) => {
+              const selected = task.task.id === selectedTaskId;
+
+              return (
+                <PrimaryButton
+                  key={task.task.id}
+                  onPress={() => setSelectedTaskId(task.task.id)}
+                >
+                  {selected ? `✓ Day ${task.task.order}` : `Day ${task.task.order}`}
+                </PrimaryButton>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        <AppCard>
+          <Text className="text-lg font-semibold text-focuslab-primaryDark">
+            Start the thread
+          </Text>
+          <TextInput
+            className="mt-4 min-h-28 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-4 text-base text-focuslab-primaryDark"
+            multiline
+            onChangeText={setDraft}
+            placeholder="Share a win, a challenge, or a tip that helped."
+            textAlignVertical="top"
+            value={draft}
+          />
+          <View className="mt-4">
+            <PrimaryButton
+              loading={actions.createPost.isPending}
+              onPress={() => {
+                void handleCreatePost();
+              }}
+            >
+              Write a post
+            </PrimaryButton>
+          </View>
+        </AppCard>
+
+      {isLoading ? (
+        <AppCard>
+          <Text className="text-base text-focuslab-secondary">Loading thread…</Text>
+        </AppCard>
+      ) : null}
+
+        {!isLoading && (!thread || thread.length === 0) ? (
+          <AppCard>
+            <Text className="text-lg font-semibold text-focuslab-primaryDark">
+              No posts yet
+            </Text>
+            <Text className="mt-2 text-base leading-7 text-focuslab-secondary">
+              Be the first to share how this task is going for you.
+            </Text>
+          </AppCard>
+        ) : null}
+
+        {(thread as ThreadPost[] | undefined ?? []).map((post) => (
+          <AppCard key={post.id}>
+            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+              {post.authorName}
+            </Text>
+            <Text className="mt-2 text-base leading-7 text-focuslab-primaryDark">
+              {post.body}
+            </Text>
+
+            <View className="mt-4 flex-row flex-wrap gap-2">
+              {reactionOptions.map((emoji) => {
+                const count = post.reactions.filter(
+                  (reaction: CommunityReaction) => reaction.emoji === emoji,
+                ).length;
+
+                return (
+                  <PrimaryButton
+                    key={`${post.id}-${emoji}`}
+                    onPress={() => {
+                      void actions.toggleReaction
+                        .mutateAsync({
+                          emoji,
+                          postId: post.id,
+                          reacted: count > 0,
+                        })
+                        .catch(() => showToast("Couldn’t update that reaction.", "error"));
+                    }}
+                  >
+                    {count > 0 ? `${emoji} ${count}` : emoji}
+                  </PrimaryButton>
+                );
+              })}
+            </View>
+
+            <View className="mt-4 gap-3">
+              {(post.replies ?? []).map((reply: CommunityReply) => (
+                <View
+                  className="rounded-2xl bg-focuslab-background px-4 py-3"
+                  key={reply.id}
+                >
+                  <Text className="text-sm leading-6 text-focuslab-primaryDark">
+                    {reply.body}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <TextInput
+              className="mt-4 min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark"
+              onChangeText={(value: string) =>
+                setReplyDrafts((current) => ({
+                  ...current,
+                  [post.id]: value,
+                }))
+              }
+              placeholder="Add a reply"
+              value={replyDrafts[post.id] ?? ""}
+            />
+            <View className="mt-3 flex-row gap-3">
+              <PrimaryButton
+                loading={actions.createReply.isPending}
+                onPress={() => {
+                  void actions.createReply
+                    .mutateAsync({
+                      body: replyDrafts[post.id] ?? "",
+                      postId: post.id,
+                    })
+                    .then(() =>
+                      setReplyDrafts((current) => ({
+                        ...current,
+                        [post.id]: "",
+                      })),
+                    )
+                    .catch(() => showToast("Couldn’t reply just yet.", "error"));
+                }}
+              >
+                Reply
+              </PrimaryButton>
+              <PrimaryButton
+                loading={actions.reportPost.isPending}
+                onPress={() => {
+                  void actions.reportPost
+                    .mutateAsync({
+                      postId: post.id,
+                      reason: "Reported from mobile thread",
+                    })
+                    .then(() => showToast("Post reported."))
+                    .catch(() => showToast("Couldn’t report this post.", "error"));
+                }}
+              >
+                Report
+              </PrimaryButton>
+            </View>
+          </AppCard>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

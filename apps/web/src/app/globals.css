@@ -14,4 +14,5 @@
 body {
   background: var(--focuslab-background);
   color: var(--focuslab-primary-dark);
+  font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
 }

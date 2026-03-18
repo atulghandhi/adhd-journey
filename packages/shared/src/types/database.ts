@@ -437,6 +437,39 @@ export type Database = {
           },
         ]
       }
+      reward_resources: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          title: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       spaced_repetition_config: {
         Row: {
           base_interval_days: number
@@ -626,6 +659,10 @@ export type Database = {
     }
     Functions: {
       has_unlocked_task: { Args: { target_task_id: string }; Returns: boolean }
+      invoke_focuslab_edge_function: {
+        Args: { function_name: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {

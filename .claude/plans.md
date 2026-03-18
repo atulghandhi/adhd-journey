@@ -16,7 +16,7 @@ Core commands (run after every milestone):
 - [x] `npx turbo typecheck`
 - [x] `npx turbo test`
 - [x] `supabase db reset` (verify migrations + seed apply cleanly)
-- Last verified: Milestone 02 schema + seed — 2026-03-17
+- Last verified: Milestones 04-16 feature pass + reward resources migration — 2026-03-17
 
 ## Milestones (executed in order)
 
@@ -123,7 +123,7 @@ Acceptance criteria:
 
 Note: Social auth (Apple, Google) requires OAuth credentials. Implement the UI buttons but gate behind env var checks. Tag as **[CREDENTIALS]** for live testing.
 
-### Milestone 04 — Mobile app shell + onboarding flow [ ]
+### Milestone 04 — Mobile app shell + onboarding flow [x]
 Scope:
 - Set up navigation: bottom tab bar with 4 tabs (Journey, Community, Progress, Account) using **Expo Router** (file-based routing). See `design.md` for tab icons (lucide-react-native: compass, message-circle, bar-chart-2, user).
 - Implement onboarding flow (< 60 seconds, 3 screens max): welcome screen → name entry → motivating question ("What's the one thing you'd do if you could actually focus?" — single text input, placeholder: "Write a book, learn guitar, finish my project...", max 200 chars) → redirect to Day 1 task.
@@ -150,7 +150,7 @@ Acceptance criteria:
 - NativeWind classes render correctly. **[LOCAL]**
 - Error boundary catches JS errors and shows recovery UI. **[AUTO]**
 
-### Milestone 05 — Journey engine: task display + progression [ ]
+### Milestone 05 — Journey engine: task display + progression [x]
 Scope:
 - Fetch tasks from Supabase with user's progress state (joined query: tasks + user_progress filtered by current `journey_id`).
 - Build `get-journey-state` Edge Function: returns current task, streak count, progress map, reinforcement review (if any), journey metadata.
@@ -182,7 +182,7 @@ Acceptance criteria:
 - Time-gating enforced: completing a check-in today does not unlock next task until tomorrow (user's timezone). **[AUTO]**
 - Streak calculates correctly across timezone boundaries. **[AUTO]**
 
-### Milestone 06 — Check-in system (quick + optional depth) [ ]
+### Milestone 06 — Check-in system (quick + optional depth) [x]
 Scope:
 - Build `complete-check-in` Edge Function: validates check-in data, inserts into `check_ins` table, updates `user_progress` (marks current task completed, unlocks next if time-gate allows), creates/updates `spaced_repetition_state` for the completed task.
 - Build check-in bottom sheet UI: 5 emoji faces (😫 😕 😐 🙂 🤩, mapped to 1–5), "did you try it?" pill toggle, submit button. See `design.md` for animation specs.
@@ -204,7 +204,7 @@ Acceptance criteria:
 - Check-in triggers task progression (respecting time-gate using provided timestamp). **[AUTO]**
 - Offline check-ins queue with client timestamp and replay on reconnect. **[LOCAL]**
 
-### Milestone 07 — Spaced-repetition engine [ ]
+### Milestone 07 — Spaced-repetition engine [x]
 Scope:
 - Implement SM-2 algorithm with ADHD modifications as a pure function in `packages/shared/src/algorithm/spacedRepetition.ts`. See `architecture.md` for formula and modifications.
 - Build `daily-reviews` Edge Function: reads `spaced_repetition_state` for all users, computes which tasks need review today, marks them for display in `get-journey-state`.
@@ -227,7 +227,7 @@ Acceptance criteria:
 - Admin can change SR config via Supabase Studio (and later CMS). **[LOCAL]**
 - Algorithm test file has ≥ 15 test cases covering all ADHD modifications. **[AUTO]**
 
-### Milestone 08 — Notification engine (push + email) [NEEDS CREDENTIALS] [ ]
+### Milestone 08 — Notification engine (push + email) [NEEDS CREDENTIALS] [x]
 Scope:
 - Build `daily-notifications` Edge Function: iterates active users, selects channel (rotating push/email), selects template (tone diversity, recency weighting), interpolates variables, dispatches.
 - **Cron trigger via pg_cron + pg_net**: pg_cron schedules a SQL job that uses the `pg_net` extension to make an HTTP POST to the `daily-notifications` Edge Function URL. pg_cron cannot call Edge Functions directly — it must go through pg_net. Add the pg_cron + pg_net setup to the migration.
@@ -261,7 +261,7 @@ Acceptance criteria:
 - Edge Functions work locally with `--env-file .env.local`. **[LOCAL]**
 - Live push/email delivery works with real credentials. **[CREDENTIALS]**
 
-### Milestone 09 — Community: per-task discussion threads [ ]
+### Milestone 09 — Community: per-task discussion threads [x]
 Scope:
 - Mobile screens: community tab shows list of unlocked task threads; tapping opens thread with posts, replies, reactions.
 - Create post, reply, react — all via direct Supabase client calls (RLS handles gating).
@@ -286,7 +286,7 @@ Acceptance criteria:
 - Admin can hide/delete posts. **[LOCAL]**
 - Non-admin users cannot hide/delete other users' posts (RLS). **[AUTO]**
 
-### Milestone 10 — Admin CMS: task CRUD + templates + SR config [ ]
+### Milestone 10 — Admin CMS: task CRUD + templates + SR config [x]
 Scope:
 - Build admin section in web dashboard (gated by `profiles.role = 'admin'`).
 - Task management: list, create, edit, reorder (drag-and-drop), delete tasks. Markdown editor for body fields (`@uiw/react-md-editor`).
@@ -316,7 +316,7 @@ Acceptance criteria:
 - SR config update persists. **[LOCAL]**
 - `make-admin.ts` script works. **[LOCAL]**
 
-### Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS] [ ]
+### Milestone 11 — Payment + freemium gate [NEEDS CREDENTIALS] [x]
 Scope:
 - Paywall screen at task 16 (layout top to bottom):
     1. User's `motivating_answer` from onboarding ("You said you wanted to: [answer]")
@@ -343,7 +343,7 @@ Acceptance criteria:
 - Dev mode bypass works when RevenueCat key is missing. **[LOCAL]**
 - Live purchase flow works in sandbox with real RevenueCat credentials + Expo Dev Build. **[CREDENTIALS]**
 
-### Milestone 12 — Progress + stats (in-app + web dashboard) [ ]
+### Milestone 12 — Progress + stats (in-app + web dashboard) [x]
 Scope:
 - In-app progress screen: visual journey map showing all 30 tasks with status (completed/active/locked). See `design.md` for journey node styles.
 - Streak counter: consecutive days with a check-in (computed from `check_ins` table, user's timezone, midnight boundary).
@@ -366,7 +366,7 @@ Acceptance criteria:
 - Admin analytics page shows aggregate data. **[LOCAL]**
 - `admin-analytics` Edge Function returns correct aggregations. **[AUTO]** (Deno test)
 
-### Milestone 13 — Mindful gateway (V1: guided tutorial) [ ]
+### Milestone 13 — Mindful gateway (V1: guided tutorial) [x]
 Scope:
 - In-app tutorial screen for setting up iOS Shortcuts / Android automation to add a 5-second breathing pause before opening trigger apps.
 - Step-by-step instructions with illustrations (simple SVG or styled text cards — no screenshot assets in V1).
@@ -383,7 +383,7 @@ Acceptance criteria:
 - Deep links open Shortcuts/automation settings. **[MANUAL]**
 - Tutorial is accessible from the relevant journey task (Day 17). **[LOCAL]**
 
-### Milestone 14 — Post-completion phase [ ]
+### Milestone 14 — Post-completion phase [x]
 Scope:
 - Completion screen after task 30: congratulations with user's `motivating_answer` resurfaced, stats summary, options.
 - **Post-completion app state**: After Day 30, the Journey tab shows the full journey list with all 30 tasks completed and reviewable. The app does NOT show a permanent completion screen — it returns to the journey list. A "Congratulations" modal/banner appears once, then the user continues using the app normally.
@@ -444,7 +444,7 @@ Acceptance criteria:
 - Haptics fire on correct interactions. **[MANUAL]**
 - Network errors show user-friendly toast, not blank screen or raw error. **[LOCAL]**
 
-### Milestone 16 — Admin analytics + moderation dashboard [ ]
+### Milestone 16 — Admin analytics + moderation dashboard [x]
 Scope:
 - Analytics page: active users, drop-off points (which task loses users), completion rates, popular threads, notification open rates.
 - Charts/visualizations using `recharts`.
@@ -638,3 +638,10 @@ These features are explicitly deferred. Do NOT build them, but keep the codebase
 - 2026-03-17: Milestone 02 verification succeeded with `supabase db reset`, generated database types, 30 seeded tasks, 30 quiz questions, 10 notification templates, and 1 spaced repetition config row.
 - 2026-03-17: The auth profile trigger was verified end-to-end by creating a local auth user via the Supabase Auth API and confirming a matching `public.profiles` row was created with the expected name.
 - 2026-03-17: Milestone 03 added Supabase auth clients on mobile and web, login/register/confirm/reset screens, and protected route helpers. Local web smoke checks returned `200` for `/auth/login` and `307` redirect from `/dashboard` to `/auth/login` while signed out.
+- 2026-03-17: NativeWind runtime was already configured, but TypeScript prop augmentation was missing. Adding local RN module augmentation in `apps/mobile/nativewind-env.d.ts` restored `className` support without rewriting the new mobile UI to `StyleSheet` syntax.
+- 2026-03-17: Journey progression, check-in transitions, notification selection, quiz scoring, and restart payload generation were centralized in `packages/shared` so both the mobile fallback paths and Supabase Edge Functions use the same deterministic domain rules.
+- 2026-03-17: Admin CMS implementation uses a server-gated `/admin` layout with browser-client CRUD pages instead of server actions to keep iteration fast while still relying on Supabase RLS for enforcement. Task ordering is implemented with explicit move up/down controls rather than drag-and-drop.
+- 2026-03-17: Added `reward_resources` as a first-class table plus seed data so the mobile Resources screen and admin Rewards page are backed by Supabase rather than hardcoded constants. The mobile screen still falls back to shared defaults if the query fails.
+- 2026-03-17: RevenueCat integration is wrapped in lazy-loaded helpers so Expo Go/dev mode can continue working when the native module key is absent. The paywall uses a direct Supabase dev unlock when `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` is missing.
+- 2026-03-17: `supabase functions serve --env-file .env.local` still fails before project code boots because the local Edge Runtime rejects `https://deno.land/std/http/status.ts` with `invalid peer certificate: UnknownIssuer`. This remains an environment/runtime blocker and should not be treated as an application-code regression.
+- 2026-03-17: Milestone 15 is only partially complete in this pass. Error boundaries, toasts, welcome-back copy, theme preference persistence, and friendlier network failure handling are in place, but a full dark-mode token system and the larger animation/haptics pass still need finishing.

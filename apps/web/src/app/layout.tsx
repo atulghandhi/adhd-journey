@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
+import "@uiw/react-md-editor/markdown-editor.css";
+import "@uiw/react-markdown-preview/markdown.css";
 import "./globals.css";
-
-const montserrat = Montserrat({
-  display: "swap",
-  subsets: ["latin"],
-  variable: "--font-montserrat",
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "FocusLab",
@@ -21,9 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${montserrat.variable} bg-focuslab-background font-sans text-focuslab-primaryDark antialiased`}
-      >
+      <body className="bg-focuslab-background font-sans text-focuslab-primaryDark antialiased">
         {children}
       </body>
     </html>

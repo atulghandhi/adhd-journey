@@ -8,6 +8,7 @@ BEGIN
   DELETE FROM public.notification_log;
   DELETE FROM public.notification_templates;
   DELETE FROM public.push_tokens;
+  DELETE FROM public.reward_resources;
   DELETE FROM public.community_reports;
   DELETE FROM public.community_replies;
   DELETE FROM public.community_reactions;
@@ -624,6 +625,40 @@ BEGIN
     max_reviews_per_day = EXCLUDED.max_reviews_per_day,
     decay_multiplier = EXCLUDED.decay_multiplier,
     updated_at = timezone('utc', now());
+
+  WITH reward_seed AS (
+    SELECT *
+    FROM jsonb_to_recordset($rewards$[
+  {
+    "title": "ADHD Focus Toolkit",
+    "description": "A starter dashboard for planning your focus week.",
+    "url": "https://example.com/focus-toolkit",
+    "sort_order": 1
+  },
+  {
+    "title": "30-Day Cheatsheet",
+    "description": "A printable one-page recap of the 30-day journey.",
+    "url": "https://example.com/30-day-cheatsheet",
+    "sort_order": 2
+  },
+  {
+    "title": "Top 10 ADHD Books",
+    "description": "A curated reading list for understanding ADHD and attention.",
+    "url": "https://example.com/adhd-books",
+    "sort_order": 3
+  },
+  {
+    "title": "Focus YouTube Channels",
+    "description": "A few practical channels for focus-friendly learning.",
+    "url": "https://example.com/focus-youtube",
+    "sort_order": 4
+  }
+]$rewards$::jsonb) AS x(title text, description text, url text, sort_order integer)
+  )
+  INSERT INTO public.reward_resources (title, description, url, sort_order)
+  SELECT title, description, url, sort_order
+  FROM reward_seed
+  ORDER BY sort_order;
 
   INSERT INTO public.profiles (id, name, role)
   SELECT
