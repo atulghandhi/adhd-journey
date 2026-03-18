@@ -13,7 +13,7 @@ This document is updated continuously as milestones land so it reflects reality.
 ## Status
 
 - Milestone 01 — Repo scaffold + tooling: complete
-- Milestone 02 — Database schema + migrations + seed: not started
+- Milestone 02 — Database schema + migrations + seed: complete
 - Milestone 03 — Auth integration (Supabase Auth): not started
 - Milestone 04 — Mobile app shell + onboarding: not started
 - Milestone 05 — Journey engine: task display + progression: not started
@@ -35,6 +35,7 @@ Note: Home screen widget is deferred to V2.
 Bootstrap note:
 - 2026-03-17: Implementation started from an almost-empty repository containing only spec files, content drafts, and Supabase local config.
 - 2026-03-17: Milestone 01 completed with a working npm workspace, Expo mobile app, Next.js web app, shared package, Turbo pipelines, tests, and local startup verification.
+- 2026-03-17: Milestone 02 completed with the initial Postgres schema, RLS policies, seed data, generated database types, and a verified auth-to-profile trigger.
 
 ## Local setup
 

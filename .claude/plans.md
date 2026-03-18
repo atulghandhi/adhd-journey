@@ -15,8 +15,8 @@ Core commands (run after every milestone):
 - [x] `npx turbo lint`
 - [x] `npx turbo typecheck`
 - [x] `npx turbo test`
-- [ ] `supabase db reset` (verify migrations + seed apply cleanly)
-- Last verified: Milestone 01 scaffold — 2026-03-17
+- [x] `supabase db reset` (verify migrations + seed apply cleanly)
+- Last verified: Milestone 02 schema + seed — 2026-03-17
 
 ## Milestones (executed in order)
 
@@ -60,7 +60,7 @@ Acceptance criteria:
 - `.env.example` exists with all variables from `architecture.md`. **[AUTO]**
 - `eas.json` exists with development/preview/production profiles. **[AUTO]**
 
-### Milestone 02 — Database schema + migrations + seed data [ ]
+### Milestone 02 — Database schema + migrations + seed data [x]
 Scope:
 - Write SQL migration(s) creating all tables from `architecture.md`: profiles, tasks, user_progress, check_ins, spaced_repetition_state, community_posts, community_reactions, community_replies, community_reports, notification_log, notification_templates, spaced_repetition_config, push_tokens, quiz_questions.
 - **`journey_id` column**: Add `journey_id` (uuid) to `tasks`, `user_progress`, `check_ins`, and `spaced_repetition_state`. Default to a single hardcoded UUID constant for the "ADHD Focus" journey. This future-proofs for multi-journey support and enables journey restart without losing history. When a user restarts, a new `journey_id` is created — old progress, check-ins, and community posts are preserved under the old `journey_id`.
@@ -635,3 +635,5 @@ These features are explicitly deferred. Do NOT build them, but keep the codebase
 - 2026-03-17: `react-native-purchases` does not expose a usable Expo config plugin in this environment, so the mobile app keeps the dependency installed but omits it from `app.config.ts`. RevenueCat SDK wiring will be handled in app code during the payment milestone.
 - 2026-03-17: Local `supabase start` fails when the bundled Edge Runtime tries to fetch a remote Deno standard library import with an invalid local certificate chain. Milestone 01 verification used `supabase start --exclude edge-runtime` and confirmed the rest of the local Supabase stack boots successfully.
 - 2026-03-17: Local `npx turbo dev` verification required an unsandboxed run because this shell sandbox blocks port binding and Expo writes to `~/.expo`. Mobile scripts now redirect Expo state into `/tmp/focuslab-expo-home`.
+- 2026-03-17: Milestone 02 verification succeeded with `supabase db reset`, generated database types, 30 seeded tasks, 30 quiz questions, 10 notification templates, and 1 spaced repetition config row.
+- 2026-03-17: The auth profile trigger was verified end-to-end by creating a local auth user via the Supabase Auth API and confirming a matching `public.profiles` row was created with the expected name.
