@@ -92,7 +92,7 @@ Acceptance criteria:
 - Community RLS allows access based on ANY journey's progress (not just current). **[AUTO]**
 - Generated types compile and export correctly from shared package. **[AUTO]**
 
-### Milestone 03 — Auth integration (Supabase Auth) [ ]
+### Milestone 03 — Auth integration (Supabase Auth) [x]
 Scope:
 - Set up Supabase JS client in mobile app (`apps/mobile/src/lib/supabase.ts`) using `@supabase/supabase-js` + `@react-native-async-storage/async-storage` for session persistence.
 - Set up Supabase JS clients in web app: server-side (`apps/web/src/lib/supabase-server.ts`) and client-side (`apps/web/src/lib/supabase-client.ts`) using `@supabase/ssr`.
@@ -637,3 +637,4 @@ These features are explicitly deferred. Do NOT build them, but keep the codebase
 - 2026-03-17: Local `npx turbo dev` verification required an unsandboxed run because this shell sandbox blocks port binding and Expo writes to `~/.expo`. Mobile scripts now redirect Expo state into `/tmp/focuslab-expo-home`.
 - 2026-03-17: Milestone 02 verification succeeded with `supabase db reset`, generated database types, 30 seeded tasks, 30 quiz questions, 10 notification templates, and 1 spaced repetition config row.
 - 2026-03-17: The auth profile trigger was verified end-to-end by creating a local auth user via the Supabase Auth API and confirming a matching `public.profiles` row was created with the expected name.
+- 2026-03-17: Milestone 03 added Supabase auth clients on mobile and web, login/register/confirm/reset screens, and protected route helpers. Local web smoke checks returned `200` for `/auth/login` and `307` redirect from `/dashboard` to `/auth/login` while signed out.

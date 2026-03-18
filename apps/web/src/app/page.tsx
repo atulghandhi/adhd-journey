@@ -12,6 +12,11 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-b from-focuslab-background to-white px-6 py-12">
       <div className="mx-auto flex max-w-5xl flex-col gap-10">
         <section className="rounded-[32px] bg-white p-8 shadow-[0_24px_80px_rgba(27,67,50,0.08)]">
+          <div className="mb-6 flex flex-wrap gap-3 text-sm font-semibold text-focuslab-secondary">
+            <a href="/auth/login">Login</a>
+            <a href="/auth/register">Register</a>
+            <a href="/dashboard">Dashboard</a>
+          </div>
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-focuslab-secondary">
             FocusLab
           </p>
