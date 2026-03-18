@@ -12,7 +12,7 @@ This document is updated continuously as milestones land so it reflects reality.
 
 ## Status
 
-- Milestone 01 — Repo scaffold + tooling: not started
+- Milestone 01 — Repo scaffold + tooling: complete
 - Milestone 02 — Database schema + migrations + seed: not started
 - Milestone 03 — Auth integration (Supabase Auth): not started
 - Milestone 04 — Mobile app shell + onboarding: not started
@@ -31,6 +31,10 @@ This document is updated continuously as milestones land so it reflects reality.
 - Milestone 17 — Testing hardening + final sweep: not started
 
 Note: Home screen widget is deferred to V2.
+
+Bootstrap note:
+- 2026-03-17: Implementation started from an almost-empty repository containing only spec files, content drafts, and Supabase local config.
+- 2026-03-17: Milestone 01 completed with a working npm workspace, Expo mobile app, Next.js web app, shared package, Turbo pipelines, tests, and local startup verification.
 
 ## Local setup
 
@@ -75,6 +79,10 @@ npx turbo dev
 - `npm run dev` (from `apps/web/`) — Start Next.js dev server only
 - `supabase stop` — Stop local Supabase stack
 - `npx tsx scripts/make-admin.ts admin@example.com` — Promote a user to admin role
+
+Verification notes from Milestone 01:
+- In this environment, `supabase start` required `--exclude edge-runtime` because the bundled local Edge Runtime failed on a certificate error while fetching a remote Deno import. The rest of the stack started cleanly.
+- In this environment, Expo CLI writes were redirected to `/tmp/focuslab-expo-home` so `npx turbo dev` could run inside the workspace without using `~/.expo`.
 
 ## Verification commands
 

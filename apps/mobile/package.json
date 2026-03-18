@@ -1,0 +1,39 @@
+{
+  "name": "@focuslab/mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "build": "HOME=/tmp/focuslab-expo-home EXPO_NO_TELEMETRY=1 expo export --platform web",
+    "dev": "HOME=/tmp/focuslab-expo-home EXPO_NO_TELEMETRY=1 expo start --clear",
+    "lint": "eslint app src index.ts app.config.ts expo-env.d.ts nativewind-env.d.ts --ext .ts,.tsx",
+    "start": "HOME=/tmp/focuslab-expo-home EXPO_NO_TELEMETRY=1 expo start",
+    "test": "jest --runInBand",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "android": "HOME=/tmp/focuslab-expo-home EXPO_NO_TELEMETRY=1 expo start --android",
+    "ios": "HOME=/tmp/focuslab-expo-home EXPO_NO_TELEMETRY=1 expo start --ios",
+    "web": "HOME=/tmp/focuslab-expo-home EXPO_NO_TELEMETRY=1 expo start --web"
+  },
+  "dependencies": {
+    "@focuslab/shared": "*",
+    "@tanstack/react-query": "^5.90.5",
+    "expo": "~55.0.7",
+    "expo-dev-client": "*",
+    "expo-notifications": "*",
+    "expo-router": "*",
+    "expo-status-bar": "~55.0.4",
+    "nativewind": "^4.2.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-native": "0.83.2",
+    "react-native-purchases": "^9.6.0",
+    "react-native-reanimated": "*",
+    "react-native-safe-area-context": "*",
+    "react-native-screens": "*",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

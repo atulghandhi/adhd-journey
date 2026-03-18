@@ -1,0 +1,36 @@
+{
+  "name": "@focuslab/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "lint": "eslint .",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@focuslab/shared": "*",
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.90.0",
+    "@tanstack/react-query": "^5.90.5",
+    "next": "16.1.7",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0"
+  },
+  "devDependencies": {
+    "@uiw/react-md-editor": "^4.0.8",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.7",
+    "postcss": "^8.5.6",
+    "recharts": "^3.3.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5"
+  }
+}

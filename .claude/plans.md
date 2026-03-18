@@ -12,17 +12,17 @@ Guiding principles:
 ## Verification checklist (kept current)
 
 Core commands (run after every milestone):
-- [ ] `npx turbo lint`
-- [ ] `npx turbo typecheck`
-- [ ] `npx turbo test`
+- [x] `npx turbo lint`
+- [x] `npx turbo typecheck`
+- [x] `npx turbo test`
 - [ ] `supabase db reset` (verify migrations + seed apply cleanly)
-- Last verified: not yet started
+- Last verified: Milestone 01 scaffold — 2026-03-17
 
 ## Milestones (executed in order)
 
 Each milestone includes scope, key files/modules, acceptance criteria (tagged with verification category), and verification steps. Categories: **[AUTO]**, **[LOCAL]**, **[MANUAL]**, **[CREDENTIALS]** — see `implement.md` for definitions.
 
-### Milestone 01 — Repo scaffold + tooling foundation [ ]
+### Milestone 01 — Repo scaffold + tooling foundation [x]
 Scope:
 - **The repo is empty.** No `package.json`, no `node_modules`, no app code exists yet. This milestone creates everything from scratch.
 - Initialize npm workspace root (`npm init -w`), then create three workspaces: `apps/mobile` (Expo), `apps/web` (Next.js), `packages/shared`.
@@ -630,4 +630,8 @@ These features are explicitly deferred. Do NOT build them, but keep the codebase
 
 ## Implementation notes and decision log (updated as we go)
 
-(This section will be populated as milestones are implemented.)
+- 2026-03-17: Repository started with spec files, content files, and Supabase config only. Bootstrap is being done from scratch against the locked stack in `architecture.md`.
+- 2026-03-17: Using a manual monorepo scaffold instead of generator defaults where helpful so the workspace, linting, tests, and shared package structure stay consistent across Expo, Next.js, and Supabase from day one.
+- 2026-03-17: `react-native-purchases` does not expose a usable Expo config plugin in this environment, so the mobile app keeps the dependency installed but omits it from `app.config.ts`. RevenueCat SDK wiring will be handled in app code during the payment milestone.
+- 2026-03-17: Local `supabase start` fails when the bundled Edge Runtime tries to fetch a remote Deno standard library import with an invalid local certificate chain. Milestone 01 verification used `supabase start --exclude edge-runtime` and confirmed the rest of the local Supabase stack boots successfully.
+- 2026-03-17: Local `npx turbo dev` verification required an unsandboxed run because this shell sandbox blocks port binding and Expo writes to `~/.expo`. Mobile scripts now redirect Expo state into `/tmp/focuslab-expo-home`.
