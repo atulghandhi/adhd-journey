@@ -8,7 +8,11 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { useReducedMotion } from "../hooks/useReducedMotion";
-import { REDUCED_MOTION_DURATION, SPRING_SNAPPY } from "./springs";
+import {
+  REDUCED_MOTION_DURATION,
+  SPRING_SNAPPY,
+  SPRING_SQUISH,
+} from "./springs";
 
 const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
 
@@ -24,26 +28,34 @@ export function AnimatedPressable({
   disabled,
   onPress,
 }: AnimatedPressableProps) {
-  const scale = useSharedValue(1);
+  const scaleX = useSharedValue(1);
+  const scaleY = useSharedValue(1);
   const { reducedMotion } = useReducedMotion();
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [
+      { scaleX: scaleX.value },
+      { scaleY: scaleY.value },
+    ],
   }));
 
   const handlePressIn = () => {
     if (reducedMotion) {
-      scale.value = withTiming(0.97, { duration: REDUCED_MOTION_DURATION });
+      scaleX.value = withTiming(0.98, { duration: REDUCED_MOTION_DURATION });
+      scaleY.value = withTiming(0.98, { duration: REDUCED_MOTION_DURATION });
     } else {
-      scale.value = withSpring(0.97, SPRING_SNAPPY);
+      scaleX.value = withSpring(1.02, SPRING_SQUISH);
+      scaleY.value = withSpring(0.96, SPRING_SQUISH);
     }
   };
 
   const handlePressOut = () => {
     if (reducedMotion) {
-      scale.value = withTiming(1, { duration: REDUCED_MOTION_DURATION });
+      scaleX.value = withTiming(1, { duration: REDUCED_MOTION_DURATION });
+      scaleY.value = withTiming(1, { duration: REDUCED_MOTION_DURATION });
     } else {
-      scale.value = withSpring(1, SPRING_SNAPPY);
+      scaleX.value = withSpring(1, SPRING_SNAPPY);
+      scaleY.value = withSpring(1, SPRING_SNAPPY);
     }
   };
 

@@ -24,4 +24,10 @@ export const SPRING_QUICK: WithSpringConfig = {
   stiffness: 300,
 };
 
+export const SPRING_SQUISH: WithSpringConfig = {
+  damping: 10,
+  mass: 0.8,
+  stiffness: 250,
+};
+
 export const REDUCED_MOTION_DURATION = 150;

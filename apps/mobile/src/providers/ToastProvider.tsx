@@ -27,6 +27,7 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 export function ToastProvider({ children }: PropsWithChildren) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [translateY] = useState(() => new Animated.Value(120));
+  const [scaleX] = useState(() => new Animated.Value(0.96));
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -47,23 +48,40 @@ export function ToastProvider({ children }: PropsWithChildren) {
     });
 
     translateY.setValue(120);
-    Animated.spring(translateY, {
-      damping: 18,
-      stiffness: 220,
-      mass: 0.8,
-      toValue: 0,
-      useNativeDriver: true,
-    }).start();
+    scaleX.setValue(0.96);
+    Animated.parallel([
+      Animated.spring(translateY, {
+        damping: 18,
+        stiffness: 220,
+        mass: 0.8,
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleX, {
+        damping: 10,
+        stiffness: 250,
+        mass: 0.8,
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     dismissTimer.current = setTimeout(() => {
       dismissTimer.current = null;
-      Animated.timing(translateY, {
-        duration: 200,
-        toValue: 120,
-        useNativeDriver: true,
-      }).start(() => setToast(null));
+      Animated.parallel([
+        Animated.timing(translateY, {
+          duration: 200,
+          toValue: 120,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleX, {
+          duration: 200,
+          toValue: 0.98,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setToast(null));
     }, 3000);
-  }, [translateY]);
+  }, [scaleX, translateY]);
 
   const value = useMemo(
     () => ({
@@ -81,7 +99,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
             style={[
               styles.toast,
               toast.tone === "error" ? styles.toastError : styles.toastSuccess,
-              { transform: [{ translateY }] },
+              { transform: [{ translateY }, { scaleX }] },
             ]}
           >
             <Text style={styles.toastText}>{toast.message}</Text>

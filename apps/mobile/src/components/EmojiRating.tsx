@@ -34,24 +34,37 @@ function AnimatedEmoji({
   onPress: () => void;
   selected: boolean;
 }) {
-  const scale = useSharedValue(1);
+  const scaleX = useSharedValue(1);
+  const scaleY = useSharedValue(1);
   const { reducedMotion } = useReducedMotion();
 
   useEffect(() => {
     if (reducedMotion) {
-      scale.value = withTiming(selected ? 1.15 : 1, {
+      scaleX.value = withTiming(selected ? 1.1 : 1, {
+        duration: REDUCED_MOTION_DURATION,
+      });
+      scaleY.value = withTiming(selected ? 1.1 : 1, {
         duration: REDUCED_MOTION_DURATION,
       });
     } else {
-      scale.value = selected
-        ? withSpring(1.3, SPRING_SNAPPY)
-        : withSpring(0.85, SPRING_QUICK);
+      if (selected) {
+        scaleX.value = 1.03;
+        scaleY.value = 0.95;
+        scaleX.value = withSpring(1.1, SPRING_SNAPPY);
+        scaleY.value = withSpring(1.1, SPRING_SNAPPY);
+      } else {
+        scaleX.value = withSpring(0.92, SPRING_QUICK);
+        scaleY.value = withSpring(0.92, SPRING_QUICK);
+      }
     }
-  }, [reducedMotion, scale, selected]);
+  }, [reducedMotion, scaleX, scaleY, selected]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: selected ? 1 : 0.5,
-    transform: [{ scale: scale.value }],
+    transform: [
+      { scaleX: scaleX.value },
+      { scaleY: scaleY.value },
+    ],
   }));
 
   return (
