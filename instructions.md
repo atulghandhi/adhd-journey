@@ -10,9 +10,12 @@ This file explains:
 
 ## 1. What this repo ships
 
-- Mobile app: iOS and Android via Expo / React Native
+- Mobile app: iOS and Android via Expo / React Native (NativeWind for styling, Reanimated for animations)
 - Web app: Next.js dashboard and admin CMS
-- Backend: Supabase Postgres, Auth, Storage, and Edge Functions
+- Backend: Supabase Postgres, Auth, Storage, and Edge Functions (Deno)
+- Shared package: `@focuslab/shared` — constants, journey progression, spaced repetition, timezone helpers, quiz scoring, and TypeScript types shared between mobile and web
+
+Edge Functions duplicate core domain logic in `supabase/functions/_shared/domain.ts` because Deno cannot import from the npm workspace. The shared package has equivalence tests to verify the two stay in sync.
 
 ## 2. Prerequisites
 
@@ -122,7 +125,7 @@ npm run make-admin -- you@example.com
 Admins use the web CMS at `/admin`.
 
 - `Tasks`: create tasks, reorder them, delete them, and open the full editor
-- `Task editor`: change title, tags, order, difficulty, duration, active flag, task body, explanation, deeper reading, and preview the mobile card
+- `Task editor`: change title, tags, order, difficulty rating (1–5), default duration (days), active flag, task body (markdown), explanation (markdown), deeper reading (markdown), delete a task, and live-preview the mobile card
 - `Templates`: create, edit, activate/deactivate, and delete push/email notification templates
 - `SR Config`: tune spaced-repetition parameters
 - `Rewards`: manage the resource links shown in the completion/resources flow
@@ -150,7 +153,7 @@ Useful local tools:
 
 Known local limitation:
 
-- `supabase functions serve --env-file .env.local` is currently blocked by the local Supabase Edge runtime certificate error (`UnknownIssuer`). Database, auth, web, and mobile testing still work locally.
+- `supabase functions serve` may fail with a TLS certificate error (`UnknownIssuer`) if you are behind a corporate proxy that intercepts `deno.land` certificates. This is a network/proxy issue, not a Supabase or code bug. Workaround: use a personal network or deploy Edge Functions to a staging project. Database, auth, web, and mobile testing still work locally without Edge Functions.
 
 ### Web testing
 
@@ -203,13 +206,16 @@ npm run start --workspace @focuslab/mobile
    - register a new user
    - confirm the email from Inbucket
    - log in
-   - complete onboarding
+   - complete onboarding (welcome → name → motivating question)
    - open Day 1
-   - submit a quick check-in
+   - submit a quick check-in (emoji rating, tried-it toggle, optional reflection)
+   - verify the check-in pop animation fires on success
    - open Community, Progress, and Account tabs
-   - change theme preference
+   - change theme preference (light / dark / system) and verify dark mode applies immediately
    - change notification quiet hours
    - restart the journey
+   - toggle device reduced-motion in iOS Settings → Accessibility → Motion and verify animations fall back to simple fades and haptics are suppressed
+   - turn off network and submit a check-in — it should queue offline and sync when reconnected
 
 5. If RevenueCat is not configured, test the paywall with the dev bypass button.
 
@@ -241,6 +247,8 @@ npm run android --workspace @focuslab/mobile
    - open Community, Progress, Account
    - test paywall behavior
    - test restart journey
+   - test dark mode toggle
+   - test offline check-in queueing
 
 5. If you are testing push notifications or real purchases, use a dev build or preview build, not just the local JS server.
 
@@ -274,7 +282,18 @@ npm run android --workspace @focuslab/mobile
    - open reward/resources
    - continue with review cards or restart
 
-## 8. Deployment overview
+## 8. Mobile architecture notes
+
+- **Styling**: NativeWind (Tailwind CSS for React Native). All screens use `dark:` variant classes for dark mode.
+- **Animations**: `react-native-reanimated` with five spring configs in `src/animations/springs.ts` — `SPRING_DEFAULT`, `SPRING_SNAPPY`, `SPRING_GENTLE`, `SPRING_QUICK`, `SPRING_SQUISH`. Buttons use asymmetric scaleX/scaleY squish on press for a Dynamic Island–style elastic feel.
+- **Reduced motion**: `useReducedMotion` hook reads both the OS accessibility setting and a per-user profile flag. When active, all springs collapse to 150ms linear timing and all haptics are suppressed.
+- **Haptics**: `useHaptics` hook wraps `expo-haptics` with five feedback types (light impact, medium impact, selection changed, success notification, error notification), all gated on reduced motion.
+- **Theme**: `ThemeProvider` persists the user's last-known theme preference to AsyncStorage so returning users see the correct scheme immediately on launch, before the profile API responds.
+- **Offline queue**: `offlineQueueStore` (Zustand + AsyncStorage) queues check-ins when the network is unavailable and replays them on reconnect via `OfflineQueueSync` in `AppProviders`.
+- **Toasts**: `ToastProvider` shows spring-animated bottom toasts with auto-dismiss after 3 seconds. Rapid back-to-back calls correctly cancel the previous dismiss timer.
+- **Mindful gateway**: Day 17 shows an extra button linking to the `MindfulGatewayTutorial` screen with platform-specific iOS Shortcuts / Android automation steps.
+
+## 9. Deployment overview
 
 There is no checked-in CI/CD pipeline in this repo. The steps below are the manual release path.
 
@@ -285,7 +304,7 @@ Deploy in this order:
 3. iOS app
 4. Android app
 
-## 9. Deploy the backend (Supabase)
+## 10. Deploy the backend (Supabase)
 
 1. Create or choose the production Supabase project.
 2. Log in and link the local repo:
@@ -323,7 +342,7 @@ supabase functions deploy health
 6. Verify that production env vars used by mobile and web match this Supabase project.
 7. Create the first production admin with `npm run make-admin -- you@example.com`.
 
-## 10. Deploy the web app
+## 11. Deploy the web app
 
 The web app is a standard Next.js server app.
 
@@ -356,7 +375,7 @@ npm run start --workspace @focuslab/web
    - `/dashboard`
    - `/admin` with an admin account
 
-## 11. Deploy iOS
+## 12. Deploy iOS
 
 The mobile app is configured for EAS Build. The iOS bundle identifier is `app.focuslab.mobile`.
 
@@ -404,7 +423,7 @@ npx eas submit --platform ios
    - completion/resources
    - theme/account settings
 
-## 12. Deploy Android
+## 13. Deploy Android
 
 The Android package name is `app.focuslab.mobile`.
 
@@ -453,7 +472,7 @@ npx eas submit --platform android
    - paywall behavior
    - completion/resources
 
-## 13. Recommended release checklist
+## 14. Recommended release checklist
 
 Run these before each release:
 
@@ -464,10 +483,18 @@ npx turbo test
 supabase db reset
 ```
 
+Test suites cover:
+
+- `packages/shared`: spaced repetition algorithm, journey progression, notifications, quiz scoring, and EF domain.ts equivalence (68+ tests via Vitest)
+- `apps/mobile`: spring configs, emoji rating options, auth routing, button config (13 tests via Jest)
+- `apps/web`: auth routing, home page render (3 tests via Vitest)
+
 After deploy, verify:
 
 - a new user can register and confirm email
 - a normal user can complete onboarding
-- a check-in persists
+- a check-in persists and the success animation / haptic fires
+- dark mode works on auth screens and toggles correctly in Account
 - the admin can access `/admin`
 - the paywall still behaves correctly with or without live RevenueCat credentials
+- offline check-in queueing works when network is unavailable
