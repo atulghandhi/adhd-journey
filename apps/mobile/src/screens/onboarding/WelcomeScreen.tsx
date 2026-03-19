@@ -7,22 +7,22 @@ export function WelcomeScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <View className="flex-1 justify-between px-6 py-8">
         <View className="gap-6">
-          <Text className="text-4xl font-bold leading-tight text-focuslab-primaryDark">
+          <Text className="text-4xl font-bold leading-tight text-focuslab-primaryDark dark:text-dark-text-primary">
             FocusLab helps you build attention one doable day at a time.
           </Text>
-          <Text className="text-lg leading-8 text-focuslab-secondary">
+          <Text className="text-lg leading-8 text-focuslab-secondary dark:text-dark-text-secondary">
             You won&apos;t get a wall of advice. You&apos;ll get one small task, one
             honest reflection, and steady momentum.
           </Text>
         </View>
-        <View className="rounded-[28px] bg-white p-6">
-          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+        <View className="rounded-[28px] bg-white p-6 dark:border dark:border-dark-border dark:bg-dark-surface">
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Under 60 seconds
           </Text>
-          <Text className="mt-3 text-lg leading-7 text-focuslab-primaryDark">
+          <Text className="mt-3 text-lg leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
             Three quick screens and then we take you straight to Day 1.
           </Text>
           <View className="mt-6">

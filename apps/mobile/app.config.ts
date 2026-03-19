@@ -6,7 +6,7 @@ const config: ExpoConfig = {
   scheme: "focuslab",
   version: "1.0.0",
   orientation: "portrait",
-  userInterfaceStyle: "light",
+  userInterfaceStyle: "automatic",
   icon: "./assets/icon.png",
   splash: {
     image: "./assets/splash-icon.png",

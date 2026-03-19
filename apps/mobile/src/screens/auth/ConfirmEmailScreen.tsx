@@ -1,8 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator } from "react-native";
 
 import { AuthScaffold } from "../../components/AuthScaffold";
+import { Pressable, Text } from "../../components/primitives";
 import { supabase } from "../../lib/supabase";
 
 export function ConfirmEmailScreen() {
@@ -32,43 +33,27 @@ export function ConfirmEmailScreen() {
       title="Check your email"
       subtitle="We sent a confirmation link so you can finish setting up FocusLab."
     >
-      <Text style={styles.body}>
+      <Text className="text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
         {email
           ? `Open the message we sent to ${email} and tap the confirmation link.`
           : "Open the confirmation email we just sent you and tap the link."}
       </Text>
-      <Pressable onPress={handleResend} style={styles.primaryButton}>
+      <Pressable
+        className="items-center rounded-[14px] bg-focuslab-primary py-3.5"
+        onPress={handleResend}
+      >
         {isSubmitting ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.primaryButtonText}>Resend confirmation</Text>
+          <Text className="text-base font-bold text-white">Resend confirmation</Text>
         )}
       </Pressable>
-      {message ? <Text style={styles.helperText}>{message}</Text> : null}
+      {message ? (
+        <Text className="text-sm leading-[22px] text-gray-600 dark:text-dark-text-secondary">
+          {message}
+        </Text>
+      ) : null}
     </AuthScaffold>
   );
 }
 
-const styles = StyleSheet.create({
-  body: {
-    color: "#2D6A4F",
-    fontSize: 16,
-    lineHeight: 28,
-  },
-  helperText: {
-    color: "#4B5563",
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: "#40916C",
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-});

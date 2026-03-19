@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput } from "react-native";
+import { ActivityIndicator } from "react-native";
 
 import { AuthScaffold } from "../../components/AuthScaffold";
+import { Pressable, Text, TextInput } from "../../components/primitives";
 import { supabase } from "../../lib/supabase";
 
 export function ForgotPasswordScreen() {
@@ -27,49 +28,28 @@ export function ForgotPasswordScreen() {
     >
       <TextInput
         autoCapitalize="none"
+        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
         keyboardType="email-address"
         onChangeText={setEmail}
         placeholder="Email"
-        style={styles.input}
         value={email}
       />
-      <Pressable onPress={handleSubmit} style={styles.primaryButton}>
+      <Pressable
+        className="items-center rounded-[14px] bg-focuslab-primary py-3.5"
+        onPress={handleSubmit}
+      >
         {isSubmitting ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.primaryButtonText}>Send reset email</Text>
+          <Text className="text-base font-bold text-white">Send reset email</Text>
         )}
       </Pressable>
-      {message ? <Text style={styles.helperText}>{message}</Text> : null}
+      {message ? (
+        <Text className="text-sm leading-[22px] text-gray-600 dark:text-dark-text-secondary">
+          {message}
+        </Text>
+      ) : null}
     </AuthScaffold>
   );
 }
 
-const styles = StyleSheet.create({
-  helperText: {
-    color: "#4B5563",
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  input: {
-    backgroundColor: "#F8FFFA",
-    borderColor: "#B7E4C7",
-    borderRadius: 14,
-    borderWidth: 1,
-    color: "#1B4332",
-    fontSize: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: "#40916C",
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-});

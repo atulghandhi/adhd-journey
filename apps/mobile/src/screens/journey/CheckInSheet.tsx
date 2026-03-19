@@ -62,27 +62,27 @@ export function CheckInSheet({
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
       <View className="flex-1 justify-end bg-black/30">
         <RNPressable onPress={onClose} style={{ flex: 1 }} />
-        <ScrollView className="max-h-[80%] rounded-t-[30px] bg-white px-6 py-6">
-          <Text className="text-2xl font-bold text-focuslab-primaryDark">
+        <ScrollView className="max-h-[80%] rounded-t-[30px] bg-white px-6 py-6 dark:bg-dark-surface">
+          <Text className="text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
             Quick check-in
           </Text>
-          <Text className="mt-2 text-base leading-6 text-focuslab-secondary">
+          <Text className="mt-2 text-base leading-6 text-focuslab-secondary dark:text-dark-text-secondary">
             This should take less than 10 seconds unless you want to add more detail.
           </Text>
 
           <View className="mt-6 gap-4">
-            <Text className="text-base font-semibold text-focuslab-primaryDark">
+            <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               How did it feel?
             </Text>
             <EmojiRating onChange={setQuickRating} value={quickRating} />
           </View>
 
-          <View className="mt-6 flex-row items-center justify-between rounded-2xl bg-focuslab-background px-4 py-3">
+          <View className="mt-6 flex-row items-center justify-between rounded-2xl bg-focuslab-background px-4 py-3 dark:bg-dark-bg">
             <View className="flex-1 pr-4">
-              <Text className="text-base font-semibold text-focuslab-primaryDark">
+              <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
                 Did you try it?
               </Text>
-              <Text className="mt-1 text-sm text-gray-500">
+              <Text className="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">
                 A quick yes or no helps the algorithm decide whether to extend the task.
               </Text>
             </View>
@@ -90,11 +90,11 @@ export function CheckInSheet({
           </View>
 
           <View className="mt-6 gap-3">
-            <Text className="text-base font-semibold text-focuslab-primaryDark">
+            <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               Optional deeper reflection
             </Text>
             <TextInput
-              className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark"
+              className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
               multiline
               onChangeText={setWhatHappened}
               placeholder="What happened?"
@@ -102,7 +102,7 @@ export function CheckInSheet({
               value={whatHappened}
             />
             <TextInput
-              className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark"
+              className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
               multiline
               onChangeText={setWhatWasHard}
               placeholder="What was hard?"
@@ -110,7 +110,7 @@ export function CheckInSheet({
               value={whatWasHard}
             />
             <TextInput
-              className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark"
+              className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
               multiline
               onChangeText={setWhatSurprised}
               placeholder="What surprised you?"

@@ -58,30 +58,30 @@ export function PaywallScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
         <AppCard>
-          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Day 16 unlock
           </Text>
-          <Text className="mt-3 text-3xl font-bold leading-9 text-focuslab-primaryDark">
+          <Text className="mt-3 text-3xl font-bold leading-9 text-focuslab-primaryDark dark:text-dark-text-primary">
             You&apos;ve completed 15 days. The next 15 unlock:
           </Text>
-          <Text className="mt-4 text-base leading-7 text-focuslab-secondary">
+          <Text className="mt-4 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
             You said you wanted to: {profile?.motivating_answer ?? "build real focus"}.
           </Text>
           <View className="mt-6 gap-3">
-            <Text className="text-base leading-7 text-focuslab-primaryDark">
+            <Text className="text-base leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
               • deeper strategies for energy, systems, and follow-through
             </Text>
-            <Text className="text-base leading-7 text-focuslab-primaryDark">
+            <Text className="text-base leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
               • community access for the full 30-day journey
             </Text>
-            <Text className="text-base leading-7 text-focuslab-primaryDark">
+            <Text className="text-base leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
               • the reward bundle and post-completion resources
             </Text>
           </View>
-          <Text className="mt-6 text-2xl font-bold text-focuslab-primaryDark">
+          <Text className="mt-6 text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
             {offering?.priceString ?? "£8"} one time — not a subscription
           </Text>
           <View className="mt-6 gap-3">

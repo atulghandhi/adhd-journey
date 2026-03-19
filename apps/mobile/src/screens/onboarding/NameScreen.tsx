@@ -32,18 +32,18 @@ export function NameScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <View className="flex-1 px-6 py-8">
-        <Text className="text-3xl font-bold text-focuslab-primaryDark">
+        <Text className="text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
           What should we call you?
         </Text>
-        <Text className="mt-3 text-base leading-7 text-focuslab-secondary">
+        <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
           We use your name in community threads and a few encouragement moments.
         </Text>
 
-        <View className="mt-8 rounded-[24px] bg-white p-6">
+        <View className="mt-8 rounded-[24px] bg-white p-6 dark:border dark:border-dark-border dark:bg-dark-surface">
           <TextInput
-            className="min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark"
+            className="min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
             onChangeText={setName}
             placeholder="Your name"
             value={name}

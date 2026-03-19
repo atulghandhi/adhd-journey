@@ -24,8 +24,8 @@ export function JourneyMap({ onSelectTask, state }: JourneyMapProps) {
                 item.isCompleted
                   ? "border-focuslab-primary bg-focuslab-primary"
                   : item.isActive
-                    ? "border-focuslab-primary bg-white"
-                    : "border-focuslab-border bg-white"
+                    ? "border-focuslab-primary bg-white dark:bg-dark-surface"
+                    : "border-focuslab-border bg-white dark:border-dark-border dark:bg-dark-surface"
               }`}
             >
               {item.isCompleted ? (
@@ -47,18 +47,18 @@ export function JourneyMap({ onSelectTask, state }: JourneyMapProps) {
             />
           </View>
           <View className="flex-1 pb-4">
-            <Text className="text-xs font-medium uppercase tracking-[1.6px] text-focuslab-secondary">
+            <Text className="text-xs font-medium uppercase tracking-[1.6px] text-focuslab-secondary dark:text-dark-text-secondary">
               Day {item.task.order}
             </Text>
             <Text
               className={`mt-1 text-base font-semibold ${
-                item.isLocked ? "text-gray-400" : "text-focuslab-primaryDark"
+                item.isLocked ? "text-gray-400 dark:text-gray-600" : "text-focuslab-primaryDark dark:text-dark-text-primary"
               }`}
             >
               {item.task.title}
             </Text>
             {item.subtitle ? (
-              <Text className="mt-1 text-sm text-gray-500">{item.subtitle}</Text>
+              <Text className="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">{item.subtitle}</Text>
             ) : null}
           </View>
         </Pressable>

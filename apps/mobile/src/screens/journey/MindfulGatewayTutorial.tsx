@@ -28,33 +28,33 @@ export function MindfulGatewayTutorial() {
   const steps = Platform.OS === "ios" ? iosSteps : androidSteps;
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
         <View>
-          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Mindful gateway
           </Text>
-          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark">
+          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
             Add a five-second pause before the scroll starts.
           </Text>
         </View>
 
         {steps.map((step, index) => (
           <AppCard key={step}>
-            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
               Step {index + 1}
             </Text>
-            <Text className="mt-2 text-base leading-7 text-focuslab-primaryDark">
+            <Text className="mt-2 text-base leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
               {step}
             </Text>
           </AppCard>
         ))}
 
         <AppCard>
-          <Text className="text-lg font-semibold text-focuslab-primaryDark">
+          <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
             Test it now
           </Text>
-          <Text className="mt-2 text-base leading-7 text-focuslab-secondary">
+          <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
             Try opening the app you chose once. If you see the breathing pause,
             the gateway is set.
           </Text>

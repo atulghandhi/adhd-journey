@@ -35,19 +35,19 @@ export function MotivationScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <View className="flex-1 px-6 py-8">
-        <Text className="text-3xl font-bold text-focuslab-primaryDark">
+        <Text className="text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
           What&apos;s the one thing you&apos;d do if you could actually focus?
         </Text>
-        <Text className="mt-3 text-base leading-7 text-focuslab-secondary">
+        <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
           Write a book, learn guitar, finish your project. We&apos;ll bring this
           back when you need a reminder.
         </Text>
 
-        <View className="mt-8 rounded-[24px] bg-white p-6">
+        <View className="mt-8 rounded-[24px] bg-white p-6 dark:border dark:border-dark-border dark:bg-dark-surface">
           <TextInput
-            className="min-h-32 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-4 text-base text-focuslab-primaryDark"
+            className="min-h-32 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
             maxLength={200}
             multiline
             onChangeText={setAnswer}
@@ -55,7 +55,7 @@ export function MotivationScreen() {
             textAlignVertical="top"
             value={answer}
           />
-          <Text className="mt-2 text-right text-sm text-gray-500">
+          <Text className="mt-2 text-right text-sm text-gray-500 dark:text-dark-text-secondary">
             {answer.length}/200
           </Text>
           <View className="mt-6">

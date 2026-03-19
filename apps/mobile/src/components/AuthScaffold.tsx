@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+
+import { SafeAreaView, Text, View } from "./primitives";
 
 interface AuthScaffoldProps extends PropsWithChildren {
   title: string;
@@ -9,53 +9,20 @@ interface AuthScaffoldProps extends PropsWithChildren {
 
 export function AuthScaffold({ children, subtitle, title }: AuthScaffoldProps) {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
+      <View className="flex-1 px-6 py-8">
+        <View className="mb-6 gap-3">
+          <Text className="text-[32px] font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+            {title}
+          </Text>
+          <Text className="text-base leading-[26px] text-focuslab-secondary dark:text-dark-text-secondary">
+            {subtitle}
+          </Text>
         </View>
-        <View style={styles.card}>{children}</View>
+        <View className="gap-4 rounded-3xl bg-white p-6 shadow-sm shadow-black/10 dark:border dark:border-dark-border dark:bg-dark-surface dark:shadow-none">
+          {children}
+        </View>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F0FFF4",
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  header: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  title: {
-    color: "#1B4332",
-    fontSize: 32,
-    fontWeight: "700",
-  },
-  subtitle: {
-    color: "#2D6A4F",
-    fontSize: 16,
-    lineHeight: 26,
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    gap: 16,
-    padding: 24,
-    shadowColor: "#1B4332",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-  },
-});

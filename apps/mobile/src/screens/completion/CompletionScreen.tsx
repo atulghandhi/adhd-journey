@@ -17,19 +17,19 @@ export function CompletionScreen() {
   const { data: journeyState } = useJourneyState();
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
         <AppCard>
-          <Text className="text-3xl font-bold text-focuslab-primaryDark">
+          <Text className="text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
             You finished the journey.
           </Text>
-          <Text className="mt-4 text-base leading-7 text-focuslab-secondary">
+          <Text className="mt-4 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
             You said you wanted to: {profile?.motivating_answer ?? "build real focus"}.
           </Text>
-          <Text className="mt-4 text-base leading-7 text-focuslab-secondary">
+          <Text className="mt-4 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
             Completed tasks: {journeyState?.completedCount ?? 0}
           </Text>
-          <Text className="mt-1 text-base leading-7 text-focuslab-secondary">
+          <Text className="mt-1 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
             Current streak: {journeyState?.streakCount ?? 0}
           </Text>
           <View className="mt-6 gap-3">

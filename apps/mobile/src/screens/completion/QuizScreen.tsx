@@ -39,23 +39,23 @@ export function QuizScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
         <View>
-          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Quiz
           </Text>
-          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark">
+          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
             How much stuck?
           </Text>
         </View>
 
         {attempt.map((question, index) => (
           <AppCard key={question.id}>
-            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
               Question {index + 1}
             </Text>
-            <Text className="mt-2 text-lg font-semibold text-focuslab-primaryDark">
+            <Text className="mt-2 text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               {question.question}
             </Text>
             <View className="mt-4 gap-3">
@@ -78,10 +78,10 @@ export function QuizScreen() {
 
         {result ? (
           <AppCard>
-            <Text className="text-2xl font-bold text-focuslab-primaryDark">
+            <Text className="text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
               {result.correct}/{result.total}
             </Text>
-            <Text className="mt-2 text-base leading-7 text-focuslab-secondary">
+            <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
               {result.recommendation}
             </Text>
           </AppCard>

@@ -1,7 +1,11 @@
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  Pressable,
+  SafeAreaView,
+  Text,
+  View,
+} from "../../components/primitives";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 
@@ -15,61 +19,20 @@ export function JourneyHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.eyebrow}>Journey</Text>
-        <Text style={styles.title}>You’re signed in.</Text>
-        <Text style={styles.subtitle}>
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
+      <View className="flex-1 justify-center gap-4 px-6">
+        <Text className="text-xs font-semibold uppercase tracking-[1.4px] text-focuslab-secondary dark:text-dark-text-secondary">Journey</Text>
+        <Text className="text-[30px] font-bold text-focuslab-primaryDark dark:text-dark-text-primary">You’re signed in.</Text>
+        <Text className="text-base leading-[26px] text-focuslab-secondary dark:text-dark-text-secondary">
           {user?.email ? `Authenticated as ${user.email}.` : "Your session is active."}
         </Text>
-        <Pressable onPress={handleSignOut} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Sign out</Text>
+        <Pressable
+          className="items-center self-start rounded-[14px] border border-focuslab-border px-[18px] py-3 dark:border-dark-border"
+          onPress={handleSignOut}
+        >
+          <Text className="text-[15px] font-semibold text-focuslab-secondary dark:text-dark-text-secondary">Sign out</Text>
         </Pressable>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: 16,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  eyebrow: {
-    color: "#2D6A4F",
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F0FFF4",
-  },
-  secondaryButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderColor: "#B7E4C7",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  secondaryButtonText: {
-    color: "#2D6A4F",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  subtitle: {
-    color: "#2D6A4F",
-    fontSize: 16,
-    lineHeight: 26,
-  },
-  title: {
-    color: "#1B4332",
-    fontSize: 30,
-    fontWeight: "700",
-  },
-});

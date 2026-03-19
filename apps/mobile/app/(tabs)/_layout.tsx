@@ -1,19 +1,23 @@
 import { Tabs } from "expo-router";
 import { BarChart2, Compass, MessageCircle, User } from "lucide-react-native";
+import { useColorScheme } from "nativewind";
 
 export default function TabsLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         sceneStyle: {
-          backgroundColor: "#F0FFF4",
+          backgroundColor: isDark ? "#0F1A14" : "#F0FFF4",
         },
         tabBarActiveTintColor: "#40916C",
-        tabBarInactiveTintColor: "#B7E4C7",
+        tabBarInactiveTintColor: isDark ? "#2D6A4F" : "#B7E4C7",
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopColor: "#D8F3DC",
+          backgroundColor: isDark ? "#1A2E23" : "#FFFFFF",
+          borderTopColor: isDark ? "#2D6A4F" : "#D8F3DC",
           height: 72,
           paddingBottom: 10,
           paddingTop: 8,

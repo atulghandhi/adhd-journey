@@ -2,9 +2,11 @@ import type { PropsWithChildren } from "react";
 import {
   useCallback,
   createContext,
+  useEffect,
   startTransition,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
@@ -25,21 +27,36 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 export function ToastProvider({ children }: PropsWithChildren) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [translateY] = useState(() => new Animated.Value(120));
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (dismissTimer.current) {
+      clearTimeout(dismissTimer.current);
+      dismissTimer.current = null;
+    }
+  }, []);
 
   const showToast = useCallback((message: string, tone: ToastTone = "success") => {
+    if (dismissTimer.current) {
+      clearTimeout(dismissTimer.current);
+      dismissTimer.current = null;
+    }
+
     startTransition(() => {
       setToast({ message, tone });
     });
 
     translateY.setValue(120);
     Animated.spring(translateY, {
-      damping: 20,
-      stiffness: 300,
+      damping: 18,
+      stiffness: 220,
+      mass: 0.8,
       toValue: 0,
       useNativeDriver: true,
     }).start();
 
-    setTimeout(() => {
+    dismissTimer.current = setTimeout(() => {
+      dismissTimer.current = null;
       Animated.timing(translateY, {
         duration: 200,
         toValue: 120,
@@ -105,6 +122,9 @@ const styles = StyleSheet.create({
   },
   toastSuccess: {
     backgroundColor: "#1B4332",
+  },
+  toastSuccessDark: {
+    backgroundColor: "#243D2F",
   },
   toastText: {
     color: "#FFFFFF",

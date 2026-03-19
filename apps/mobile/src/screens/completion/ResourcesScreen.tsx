@@ -43,22 +43,22 @@ export function ResourcesScreen() {
       : DEFAULT_RESOURCE_LINKS;
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
         <View>
-          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Resources
           </Text>
-          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark">
+          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
           Keep the momentum going.
           </Text>
         </View>
         {resourceCards.map((resource) => (
           <AppCard key={resource.title}>
-            <Text className="text-xl font-semibold text-focuslab-primaryDark">
+            <Text className="text-xl font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               {resource.title}
             </Text>
-            <Text className="mt-2 text-base leading-7 text-focuslab-secondary">
+            <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
               {resource.description}
             </Text>
             <View className="mt-4">

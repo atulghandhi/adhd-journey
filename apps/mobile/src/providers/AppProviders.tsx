@@ -7,6 +7,7 @@ import { submitCompletionCheckIn } from "../lib/journey-api";
 import { queryClient } from "../lib/queryClient";
 import { useOfflineQueueStore } from "../stores/offlineQueueStore";
 import { AuthProvider } from "./AuthProvider";
+import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
 
 function OfflineQueueSync() {
@@ -50,10 +51,12 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ToastProvider>
-          <OfflineQueueSync />
-          {children}
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <OfflineQueueSync />
+            {children}
+          </ToastProvider>
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -61,13 +61,13 @@ export function CommunityScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-focuslab-background">
+    <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
         <View>
-          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+          <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Community
           </Text>
-          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark">
+          <Text className="mt-2 text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
             One thread per task.
           </Text>
         </View>
@@ -90,11 +90,11 @@ export function CommunityScreen() {
         </ScrollView>
 
         <AppCard>
-          <Text className="text-lg font-semibold text-focuslab-primaryDark">
+          <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
             Start the thread
           </Text>
           <TextInput
-            className="mt-4 min-h-28 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-4 text-base text-focuslab-primaryDark"
+            className="mt-4 min-h-28 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
             multiline
             onChangeText={setDraft}
             placeholder="Share a win, a challenge, or a tip that helped."
@@ -115,16 +115,16 @@ export function CommunityScreen() {
 
       {isLoading ? (
         <AppCard>
-          <Text className="text-base text-focuslab-secondary">Loading thread…</Text>
+          <Text className="text-base text-focuslab-secondary dark:text-dark-text-secondary">Loading thread…</Text>
         </AppCard>
       ) : null}
 
         {!isLoading && (!thread || thread.length === 0) ? (
           <AppCard>
-            <Text className="text-lg font-semibold text-focuslab-primaryDark">
+            <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               No posts yet
             </Text>
-            <Text className="mt-2 text-base leading-7 text-focuslab-secondary">
+            <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
               Be the first to share how this task is going for you.
             </Text>
           </AppCard>
@@ -132,10 +132,10 @@ export function CommunityScreen() {
 
         {(thread as ThreadPost[] | undefined ?? []).map((post) => (
           <AppCard key={post.id}>
-            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary">
+            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
               {post.authorName}
             </Text>
-            <Text className="mt-2 text-base leading-7 text-focuslab-primaryDark">
+            <Text className="mt-2 text-base leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
               {post.body}
             </Text>
 
@@ -167,10 +167,10 @@ export function CommunityScreen() {
             <View className="mt-4 gap-3">
               {(post.replies ?? []).map((reply: CommunityReply) => (
                 <View
-                  className="rounded-2xl bg-focuslab-background px-4 py-3"
+                  className="rounded-2xl bg-focuslab-background px-4 py-3 dark:bg-dark-bg"
                   key={reply.id}
                 >
-                  <Text className="text-sm leading-6 text-focuslab-primaryDark">
+                  <Text className="text-sm leading-6 text-focuslab-primaryDark dark:text-dark-text-primary">
                     {reply.body}
                   </Text>
                 </View>
@@ -178,7 +178,7 @@ export function CommunityScreen() {
             </View>
 
             <TextInput
-              className="mt-4 min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark"
+              className="mt-4 min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
               onChangeText={(value: string) =>
                 setReplyDrafts((current) => ({
                   ...current,
