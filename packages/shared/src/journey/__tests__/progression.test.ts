@@ -14,6 +14,8 @@ const makeTask = (order: number) => ({
   difficulty_rating: 3,
   explanation_body: `Explanation ${order}`,
   id: `task-${order}`,
+  interaction_config: {},
+  interaction_type: "markdown" as const,
   is_active: true,
   journey_id: "journey-1",
   order,

@@ -22,6 +22,8 @@ export default function AdminTaskDetailPage() {
     deeper_reading: "",
     difficulty_rating: 3,
     explanation_body: "",
+    interaction_config: "{}",
+    interaction_type: "markdown" as TaskRow["interaction_type"],
     is_active: true,
     order: 1,
     tags: "adhd, focus",
@@ -56,6 +58,8 @@ export default function AdminTaskDetailPage() {
         deeper_reading: loadedTask.deeper_reading ?? "",
         difficulty_rating: loadedTask.difficulty_rating,
         explanation_body: loadedTask.explanation_body,
+        interaction_config: JSON.stringify(loadedTask.interaction_config, null, 2),
+        interaction_type: loadedTask.interaction_type,
         is_active: loadedTask.is_active,
         order: loadedTask.order,
         tags: loadedTask.tags.join(", "),
@@ -74,6 +78,15 @@ export default function AdminTaskDetailPage() {
       return;
     }
 
+    let interactionConfig: TaskRow["interaction_config"];
+
+    try {
+      interactionConfig = JSON.parse(form.interaction_config || "{}") as TaskRow["interaction_config"];
+    } catch {
+      setStatus("Invalid interaction config JSON.");
+      return;
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from("tasks")
@@ -82,6 +95,8 @@ export default function AdminTaskDetailPage() {
         deeper_reading: form.deeper_reading.trim() || null,
         difficulty_rating: form.difficulty_rating,
         explanation_body: form.explanation_body,
+        interaction_config: interactionConfig,
+        interaction_type: form.interaction_type,
         is_active: form.is_active,
         order: form.order,
         tags: form.tags
@@ -240,6 +255,45 @@ export default function AdminTaskDetailPage() {
               type="checkbox"
             />
             Active in journey
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold uppercase tracking-[0.16em] text-focuslab-secondary">
+              Interaction type
+            </span>
+            <select
+              className="w-full rounded-2xl border border-focuslab-border px-4 py-3 text-base text-focuslab-primaryDark outline-none transition focus:border-focuslab-primary"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  interaction_type: event.target.value as TaskRow["interaction_type"],
+                }))
+              }
+              value={form.interaction_type}
+            >
+              <option value="markdown">Markdown (default)</option>
+              <option value="drag_list">Drag List</option>
+              <option value="timed_challenge">Timed Challenge</option>
+              <option value="breathing_exercise">Breathing Exercise</option>
+              <option value="reflection_prompts">Reflection Prompts</option>
+              <option value="journal">Journal</option>
+              <option value="community_prompt">Community Prompt</option>
+            </select>
+          </label>
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold uppercase tracking-[0.16em] text-focuslab-secondary">
+              Interaction config (JSON)
+            </span>
+            <textarea
+              className="w-full rounded-2xl border border-focuslab-border px-4 py-3 font-mono text-sm text-focuslab-primaryDark outline-none transition focus:border-focuslab-primary"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  interaction_config: event.target.value,
+                }))
+              }
+              rows={8}
+              value={form.interaction_config}
+            />
           </label>
         </div>
 

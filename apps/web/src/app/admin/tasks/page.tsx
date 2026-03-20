@@ -48,6 +48,8 @@ export default function AdminTasksPage() {
       default_duration_days: 1,
       difficulty_rating: 3,
       explanation_body: "Why this matters...",
+      interaction_config: {},
+      interaction_type: "markdown",
       journey_id: DEFAULT_JOURNEY_ID,
       order: nextOrder,
       tags: ["adhd", "focus"],
@@ -187,9 +189,16 @@ export default function AdminTasksPage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.22em] text-focuslab-secondary">
                   Day {task.order}
                 </p>
-                <h3 className="mt-2 text-2xl font-bold text-focuslab-primaryDark">
-                  {task.title}
-                </h3>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <h3 className="text-2xl font-bold text-focuslab-primaryDark">
+                    {task.title}
+                  </h3>
+                  {task.interaction_type !== "markdown" ? (
+                    <span className="inline-block rounded-full bg-focuslab-border px-2 py-0.5 text-xs font-medium text-focuslab-secondary">
+                      {task.interaction_type.replace(/_/g, " ")}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-3 line-clamp-3 text-base leading-7 text-focuslab-secondary">
                   {task.task_body}
                 </p>

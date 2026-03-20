@@ -559,6 +559,8 @@ export type Database = {
           difficulty_rating: number
           explanation_body: string
           id: string
+          interaction_config: Json
+          interaction_type: Database["public"]["Enums"]["interaction_type"]
           is_active: boolean
           journey_id: string
           order: number
@@ -574,6 +576,8 @@ export type Database = {
           difficulty_rating?: number
           explanation_body: string
           id?: string
+          interaction_config?: Json
+          interaction_type?: Database["public"]["Enums"]["interaction_type"]
           is_active?: boolean
           journey_id?: string
           order: number
@@ -589,6 +593,8 @@ export type Database = {
           difficulty_rating?: number
           explanation_body?: string
           id?: string
+          interaction_config?: Json
+          interaction_type?: Database["public"]["Enums"]["interaction_type"]
           is_active?: boolean
           journey_id?: string
           order?: number
@@ -666,7 +672,14 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      interaction_type:
+        | "markdown"
+        | "drag_list"
+        | "timed_challenge"
+        | "breathing_exercise"
+        | "reflection_prompts"
+        | "journal"
+        | "community_prompt"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -796,7 +809,16 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      interaction_type: [
+        "markdown",
+        "drag_list",
+        "timed_challenge",
+        "breathing_exercise",
+        "reflection_prompts",
+        "journal",
+        "community_prompt",
+      ],
+    },
   },
 } as const
-
