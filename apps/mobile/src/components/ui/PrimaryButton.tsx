@@ -26,8 +26,10 @@ export function PrimaryButton({
     >
       {loading ? (
         <ActivityIndicator color="#FFFFFF" />
-      ) : (
+      ) : typeof children === "string" || typeof children === "number" ? (
         <Text className="text-base font-semibold text-white">{children}</Text>
+      ) : (
+        children
       )}
     </AnimatedPressable>
   );

@@ -117,6 +117,8 @@ export function JourneyScreen() {
                   ? "Keep going"
                   : state?.isPostCompletion
                     ? "You made it"
+                    : state?.nextUnlockDate
+                      ? "Done for today"
                     : "Loading today"}
             </Text>
           </View>
@@ -129,6 +131,49 @@ export function JourneyScreen() {
               {welcomeBack}
             </Text>
           </View>
+        ) : null}
+
+        {!state?.currentTask &&
+        state?.nextUnlockDate &&
+        !state?.showPaywall &&
+        !state?.isPostCompletion ? (
+          <>
+            <AnimatedCardEntrance delay={0}>
+              <AppCard>
+                <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+                  {state.nextLockedTask
+                    ? `Day ${state.nextLockedTask.task.order} unlocks tomorrow`
+                    : "Your next task unlocks tomorrow"}
+                </Text>
+                <Text className="mt-2 text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+                  You&apos;re done for today.
+                </Text>
+                <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+                  Your check-in is saved. Come back tomorrow for the next step in the
+                  journey.
+                </Text>
+              </AppCard>
+            </AnimatedCardEntrance>
+
+            <AnimatedCardEntrance delay={100}>
+              <AppCard>
+                <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+                  Keep the momentum
+                </Text>
+                <Text className="mt-2 text-xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+                  Share how today went in the community.
+                </Text>
+                <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+                  Post a win, a struggle, or a tip while the task is still fresh.
+                </Text>
+                <View className="mt-6">
+                  <PrimaryButton onPress={() => router.push("/community" as never)}>
+                    Open community
+                  </PrimaryButton>
+                </View>
+              </AppCard>
+            </AnimatedCardEntrance>
+          </>
         ) : null}
 
         {state?.showPaywall ? (

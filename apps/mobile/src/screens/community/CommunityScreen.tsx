@@ -12,6 +12,7 @@ import {
   View,
 } from "../../components/primitives";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
+import { EmojiText } from "../../components/ui/EmojiText";
 import { useCommunityActions, useCommunityThread } from "../../hooks/useCommunity";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useToast } from "../../providers/ToastProvider";
@@ -158,7 +159,12 @@ export function CommunityScreen() {
                         .catch(() => showToast("Couldn’t update that reaction.", "error"));
                     }}
                   >
-                    {count > 0 ? `${emoji} ${count}` : emoji}
+                    <View className="flex-row items-center gap-1.5">
+                      <EmojiText size={18}>{emoji}</EmojiText>
+                      {count > 0 ? (
+                        <Text className="text-base font-semibold text-white">{count}</Text>
+                      ) : null}
+                    </View>
                   </PrimaryButton>
                 );
               })}

@@ -10,7 +10,8 @@ import Animated, {
 import { REDUCED_MOTION_DURATION, SPRING_QUICK, SPRING_SNAPPY } from "../animations/springs";
 import { useHaptics } from "../hooks/useHaptics";
 import { useReducedMotion } from "../hooks/useReducedMotion";
-import { Text, View } from "./primitives";
+import { View } from "./primitives";
+import { EmojiText } from "./ui/EmojiText";
 
 const ratingOptions = [
   { emoji: "😫", value: 1 },
@@ -75,7 +76,7 @@ function AnimatedEmoji({
         }`}
         style={animatedStyle}
       >
-        <Text style={{ fontSize: 24 }}>{emoji}</Text>
+        <EmojiText size={24}>{emoji}</EmojiText>
       </Animated.View>
     </Pressable>
   );

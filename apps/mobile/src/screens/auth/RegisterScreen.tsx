@@ -35,10 +35,13 @@ export function RegisterScreen() {
       return;
     }
 
-    router.replace({
-      pathname: "/auth/confirm-email",
-      params: { email: email.trim() },
-    } as never);
+    // Temporary testing bypass while Supabase email confirmation is disabled.
+    // router.replace({
+    //   pathname: "/auth/confirm-email",
+    //   params: { email: email.trim() },
+    // } as never);
+
+    router.replace("/" as never);
   };
 
   return (
