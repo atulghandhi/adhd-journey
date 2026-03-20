@@ -440,7 +440,8 @@ Since RNTL component rendering is blocked by the native bridge issue, test the l
 4. **Reflection completion** — test that all prompts must be answered
 
 ### Manual testing checklist
-For each interaction type, test on Expo Go:
+For each interaction type, test on a development build / dev client (or `eas go` if
+available for the SDK version in use):
 - [ ] Renders correctly in light mode
 - [ ] Renders correctly in dark mode
 - [ ] "I did it" button is disabled before interaction is complete
@@ -452,7 +453,9 @@ For each interaction type, test on Expo Go:
 
 ### Dependencies
 Check if any new npm packages are needed:
-- `react-native-gesture-handler` — should already be installed via expo (verify in `apps/mobile/package.json`)
+- `react-native-gesture-handler` — verify it resolves cleanly in the app before using it.
+  If Metro/types complain, add it as a direct app dependency instead of relying on a
+  transitive install.
 - `react-native-svg` — needed for the circular timer; should already be available via expo (check `expo install react-native-svg` if not)
 - No other new dependencies should be required
 

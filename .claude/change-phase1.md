@@ -146,14 +146,24 @@ Enums: {
 `supabase/functions/_shared/domain.ts`
 
 ### What to do
-The EF `domain.ts` duplicates all shared types manually (it can't import from the npm workspace). Find the `TaskRow`-equivalent type/interface in `domain.ts` and add the two new fields:
+In the current repo, `supabase/functions/_shared/domain.ts` already derives `TaskRow`
+from `../../../packages/shared/src/types/database.ts`:
 
 ```ts
-interaction_type: 'markdown' | 'drag_list' | 'timed_challenge' | 'breathing_exercise' | 'reflection_prompts' | 'journal' | 'community_prompt';
-interaction_config: Record<string, unknown>;
+type TableRow<Name extends TableName> = Database["public"]["Tables"][Name]["Row"];
+export type TaskRow = TableRow<"tasks">;
 ```
 
-Search for the type definition — it may be called `TaskRow` or be an inline type. The grep hit was at line ~43 showing `JourneyState` and `currentTask`. Look for where `task_body: string` appears in a type definition in that file.
+That means **no manual TaskRow field edits are needed here**. Once
+`packages/shared/src/types/database.ts` is regenerated or updated to include
+`interaction_type` and `interaction_config`, the edge-function domain types pick up the
+new fields automatically.
+
+What to verify instead:
+- `supabase/functions/_shared/domain.ts` still typechecks after the generated database
+  types change
+- any edge-function logic that pattern-matches task fields still compiles without manual
+  type duplication
 
 ### How to verify EF consistency
 Run `turbo test` — the EF equivalence tests in `packages/shared/src/__tests__/ef-equivalence.test.ts` (29 tests) compare shared and EF logic. They should still pass since the new fields are additive and don't affect business logic.

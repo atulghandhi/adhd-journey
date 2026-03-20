@@ -120,9 +120,13 @@ export const DAILY_MOTIVATIONS = [
 ] as const;
 ```
 
-**Selection logic:** Pick a quote based on the current date (deterministic, so it doesn't change on re-render):
+**Selection logic:** Pick a quote based on the user's current local date (deterministic,
+so it doesn't change on re-render or flip at UTC midnight):
 ```tsx
-const todayIndex = Math.floor(Date.now() / 86_400_000) % DAILY_MOTIVATIONS.length;
+const todayKey = new Intl.DateTimeFormat("en-CA").format(new Date());
+const todayIndex =
+  Array.from(todayKey).reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+  DAILY_MOTIVATIONS.length;
 const motivation = DAILY_MOTIVATIONS[todayIndex];
 ```
 
@@ -142,16 +146,20 @@ const motivation = DAILY_MOTIVATIONS[todayIndex];
 ## 4.3 Surface spaced-reinforcement review card on "done for today"
 
 ### Problem
-Currently the review card only shows on the `JourneyScreen` when `state?.reviewTask` is set AND a current task exists. But the "done for today" state is the PERFECT moment for review — the user just finished today's work and has a brief window of engagement.
+The review card already renders whenever `state?.reviewTask` exists, including the
+"done for today" state. The improvement here is **not** to duplicate the card, but to
+upgrade its presentation and interaction model so the done-for-today flow feels more
+intentional.
 
 ### File to modify
 `apps/mobile/src/screens/journey/JourneyScreen.tsx`
 
 ### What to change
-The review task section (lines 209-241) currently renders independently of the "done for today" state. Move or duplicate it so it ALSO renders when there's no current task but a review is due:
+Keep a **single** review card render path. Update that existing section so it works well
+in both active-task and done-for-today states:
 
 ```tsx
-{/* Review card — show both during active task AND done-for-today state */}
+{/* Review card — single render path for both active-task and done-for-today state */}
 {state?.reviewTask ? (
   <AnimatedCardEntrance delay={state?.currentTask ? 0 : 250}>
     <AppCard>

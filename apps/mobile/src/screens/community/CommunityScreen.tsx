@@ -4,7 +4,9 @@ import type {
 } from "@focuslab/shared/types";
 
 import { AppCard } from "../../components/ui/AppCard";
+import { ReactionPill } from "../../components/ReactionPill";
 import {
+  Pressable,
   SafeAreaView,
   ScrollView,
   Text,
@@ -12,7 +14,7 @@ import {
   View,
 } from "../../components/primitives";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
-import { EmojiText } from "../../components/ui/EmojiText";
+import { useAuth } from "../../hooks/useAuth";
 import { useCommunityActions, useCommunityThread } from "../../hooks/useCommunity";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useToast } from "../../providers/ToastProvider";
@@ -29,6 +31,7 @@ type ThreadPost = CommunityPost & {
 };
 
 export function CommunityScreen() {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { data: journeyState } = useJourneyState();
   const unlockedTasks = useMemo(
@@ -133,7 +136,7 @@ export function CommunityScreen() {
 
         {(thread as ThreadPost[] | undefined ?? []).map((post) => (
           <AppCard key={post.id}>
-            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+            <Text className="text-sm font-semibold text-focuslab-secondary dark:text-dark-text-secondary">
               {post.authorName}
             </Text>
             <Text className="mt-2 text-base leading-7 text-focuslab-primaryDark dark:text-dark-text-primary">
@@ -145,27 +148,27 @@ export function CommunityScreen() {
                 const count = post.reactions.filter(
                   (reaction: CommunityReaction) => reaction.emoji === emoji,
                 ).length;
+                const active = post.reactions.some(
+                  (reaction: CommunityReaction) =>
+                    reaction.emoji === emoji && reaction.user_id === user?.id,
+                );
 
                 return (
-                  <PrimaryButton
+                  <ReactionPill
+                    active={active}
+                    count={count}
+                    emoji={emoji}
                     key={`${post.id}-${emoji}`}
                     onPress={() => {
                       void actions.toggleReaction
                         .mutateAsync({
                           emoji,
                           postId: post.id,
-                          reacted: count > 0,
+                          reacted: active,
                         })
                         .catch(() => showToast("Couldn’t update that reaction.", "error"));
                     }}
-                  >
-                    <View className="flex-row items-center gap-1.5">
-                      <EmojiText size={18}>{emoji}</EmojiText>
-                      {count > 0 ? (
-                        <Text className="text-base font-semibold text-white">{count}</Text>
-                      ) : null}
-                    </View>
-                  </PrimaryButton>
+                  />
                 );
               })}
             </View>
@@ -214,8 +217,9 @@ export function CommunityScreen() {
               >
                 Reply
               </PrimaryButton>
-              <PrimaryButton
-                loading={actions.reportPost.isPending}
+              <Pressable
+                className="items-center justify-center rounded-2xl px-4 py-3"
+                disabled={actions.reportPost.isPending}
                 onPress={() => {
                   void actions.reportPost
                     .mutateAsync({
@@ -226,8 +230,10 @@ export function CommunityScreen() {
                     .catch(() => showToast("Couldn’t report this post.", "error"));
                 }}
               >
-                Report
-              </PrimaryButton>
+                <Text className="text-sm font-medium text-gray-400 dark:text-gray-500">
+                  {actions.reportPost.isPending ? "Reporting…" : "Report"}
+                </Text>
+              </Pressable>
             </View>
           </AppCard>
         ))}
