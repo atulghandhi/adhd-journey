@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { RefreshControl } from "react-native";
 
 import { AnimatedCardEntrance } from "../../animations/AnimatedCardEntrance";
+import { EmojiRating } from "../../components/EmojiRating";
 import { AppCard } from "../../components/ui/AppCard";
 import { MarkdownBlock } from "../../components/MarkdownBlock";
+import { ProgressRing } from "../../components/ProgressRing";
+import { TaskRenderer } from "../../components/TaskRenderer";
 import {
   SafeAreaView,
   ScrollView,
@@ -14,6 +17,7 @@ import {
 import { StreakBadge } from "../../components/StreakBadge";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { SkeletonCard } from "../../components/ui/Skeleton";
+import { getDailyMotivation } from "../../constants/motivation";
 import { useCheckIn } from "../../hooks/useCheckIn";
 import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
@@ -48,13 +52,48 @@ export function JourneyScreen() {
   const { data: state, isLoading, refetch, isRefetching } = useJourneyState();
   const { submitCompletionCheckIn, submitReviewCheckIn, submittingCompletion } =
     useCheckIn();
-  const { errorNotification, successNotification } = useHaptics();
+  const { errorNotification, lightImpact, successNotification } = useHaptics();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedReviewRating, setSelectedReviewRating] = useState<number | null>(null);
+  const [taskInteractionComplete, setTaskInteractionComplete] = useState(false);
+  const [taskInteractionData, setTaskInteractionData] = useState<
+    Record<string, unknown> | undefined
+  >();
+  const isDoneForToday = Boolean(
+    state &&
+      !state.currentTask &&
+      state.nextUnlockDate &&
+      !state.showPaywall &&
+      !state.isPostCompletion,
+  );
   const welcomeBack = useMemo(
     () => getWelcomeBackMessage(profile?.last_active_at),
     [profile?.last_active_at],
   );
+  const doneForTodayTitle = useMemo(() => {
+    const streak = state?.streakCount ?? 0;
+
+    if (streak >= 7) {
+      return "On fire";
+    }
+
+    if (streak >= 3) {
+      return "Building momentum";
+    }
+
+    return "Done for today";
+  }, [state?.streakCount]);
+  const dailyMotivation = getDailyMotivation();
+  const doneForTodayState = isDoneForToday ? state : null;
+
+  useEffect(() => {
+    setTaskInteractionComplete(false);
+    setTaskInteractionData(undefined);
+  }, [state?.currentTask?.task.id]);
+
+  useEffect(() => {
+    setSelectedReviewRating(null);
+  }, [state?.reviewTask?.task.id]);
 
   const handleCheckIn = async (input: CompletionCheckInInput) => {
     if (!state?.currentTask) {
@@ -63,7 +102,15 @@ export function JourneyScreen() {
 
     try {
       await submitCompletionCheckIn({
-        input,
+        input: {
+          ...input,
+          promptResponses: {
+            ...(input.promptResponses ?? {}),
+            interaction_data: taskInteractionData
+              ? JSON.stringify(taskInteractionData)
+              : undefined,
+          },
+        },
         taskId: state.currentTask.task.id,
       });
       successNotification();
@@ -96,13 +143,23 @@ export function JourneyScreen() {
     }
   };
 
+  const handleRefresh = async () => {
+    await refetch();
+    lightImpact();
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ gap: 20, padding: 24 }}
         refreshControl={
-          <RefreshControl onRefresh={() => void refetch()} refreshing={isRefetching} />
+          <RefreshControl
+            onRefresh={() => {
+              void handleRefresh();
+            }}
+            refreshing={isRefetching}
+          />
         }
       >
         <View className="flex-row items-start justify-between gap-4">
@@ -117,12 +174,12 @@ export function JourneyScreen() {
                   ? "Keep going"
                   : state?.isPostCompletion
                     ? "You made it"
-                    : state?.nextUnlockDate
-                      ? "Done for today"
-                    : "Loading today"}
+                    : isDoneForToday
+                      ? doneForTodayTitle
+                      : "Loading today"}
             </Text>
           </View>
-          <StreakBadge count={state?.streakCount ?? 0} />
+          <StreakBadge count={state?.streakCount ?? 0} size="lg" />
         </View>
 
         {welcomeBack ? (
@@ -133,16 +190,13 @@ export function JourneyScreen() {
           </View>
         ) : null}
 
-        {!state?.currentTask &&
-        state?.nextUnlockDate &&
-        !state?.showPaywall &&
-        !state?.isPostCompletion ? (
+        {doneForTodayState ? (
           <>
             <AnimatedCardEntrance delay={0}>
               <AppCard>
                 <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                  {state.nextLockedTask
-                    ? `Day ${state.nextLockedTask.task.order} unlocks tomorrow`
+                  {doneForTodayState.nextLockedTask
+                    ? `Day ${doneForTodayState.nextLockedTask.task.order} unlocks tomorrow`
                     : "Your next task unlocks tomorrow"}
                 </Text>
                 <Text className="mt-2 text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
@@ -158,19 +212,25 @@ export function JourneyScreen() {
             <AnimatedCardEntrance delay={100}>
               <AppCard>
                 <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                  Keep the momentum
+                  Your progress
                 </Text>
-                <Text className="mt-2 text-xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
-                  Share how today went in the community.
-                </Text>
-                <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-                  Post a win, a struggle, or a tip while the task is still fresh.
-                </Text>
-                <View className="mt-6">
-                  <PrimaryButton onPress={() => router.push("/community" as never)}>
-                    Open community
-                  </PrimaryButton>
+                <View className="mt-4 items-center">
+                  <ProgressRing
+                    completed={doneForTodayState.completedCount}
+                    total={doneForTodayState.tasks.length}
+                  />
                 </View>
+                <Text className="mt-4 text-center text-base font-medium text-focuslab-primaryDark dark:text-dark-text-primary">
+                  Day {doneForTodayState.completedCount} of {doneForTodayState.tasks.length} complete
+                </Text>
+              </AppCard>
+            </AnimatedCardEntrance>
+
+            <AnimatedCardEntrance delay={200}>
+              <AppCard>
+                <Text className="text-base italic leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+                  &quot;{dailyMotivation}&quot;
+                </Text>
               </AppCard>
             </AnimatedCardEntrance>
           </>
@@ -207,11 +267,22 @@ export function JourneyScreen() {
               {state.currentTask.task.title}
             </Text>
             <View className="mt-4">
-              <MarkdownBlock content={state.currentTask.task.task_body} />
+              <TaskRenderer
+                onCompletionChange={(complete, data) => {
+                  setTaskInteractionComplete(complete);
+                  setTaskInteractionData(data);
+                }}
+                task={state.currentTask.task}
+              />
             </View>
             <View className="mt-4">
-              <PrimaryButton onPress={() => setSheetVisible(true)}>
-                I did it
+              <PrimaryButton
+                disabled={!taskInteractionComplete}
+                onPress={() => setSheetVisible(true)}
+              >
+                {taskInteractionComplete
+                  ? "I did it"
+                  : "Complete the task above first"}
               </PrimaryButton>
             </View>
 
@@ -252,37 +323,56 @@ export function JourneyScreen() {
         ) : null}
 
         {state?.reviewTask ? (
-          <AppCard>
-            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-              Review a past task
-            </Text>
-            <Text className="mt-2 text-xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
-              {state.reviewTask.task.title}
-            </Text>
-            <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-              Due today. Give yourself a quick gut-check on how this one is holding up.
-            </Text>
-            <View className="mt-4 flex-row gap-2">
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <PrimaryButton
-                  key={rating}
-                  onPress={() => setSelectedReviewRating(rating)}
-                >
-                  {rating}
+          <AnimatedCardEntrance delay={doneForTodayState ? 300 : 250}>
+              <AppCard>
+                <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+                  Quick review
+                </Text>
+                <Text className="mt-2 text-xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+                  {state.reviewTask.task.title}
+                </Text>
+                <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+                  How is this one holding up? Quick gut-check.
+                </Text>
+                <View className="mt-4">
+                  <EmojiRating
+                    onChange={setSelectedReviewRating}
+                    value={selectedReviewRating}
+                  />
+                </View>
+                <View className="mt-4">
+                  <PrimaryButton
+                    disabled={!selectedReviewRating}
+                    onPress={() => {
+                      void handleReviewSubmit();
+                    }}
+                  >
+                    Save review
+                  </PrimaryButton>
+                </View>
+              </AppCard>
+            </AnimatedCardEntrance>
+        ) : null}
+
+        {doneForTodayState ? (
+          <AnimatedCardEntrance delay={400}>
+            <AppCard>
+              <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+                Keep the momentum
+              </Text>
+              <Text className="mt-2 text-xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+                Share how today went in the community.
+              </Text>
+              <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+                Post a win, a struggle, or a tip while the task is still fresh.
+              </Text>
+              <View className="mt-6">
+                <PrimaryButton onPress={() => router.push("/community" as never)}>
+                  Open community
                 </PrimaryButton>
-              ))}
-            </View>
-            <View className="mt-4">
-              <PrimaryButton
-                disabled={!selectedReviewRating}
-                onPress={() => {
-                  void handleReviewSubmit();
-                }}
-              >
-                Save review
-              </PrimaryButton>
-            </View>
-          </AppCard>
+              </View>
+            </AppCard>
+          </AnimatedCardEntrance>
         ) : null}
 
         {state?.isPostCompletion ? (

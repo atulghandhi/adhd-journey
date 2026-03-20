@@ -4,9 +4,11 @@ import {
   normalizeNotificationPreferences,
 } from "@focuslab/shared";
 import { useEffect, useMemo, useState } from "react";
+import { Alert, Switch } from "react-native";
 
 import { AppCard } from "../../components/ui/AppCard";
 import {
+  Pressable,
   SafeAreaView,
   ScrollView,
   Text,
@@ -14,7 +16,9 @@ import {
   View,
 } from "../../components/primitives";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
+import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useAuth } from "../../hooks/useAuth";
+import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useProfile } from "../../hooks/useProfile";
@@ -30,9 +34,11 @@ export function AccountScreen() {
   const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: state, refetch: refetchJourney } = useJourneyState();
   const { showToast } = useToast();
+  const { selectionChanged } = useHaptics();
   const pendingCheckIns = useOfflineQueueStore((store) => store.pendingCheckIns);
   const [savingTheme, setSavingTheme] = useState<string | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [quietStart, setQuietStart] = useState("21:00");
   const [quietEnd, setQuietEnd] = useState("08:00");
   const { pushToken, register, registering, status: pushStatus } =
@@ -41,6 +47,10 @@ export function AccountScreen() {
     () => normalizeNotificationPreferences(profile?.notification_preferences),
     [profile?.notification_preferences],
   );
+  const themePreference =
+    profile?.theme_preference === "dark" || profile?.theme_preference === "system"
+      ? profile.theme_preference
+      : "light";
 
   useEffect(() => {
     setQuietStart(notificationPreferences.quiet_start);
@@ -51,6 +61,7 @@ export function AccountScreen() {
     channels?: ("email" | "push")[];
     quiet_end?: string;
     quiet_start?: string;
+    triggerHaptic?: boolean;
   }) => {
     if (!user?.id) {
       return;
@@ -70,6 +81,9 @@ export function AccountScreen() {
         },
       });
       await refetchProfile();
+      if (overrides?.triggerHaptic) {
+        selectionChanged();
+      }
       showToast("Notification preferences saved.");
     } catch {
       showToast("Couldn’t update notification preferences.", "error");
@@ -79,10 +93,11 @@ export function AccountScreen() {
   };
 
   const handleThemeChange = async (theme: "dark" | "light" | "system") => {
-    if (!user?.id) {
+    if (!user?.id || profile?.theme_preference === theme) {
       return;
     }
 
+    selectionChanged();
     setSavingTheme(theme);
 
     try {
@@ -97,12 +112,21 @@ export function AccountScreen() {
   };
 
   const handleChannelToggle = async (channel: "email" | "push") => {
+    if (
+      notificationPreferences.channels.includes(channel) &&
+      notificationPreferences.channels.length === 1
+    ) {
+      showToast("Keep at least one reminder channel turned on.", "error");
+      return;
+    }
+
     const channels = notificationPreferences.channels.includes(channel)
       ? notificationPreferences.channels.filter((value) => value !== channel)
       : [...notificationPreferences.channels, channel];
 
     await persistNotificationPreferences({
-      channels: channels.length > 0 ? channels : [channel],
+      channels,
+      triggerHaptic: true,
     });
   };
 
@@ -175,6 +199,48 @@ export function AccountScreen() {
     router.replace("/auth/login" as never);
   };
 
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", {
+        method: "POST",
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await supabase.auth.signOut().catch(() => null);
+      showToast("Your account has been deleted.");
+      router.replace("/auth/login" as never);
+    } catch {
+      showToast("Couldn’t delete your account just yet.", "error");
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your FocusLab account, journey progress, and community activity.",
+      [
+        {
+          style: "cancel",
+          text: "Cancel",
+        },
+        {
+          onPress: () => {
+            void handleDeleteAccount();
+          },
+          style: "destructive",
+          text: "Delete",
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
@@ -191,19 +257,25 @@ export function AccountScreen() {
           <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
             Theme preference
           </Text>
-          <View className="mt-4 gap-3">
-            {(["light", "dark", "system"] as const).map((theme) => (
-              <PrimaryButton
-                key={theme}
-                loading={savingTheme === theme}
-                onPress={() => {
-                  void handleThemeChange(theme);
-                }}
-              >
-                {profile?.theme_preference === theme ? `✓ ${theme}` : theme}
-              </PrimaryButton>
-            ))}
+          <View className="mt-4">
+            <SegmentedControl<"light" | "dark" | "system">
+              disabled={Boolean(savingTheme)}
+              onChange={(theme) => {
+                void handleThemeChange(theme);
+              }}
+              options={[
+                { label: "Light", value: "light" },
+                { label: "Dark", value: "dark" },
+                { label: "System", value: "system" },
+              ]}
+              value={themePreference}
+            />
           </View>
+          {savingTheme ? (
+            <Text className="mt-3 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
+              Saving {savingTheme} theme...
+            </Text>
+          ) : null}
         </AppCard>
 
         <AppCard>
@@ -220,17 +292,31 @@ export function AccountScreen() {
           </Text>
           <View className="mt-4 gap-3">
             {(["push", "email"] as const).map((channel) => (
-              <PrimaryButton
+              <View
+                className="flex-row items-center justify-between rounded-2xl bg-focuslab-background px-4 py-3 dark:bg-dark-bg"
                 key={channel}
-                loading={savingPrefs}
-                onPress={() => {
-                  void handleChannelToggle(channel);
-                }}
               >
-                {notificationPreferences.channels.includes(channel)
-                  ? `✓ ${channel}`
-                  : channel}
-              </PrimaryButton>
+                <View className="flex-1 pr-4">
+                  <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
+                    {channel === "push" ? "Push notifications" : "Email reminders"}
+                  </Text>
+                  <Text className="mt-1 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
+                    {channel === "push"
+                      ? "Use device reminders when FocusLab can reach you."
+                      : "Keep email as a backup reminder channel."}
+                  </Text>
+                </View>
+                <Switch
+                  disabled={savingPrefs}
+                  ios_backgroundColor="#B7E4C7"
+                  onValueChange={() => {
+                    void handleChannelToggle(channel);
+                  }}
+                  thumbColor="#FFFFFF"
+                  trackColor={{ false: "#B7E4C7", true: "#40916C" }}
+                  value={notificationPreferences.channels.includes(channel)}
+                />
+              </View>
             ))}
           </View>
           <View className="mt-4 gap-3">
@@ -331,6 +417,14 @@ export function AccountScreen() {
             Current journey: {state?.activeTaskOrder ?? "Finished"}
           </Text>
         </AppCard>
+
+        <View className="items-center pb-6">
+          <Pressable disabled={deletingAccount} onPress={confirmDeleteAccount}>
+            <Text className="text-sm font-medium text-gray-400 dark:text-gray-500">
+              {deletingAccount ? "Deleting account..." : "Delete my account"}
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { ScrollView as RNScrollView } from "react-native";
 
 import { AppCard } from "../../components/ui/AppCard";
 import { JourneyMap } from "../../components/JourneyMap";
@@ -15,6 +17,9 @@ import { useJourneyState } from "../../hooks/useJourneyState";
 export function ProgressScreen() {
   const { user } = useAuth();
   const { data: state } = useJourneyState();
+  const scrollRef = useRef<RNScrollView | null>(null);
+  const previousTasksRef = useRef(state?.tasks ?? []);
+  const [justUnlockedTaskIds, setJustUnlockedTaskIds] = useState<string[]>([]);
   const { data: checkIns } = useQuery({
     enabled: Boolean(user?.id),
     queryFn: async () => {
@@ -34,9 +39,39 @@ export function ProgressScreen() {
     queryKey: ["check-ins", user?.id],
   });
 
+  useEffect(() => {
+    if (!state?.tasks) {
+      return;
+    }
+
+    const justUnlocked = state.tasks
+      .filter((task) =>
+        task.isActive &&
+        previousTasksRef.current.find(
+          (previousTask) =>
+            previousTask.task.id === task.task.id && previousTask.isLocked,
+        ),
+      )
+      .map((task) => task.task.id);
+
+    if (justUnlocked.length > 0) {
+      setJustUnlockedTaskIds(justUnlocked);
+      const clearTimer = setTimeout(() => setJustUnlockedTaskIds([]), 1200);
+
+      previousTasksRef.current = state.tasks;
+
+      return () => clearTimeout(clearTimer);
+    }
+
+    previousTasksRef.current = state.tasks;
+  }, [state?.tasks]);
+
   return (
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
-      <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
+      <ScrollView
+        contentContainerStyle={{ gap: 20, padding: 24 }}
+        ref={scrollRef}
+      >
         <View>
           <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Progress
@@ -48,7 +83,16 @@ export function ProgressScreen() {
 
         {state ? (
           <AppCard>
-            <JourneyMap state={state} />
+            <JourneyMap
+              justUnlockedTaskIds={justUnlockedTaskIds}
+              onVisibleActiveNode={(y) => {
+                scrollRef.current?.scrollTo({
+                  animated: true,
+                  y: Math.max(0, y - 140),
+                });
+              }}
+              state={state}
+            />
           </AppCard>
         ) : null}
 

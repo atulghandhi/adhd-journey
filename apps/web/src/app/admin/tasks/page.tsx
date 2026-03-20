@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { startTransition } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import type { TaskRow } from "@focuslab/shared";
 import { DEFAULT_JOURNEY_ID } from "@focuslab/shared";
 
@@ -14,6 +13,31 @@ export default function AdminTasksPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
+  const typeCounts = useMemo(() => {
+    return tasks.reduce<Record<string, number>>((counts, task) => {
+      const type = task.interaction_type ?? "markdown";
+      counts[type] = (counts[type] ?? 0) + 1;
+      return counts;
+    }, {});
+  }, [tasks]);
+  const consecutiveWarnings = useMemo(() => {
+    const warnings: number[] = [];
+
+    for (let index = 1; index < tasks.length; index += 1) {
+      const current = tasks[index];
+      const previous = tasks[index - 1];
+
+      if (
+        current &&
+        previous &&
+        current.interaction_type === previous.interaction_type
+      ) {
+        warnings.push(current.order);
+      }
+    }
+
+    return warnings;
+  }, [tasks]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -164,6 +188,24 @@ export default function AdminTasksPage() {
         <p className="mt-4 text-sm text-focuslab-secondary">
           {status ?? `${tasks.length} task${tasks.length === 1 ? "" : "s"} loaded.`}
         </p>
+        {tasks.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {Object.entries(typeCounts).map(([type, count]) => (
+              <span
+                className="rounded-full bg-focuslab-background px-3 py-1 text-xs font-medium text-focuslab-secondary"
+                key={type}
+              >
+                {type.replace(/_/g, " ")}: {count}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {consecutiveWarnings.length > 0 ? (
+          <p className="mt-3 text-sm font-medium text-amber-700">
+            Warning: days {consecutiveWarnings.join(", ")} match the previous
+            task&apos;s interaction type.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4">

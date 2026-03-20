@@ -45,6 +45,7 @@ export interface NotificationPreferences {
 }
 
 export interface PromptResponses {
+  interaction_data?: string;
   what_happened?: string;
   what_surprised?: string;
   what_was_hard?: string;

@@ -1,68 +1,70 @@
-import { Lock, Check, Circle } from "lucide-react-native";
-import { Pressable, Text, View } from "./primitives";
+import { Path, Svg } from "react-native-svg";
+
+import { JourneyMapNode } from "./JourneyMapNode";
+import { View } from "./primitives";
+import {
+  getJourneyMapConnectorPath,
+  getJourneyMapNodePosition,
+} from "./journeyMapUtils";
 
 import type { JourneyState } from "@focuslab/shared";
 
 interface JourneyMapProps {
+  justUnlockedTaskIds?: string[];
   onSelectTask?: (taskId: string) => void;
+  onVisibleActiveNode?: (y: number) => void;
   state: JourneyState;
 }
 
-export function JourneyMap({ onSelectTask, state }: JourneyMapProps) {
+export function JourneyMap({
+  justUnlockedTaskIds = [],
+  onSelectTask,
+  onVisibleActiveNode,
+  state,
+}: JourneyMapProps) {
   return (
-    <View className="gap-4">
-      {state.tasks.map((item) => (
-        <Pressable
-          className="flex-row items-start gap-3"
-          disabled={!item.canOpen}
-          key={item.task.id}
-          onPress={() => onSelectTask?.(item.task.id)}
-        >
-          <View className="items-center">
-            <View
-              className={`h-7 w-7 items-center justify-center rounded-full border ${
-                item.isCompleted
-                  ? "border-focuslab-primary bg-focuslab-primary"
-                  : item.isActive
-                    ? "border-focuslab-primary bg-white dark:bg-dark-surface"
-                    : "border-focuslab-border bg-white dark:border-dark-border dark:bg-dark-surface"
-              }`}
-            >
-              {item.isCompleted ? (
-                <Check color="#FFFFFF" size={14} />
-              ) : item.isLocked ? (
-                <Lock color="#6B7280" size={12} />
-              ) : (
-                <Circle color="#40916C" fill="#40916C" size={12} />
-              )}
-            </View>
-            <View
-              className={`mt-2 h-10 w-px ${
-                item.task.order === state.tasks[state.tasks.length - 1]?.task.order
-                  ? "bg-transparent"
-                  : item.isCompleted
-                    ? "bg-focuslab-primary"
-                    : "bg-focuslab-border"
-              }`}
+    <View className="gap-0">
+      {state.tasks.map((item, index) => {
+        const position = getJourneyMapNodePosition(index);
+        const nextItem = state.tasks[index + 1];
+        const nextPosition = nextItem
+          ? getJourneyMapNodePosition(index + 1)
+          : null;
+        const connectorUnlocked = item.isCompleted || nextItem?.isActive;
+
+        return (
+          <View key={item.task.id}>
+            <JourneyMapNode
+              canOpen={item.canOpen}
+              isActive={item.isActive}
+              isCompleted={item.isCompleted}
+              interactionType={item.task.interaction_type}
+              isLocked={item.isLocked}
+              justUnlocked={justUnlockedTaskIds.includes(item.task.id)}
+              onActiveLayout={onVisibleActiveNode}
+              onPress={() => onSelectTask?.(item.task.id)}
+              order={item.task.order}
+              position={position}
+              subtitle={item.subtitle}
+              title={item.task.title}
             />
-          </View>
-          <View className="flex-1 pb-4">
-            <Text className="text-xs font-medium uppercase tracking-[1.6px] text-focuslab-secondary dark:text-dark-text-secondary">
-              Day {item.task.order}
-            </Text>
-            <Text
-              className={`mt-1 text-base font-semibold ${
-                item.isLocked ? "text-gray-400 dark:text-gray-600" : "text-focuslab-primaryDark dark:text-dark-text-primary"
-              }`}
-            >
-              {item.task.title}
-            </Text>
-            {item.subtitle ? (
-              <Text className="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">{item.subtitle}</Text>
+            {nextPosition ? (
+              <View className="h-16 w-full">
+                <Svg height="64" viewBox="0 0 100 72" width="100%">
+                  <Path
+                    d={getJourneyMapConnectorPath(position, nextPosition)}
+                    fill="none"
+                    stroke={connectorUnlocked ? "#40916C" : "#B7E4C7"}
+                    strokeDasharray={connectorUnlocked ? undefined : "4,4"}
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                  />
+                </Svg>
+              </View>
             ) : null}
           </View>
-        </Pressable>
-      ))}
+        );
+      })}
     </View>
   );
 }

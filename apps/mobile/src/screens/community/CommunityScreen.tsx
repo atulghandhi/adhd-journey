@@ -16,6 +16,7 @@ import {
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { useAuth } from "../../hooks/useAuth";
 import { useCommunityActions, useCommunityThread } from "../../hooks/useCommunity";
+import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useToast } from "../../providers/ToastProvider";
 
@@ -33,6 +34,7 @@ type ThreadPost = CommunityPost & {
 export function CommunityScreen() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { lightImpact, selectionChanged, successNotification } = useHaptics();
   const { data: journeyState } = useJourneyState();
   const unlockedTasks = useMemo(
     () => (journeyState?.tasks ?? []).filter((task) => !task.isLocked),
@@ -58,6 +60,7 @@ export function CommunityScreen() {
     try {
       await actions.createPost.mutateAsync(draft.trim());
       setDraft("");
+      successNotification();
       showToast("Post shared.");
     } catch {
       showToast("Couldn’t post right now.", "error");
@@ -160,6 +163,7 @@ export function CommunityScreen() {
                     emoji={emoji}
                     key={`${post.id}-${emoji}`}
                     onPress={() => {
+                      selectionChanged();
                       void actions.toggleReaction
                         .mutateAsync({
                           emoji,
@@ -206,12 +210,13 @@ export function CommunityScreen() {
                       body: replyDrafts[post.id] ?? "",
                       postId: post.id,
                     })
-                    .then(() =>
+                    .then(() => {
+                      lightImpact();
                       setReplyDrafts((current) => ({
                         ...current,
                         [post.id]: "",
-                      })),
-                    )
+                      }));
+                    })
                     .catch(() => showToast("Couldn’t reply just yet.", "error"));
                 }}
               >
