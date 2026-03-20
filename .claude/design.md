@@ -113,10 +113,22 @@ All animations use `react-native-reanimated` with spring physics. No `Animated.t
 | Interaction | Haptic type | `expo-haptics` call |
 |---|---|---|
 | Check-in submit | Light | `Haptics.impactAsync(ImpactFeedbackStyle.Light)` |
-| Task unlock | Medium | `Haptics.impactAsync(ImpactFeedbackStyle.Medium)` |
+| Task unlock / day reveal | Medium | `Haptics.impactAsync(ImpactFeedbackStyle.Medium)` |
 | Day completion | Success | `Haptics.notificationAsync(NotificationFeedbackType.Success)` |
-| Emoji rating tap | Light | `Haptics.impactAsync(ImpactFeedbackStyle.Light)` |
+| Emoji rating tap | Selection | `Haptics.selectionAsync()` |
 | Error / validation fail | Error | `Haptics.notificationAsync(NotificationFeedbackType.Error)` |
+| Community post submit | Success | `Haptics.notificationAsync(NotificationFeedbackType.Success)` |
+| Community reaction toggle | Selection | `Haptics.selectionAsync()` |
+| Community reply submit | Light | `Haptics.impactAsync(ImpactFeedbackStyle.Light)` |
+| Journey map node tap | Light | `Haptics.impactAsync(ImpactFeedbackStyle.Light)` |
+| Streak increment | Success | `Haptics.notificationAsync(NotificationFeedbackType.Success)` |
+| Theme / notification toggle | Selection | `Haptics.selectionAsync()` |
+| Pull-to-refresh complete | Light | `Haptics.impactAsync(ImpactFeedbackStyle.Light)` |
+| Drag-list add / reorder | Selection | `Haptics.selectionAsync()` |
+| Drag-list delete | Light | `Haptics.impactAsync(ImpactFeedbackStyle.Light)` |
+| Timer / breathing complete | Success | `Haptics.notificationAsync(NotificationFeedbackType.Success)` |
+| Reflection "Next" | Selection | `Haptics.selectionAsync()` |
+| Journal threshold crossed | Success | `Haptics.notificationAsync(NotificationFeedbackType.Success)` |
 
 #### Reduced motion
 - All animations respect OS `prefers-reduced-motion` (AccessibilityInfo on RN). Also provide a manual toggle in Settings.
@@ -125,12 +137,14 @@ All animations use `react-native-reanimated` with spring physics. No `Animated.t
 ## Signature Elements
 
 ### Journey progress (in-app)
-Vertical scrollable list with 30 nodes (circles) connected by a line — a visual "path" that makes the journey feel like a story, not a checklist.
-- **Completed node**: filled circle in `green-500`, checkmark icon inside, connected by solid `green-400` line.
-- **Active node**: pulsing circle in `green-500` (gentle scale pulse 1.0 → 1.1 → 1.0 on `gentle` spring, looping). Larger than other nodes (28px vs 20px). Connected by solid line above, dashed line below.
-- **Locked node**: hollow circle with `green-200` border, small lock icon in `text-secondary` color. Connected by dashed `green-200` line.
+Winding serpentine path (not a flat checklist) with nodes alternating left/right in a zig-zag pattern. Connected by curved SVG lines. See `.claude/change-phase3.md` for full implementation spec.
+- **Completed node**: filled circle in `green-500` (28px), checkmark icon inside, connected by solid `green-400` curved line. Subtle idle jiggle animation (2° rotation oscillation, `withRepeat` + `withSequence`).
+- **Active node**: larger (36px), pulsing `green-500` border (gentle scale pulse 1.0 → 1.05 → 1.0 on `gentle` spring, looping). "START" badge below the node. Connected by solid line above, dashed line below.
+- **Locked node**: dashed empty circle with `green-200` border. **No lock icon** — locked should feel like "not yet", not "forbidden". Connected by dashed `green-200` curved line.
+- **Interaction-type hint icon**: Unlocked (completed + active) task nodes show a small (10px) muted icon below indicating the task type (Clock for timed_challenge, Wind for breathing_exercise, Pen for journal, etc.). Not shown for `markdown` type or locked tasks (preserves mystery).
+- **Day-unlock reveal**: When a new task unlocks, node scales in with `SPRING_SNAPPY` + haptic `impactMedium`.
 - The active node is always auto-scrolled into view on screen load.
-- Day number labels appear to the left of each node. Task title appears to the right.
+- Day number and task title appear alongside each node, alternating sides with the serpentine layout.
 
 ### Journey progress (widget) — V2
 Widget is deferred to V2. When built: progress ring (arc) showing day/30 as fill percentage. Ring stroke in `green-500`, background stroke in `green-200`. Center text: "Day 12" in bold. Below ring: truncated task title. Tap → deep link to current task.
@@ -150,10 +164,14 @@ Positioned **below the main active task card**, partially visible (top ~60px pee
 - If no reinforcement review is scheduled for today, this card is not shown.
 
 ### Streak badge
-Small pill-shaped badge showing 🔥 + streak count (e.g., "🔥 7"). Displayed in the journey screen header, next to the day number. Uses `success` background with white text. When streak is 0 or user returns after absence: badge is hidden (not shown as "0" — no shame).
+Small pill-shaped badge showing 🔥 + streak count (e.g., "🔥 7"). Displayed in the journey screen header. **Always visible** — never hidden at 0.
+- **Count > 0**: `success` background (`#22C55E`) with white text. Animated counter increment: scale pulse (`snappy` spring) + flame wobble on increase.
+- **Count = 0**: dimmed grey pill (`gray-300` bg, `gray-500` text/flame) showing "0". Mild loss-aversion — the flame is "out" but visually present, encouraging the user to relight it.
+- Supports `size="sm"` (header) and `size="lg"` (progress screen) props.
+- This is a deliberate override of the earlier "hide at 0" spec. Testing showed that an always-visible badge with a dimmed zero state drives more re-engagement than hiding it entirely.
 
 ### Locked tasks
-Visible in the journey list but clearly gated: muted colors (`green-200` text, `green-100` background), lock icon, cannot be tapped. Title is visible (teasing anticipation), but task body is hidden (no spoilers).
+Visible in the journey list but clearly gated: muted colors (`green-200` text, `green-100` background), **dashed empty circle** (no lock icon), cannot be tapped. Title is visible (teasing anticipation), but task body is hidden (no spoilers). Locked should feel like "not yet" rather than "forbidden".
 
 ### Post-completion state
 After Day 30, the Journey tab shows the full journey list with all 30 nodes completed (filled circles, checkmarks). The active node pulsing animation stops — all nodes are in "completed" state. A one-time "Congratulations" modal appears with the user's `motivating_answer` resurfaced, stats summary, and buttons for: Quiz, Resources, Restart Journey. After dismissal, the journey list is the default view. Reinforcement review cards continue to appear based on the SR algorithm — the user's journey with the app continues post-completion.
@@ -164,11 +182,24 @@ Accessible from Account tab or a "Resources" button in the journey header (post-
 ## Component Guidance
 
 ### Buttons
-- **Primary**: `green-500` background, `white` text, rounded corners (12px), full-width on mobile. One per screen max.
+- **Primary**: `green-500` background, `white` text, rounded corners (12px), full-width on mobile. One per screen max. Supports non-string children (e.g., `<View>` with `<EmojiText>`) — `PrimaryButton` type-checks children and only wraps strings in `<Text>`.
 - **Secondary**: transparent background, `green-500` text, `green-200` border, rounded corners (12px).
-- **Ghost**: transparent background, `green-700` text, no border. For "Maybe later", "Skip", etc.
-- **Destructive**: `error` background, `white` text. Only for delete/report actions.
+- **Ghost**: transparent background, `green-700` text, no border. For "Maybe later", "Skip", report actions, etc.
+- **Destructive**: `error` background, `white` text. Only for delete actions.
 - All buttons: min height 48px, `button text` typography, `snappy` spring scale animation on press (0.97 → 1.0).
+
+### Segmented control (Account screen)
+- For theme preference (Light / Dark / System) and similar set-once settings.
+- Horizontal `flex-row`, `green-200` / `dark-border` background, `rounded-2xl`, `p-1`.
+- Each segment: `flex-1`, `items-center`, `py-2.5`, `rounded-xl`.
+- Selected segment: `white` / `dark-surface` background with subtle shadow. `green-900` / `dark-text-primary` text, `font-semibold`.
+- Unselected: transparent background, `green-700` / `dark-text-secondary` text, `font-medium`.
+- Sliding indicator animation with `SPRING_QUICK`. Haptic `selectionChanged` on change.
+
+### Toggle switches (Account screen)
+- For push/email notification channels.
+- Native `Switch` component (not buttons with checkmark prefixes).
+- Track color: `green-200` (off) / `green-500` (on). Thumb: white.
 
 ### Inputs
 - Min height 48px, `green-100` background, `green-200` border, rounded corners (12px).
@@ -207,8 +238,19 @@ Bottom tab bar with 4 tabs. Use icons from `lucide-react-native` (or `@expo/vect
 ### Community reactions
 Fixed emoji set displayed as a horizontal row below each post:
 👎 👍 🔥 ❤️ 😮
-- Tap to toggle. Active reaction: `green-100` background pill with count. Inactive: transparent.
-- Own reaction highlighted with `green-500` border.
+- Rendered via `ReactionPill` component (not `PrimaryButton`) — smaller pill shape using `AnimatedPressable`.
+- Emoji rendered via `EmojiText` component (forces `Apple Color Emoji` font on iOS to prevent font-weight stripping of color emoji).
+- **Active state** (current user has reacted): `green-500` background pill with white count text. Tracks per-user via `reaction.user_id === user?.id` (not just count > 0).
+- **Inactive state**: `green-200` / `dark-border` background pill with `green-900` / `dark-text-primary` count text.
+- Count only shown when > 0.
+
+### Report button
+- Ghost/muted text style (`gray-400` / `gray-500` in dark mode), not a `PrimaryButton`.
+- Uses bare `Pressable` with loading text swap ("Report" → "Reporting…").
+- Should never look like a CTA — de-emphasized to prevent accidental taps.
+
+### Author display
+- First name in **natural case** (not uppercased). Removed `uppercase` and `tracking-[2px]` from author name text.
 
 ### Loading skeletons
 Gray rounded rectangles matching content layout, with a left-to-right shimmer gradient animation (`green-100` → `green-50` → `green-100`). Use `moti/skeleton` or a custom reanimated shimmer.
@@ -233,7 +275,7 @@ When the user returns after inactivity, show a dismissible banner above the curr
 
 - **24–47 hours inactive**: "Welcome back! Ready to pick up where you left off?" — light `green-100` background, `green-700` text, dismiss X button.
 - **48+ hours inactive**: "Hey — starting again is the hardest part, and you just did it. Let's go." — light `green-100` background, `green-700` text, dismiss X button.
-- Never mention how many days were missed. Never show streak as "0". Hide the streak badge entirely if streak is broken — it reappears once the user completes a check-in.
+- Never mention how many days were missed. Streak badge stays visible at "0" with dimmed styling (see Streak badge section above) — mild loss-aversion to encourage re-engagement rather than shame.
 
 ## Accessibility
 

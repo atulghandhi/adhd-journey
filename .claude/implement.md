@@ -2,8 +2,8 @@ You are building FocusLab — a complete mobile-first ADHD journey app. Build th
 
 ## Your instructions
 
-1. Read every file in `.claude/` first: `prompt.md` (what to build), `plans.md` (how to build it — 17 milestones), `architecture.md` (tech stack, data model, APIs, timezone rules, security), `design.md` (visual specs, colors, fonts, animations), `agents.md` (repo structure, commands, conventions), `documentation.md` (docs template to fill in as you go). Also read `content/30-tasks-draft.md` (the 30 task definitions — use as seed data source) and `content/quiz-questions.json` (placeholder quiz questions).
-2. Execute milestones 1–17 from `plans.md` in order. Do not skip milestones. Do not stop between milestones to ask questions.
+1. Read every file in `.claude/` first: `prompt.md` (what to build), `plans.md` (how to build it — 23 milestones: M01–M17 core + M18–M23 UX phases), `architecture.md` (tech stack, data model, APIs, timezone rules, security), `design.md` (visual specs, colors, fonts, animations), `agents.md` (repo structure, commands, conventions), `documentation.md` (docs template to fill in as you go). Also read `content/30-tasks-draft.md` (the 30 task definitions — use as seed data source) and `content/quiz-questions.json` (placeholder quiz questions). For UX enhancement phases, also read `.claude/change-phase1.md` through `.claude/change-phase6.md`.
+2. Execute milestones 1–23 from `plans.md` in order. Do not skip milestones. Do not stop between milestones to ask questions.
 3. After each milestone: run `npx turbo lint && npx turbo typecheck && npx turbo test`, fix all failures, commit with `feat: milestone-XX <name>`.
 4. When you hit an ambiguity, make the best decision, record it in `plans.md` under "Implementation Notes", and keep going.
 5. When you finish all 17 milestones, verify every item in the "Completion criteria" section below. Fix anything that fails. Then stop.
@@ -66,7 +66,8 @@ Each acceptance criterion in `plans.md` is tagged:
 
 ## Completion criteria (do not stop until ALL are true)
 
-- [ ] All 17 milestones in `plans.md` are implemented and marked `[x]`.
+### Core (M01–M17)
+- [ ] All 23 milestones in `plans.md` are implemented and marked `[x]`.
 - [ ] `npm install` succeeds from repo root.
 - [ ] `supabase db reset` applies all migrations + seed without errors.
 - [ ] `npx turbo lint && npx turbo typecheck && npx turbo test` all pass with zero failures.
@@ -88,6 +89,22 @@ Each acceptance criterion in `plans.md` is tagged:
 - [ ] `eas.json` exists with development/preview/production build profiles.
 - [ ] TypeScript types are auto-generated and up to date.
 - [ ] `plans.md` "Implementation Notes" section documents every decision made during build.
+
+### UX Phases (M18–M23)
+- [ ] Community reactions use `ReactionPill` + `EmojiText`, not `PrimaryButton`. Report button is ghost style.
+- [ ] `interaction_type` enum and `interaction_config` JSONB columns exist on `tasks` table. All existing tasks default to `'markdown'`.
+- [ ] Admin CMS task editor includes interaction_type dropdown and JSON config editor.
+- [ ] Six interactive task renderers exist and gate the "I did it" button until interaction is complete.
+- [ ] Journey map uses serpentine winding layout with SVG curves, not a flat checklist.
+- [ ] Streak badge is always visible (dimmed at 0, animated at > 0).
+- [ ] Done-for-today state includes progress ring, motivational quote, and streak-adaptive heading.
+- [ ] All 30 tasks have an `interaction_type` assigned with no two consecutive tasks sharing the same type.
+- [ ] Account screen uses `SegmentedControl` for theme and `Switch` for notifications.
+- [ ] Haptics fire on all key interactions (see expanded table in `design.md`).
+
+### Pre-release regressions (must fix before ship)
+- [ ] `useReducedMotion` restored to use `AccessibilityInfo` listener (not hardcoded `false`).
+- [ ] Auth email confirmation re-enabled in `supabase/config.toml`, `RegisterScreen.tsx`, and `RegisterForm.tsx`.
 
 ## Start
 

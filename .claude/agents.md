@@ -5,17 +5,28 @@
 ```
 focuslab/
 ├── apps/
-│   ├── mobile/                # React Native + Expo (SDK 52+) — iOS + Android
+│   ├── mobile/                # React Native + Expo (SDK 55+, RN 0.83) — iOS + Android
+│   │   ├── App.tsx            # Minimal entry point (returns null, required by Expo)
 │   │   ├── src/
-│   │   │   ├── screens/       # Screen components by feature (journey/, community/, progress/, auth/, onboarding/, payment/, completion/, settings/)
+│   │   │   ├── screens/       # Screen components by feature (journey/, community/, progress/, auth/, onboarding/, payment/, completion/, settings/, account/)
 │   │   │   ├── components/    # Shared UI components
+│   │   │   │   ├── ui/        # Primitives: AppCard, PrimaryButton, EmojiText, Skeleton, SegmentedControl, Switch
+│   │   │   │   ├── tasks/     # Interactive task renderers: TaskRenderer, DragListTask, TimedChallengeTask, etc. (Phase 2)
+│   │   │   │   ├── ReactionPill.tsx      # Community reaction pill (Phase 0)
+│   │   │   │   ├── EmojiRating.tsx       # 5-emoji check-in control
+│   │   │   │   ├── JourneyMap.tsx        # Serpentine journey map (Phase 3 overhaul)
+│   │   │   │   ├── JourneyMapNode.tsx    # Individual map node (Phase 3)
+│   │   │   │   ├── StreakBadge.tsx       # Always-visible streak pill (Phase 3 overhaul)
+│   │   │   │   └── ProgressRing.tsx      # SVG progress ring (Phase 4)
 │   │   │   ├── navigation/    # Tab + stack navigation (Expo Router — file-based routing)
 │   │   │   ├── stores/        # Zustand stores (local UI state, offline queue)
-│   │   │   ├── hooks/         # Custom hooks (useHaptics, useJourneyProgress, useSupabase)
+│   │   │   ├── hooks/         # Custom hooks (useHaptics, useJourneyProgress, useSupabase, useAuth, useReducedMotion)
 │   │   │   ├── lib/           # Supabase client init, RevenueCat init, query keys
+│   │   │   ├── constants/     # motivation.ts (Phase 4 quotes)
 │   │   │   ├── animations/    # Spring animation configs (react-native-reanimated withSpring — see design.md for values)
 │   │   │   └── theme/         # Colors, typography, spacing tokens (NativeWind)
 │   │   ├── app.config.ts      # Expo config (with plugins for notifications, RevenueCat)
+│   │   ├── babel.config.js    # Includes expo-router/babel plugin
 │   │   ├── eas.json           # EAS Build profiles (development, preview, production)
 │   │   └── tailwind.config.js # NativeWind config
 │   │
@@ -37,9 +48,15 @@ focuslab/
 │
 ├── supabase/                  # Supabase project config (managed by Supabase CLI)
 │   ├── migrations/            # SQL migration files (schema changes)
+│   │   ├── 00001_initial_schema.sql
+│   │   ├── 00002_pg_cron_notifications.sql
+│   │   ├── 00003_reward_resources.sql
+│   │   ├── 00004_task_interaction_type.sql  # Phase 1: adds interaction_type enum + interaction_config JSONB
+│   │   └── 00005_seed_interaction_types.sql # Phase 5: assigns types to all 30 tasks
 │   ├── functions/             # Edge Functions (Deno runtime)
-│   │   ├── _shared/           # Shared utilities (CORS headers, response helpers)
-│   │   │   └── cors.ts
+│   │   ├── _shared/           # Shared utilities (CORS headers, response helpers, domain.ts)
+│   │   │   ├── cors.ts
+│   │   │   └── domain.ts      # Duplicated shared logic (993 lines) — Deno can't import npm workspace packages
 │   │   ├── complete-check-in/
 │   │   ├── get-journey-state/
 │   │   ├── daily-notifications/
@@ -152,12 +169,16 @@ Key differences from a traditional API server setup:
 - App-level types: `src/types/` — journey state, check-in payloads, notification payloads, etc.
 
 ### Mobile app (`apps/mobile/`)
-- Screens by feature: `src/screens/journey/`, `src/screens/community/`, `src/screens/progress/`, `src/screens/auth/`, `src/screens/onboarding/`, `src/screens/payment/`, `src/screens/completion/`, `src/screens/settings/`
+- Screens by feature: `src/screens/journey/`, `src/screens/community/`, `src/screens/progress/`, `src/screens/auth/`, `src/screens/onboarding/`, `src/screens/payment/`, `src/screens/completion/`, `src/screens/settings/`, `src/screens/account/`
 - Supabase client: `src/lib/supabase.ts`
 - Offline queue: `src/stores/offlineQueueStore.ts` (Zustand + persist)
+- Interactive task renderers: `src/components/tasks/` (Phase 2 — TaskRenderer + 6 type-specific components)
+- New Phase 0 components: `src/components/ReactionPill.tsx`, `src/components/ui/EmojiText.tsx`
 
 ### Web dashboard (`apps/web/`)
 - Admin CMS: `src/app/admin/` (tasks, templates, moderation, analytics, SR config, rewards)
+  - Task editor includes: interaction_type dropdown, JSON config editor (Phase 1)
+  - Task list includes: type distribution summary, consecutive-type warning (Phase 5)
 - User dashboard: `src/app/dashboard/` (stats, history)
 - Auth pages: `src/app/auth/`
 - Supabase clients: `src/lib/supabase-server.ts` (server components) + `src/lib/supabase-client.ts` (client components)

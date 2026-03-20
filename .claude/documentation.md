@@ -26,11 +26,22 @@ This document is updated continuously as milestones land so it reflects reality.
 - Milestone 12 — Progress + stats: complete
 - Milestone 13 — Mindful gateway tutorial: complete
 - Milestone 14 — Post-completion phase: complete
-- Milestone 15 — UX polish + animations: partially complete (error UX, toasts, theme preference persistence; full dark mode/animation pass still pending)
+- Milestone 15 — UX polish + animations: complete (dark mode tokens on all screens, spring animations with 4 configs, haptics with 5 types, reduced motion support, skeleton shimmer)
 - Milestone 16 — Admin analytics + moderation: complete
-- Milestone 17 — Testing hardening + final sweep: in progress
+- Milestone 17 — Testing hardening + final sweep: complete (13 mobile unit tests, 29 EF equivalence tests, final dark mode sweep)
+- **Phase 0 — UX bug fixes**: complete (ReactionPill for community reactions, ghost report button, username casing, reaction toggle bug fix)
+- **Phases 1–6 — UX enhancement phases**: documented in `.claude/change-phase1.md` through `.claude/change-phase6.md`, pending implementation
 
 Note: Home screen widget is deferred to V2.
+
+UX enhancement phases (post-milestone, documented in `.claude/change-phase*.md`):
+- Phase 0: Bug fixes — COMPLETE. Community emoji rendering (ReactionPill + EmojiText), report button de-emphasis, username casing, reaction toggle per-user fix.
+- Phase 1: Data model — add `interaction_type` enum + `interaction_config` JSONB to tasks table.
+- Phase 2: Interactive task renderers — TaskRenderer switch component, 6 interactive task types.
+- Phase 3: Journey map overhaul — serpentine layout, animated nodes, streak badge always-visible.
+- Phase 4: Done-for-today improvements — progress ring, motivational quotes, review card upgrade.
+- Phase 5: Variable content format — assign interaction types to all 30 tasks, format hint icons.
+- Phase 6: Account screen polish — segmented control, Switch toggles, delete account, dark mode borders.
 
 Bootstrap note:
 - 2026-03-17: Implementation started from an almost-empty repository containing only spec files, content drafts, and Supabase local config.
@@ -235,9 +246,9 @@ For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 ## Data model overview (high level)
 
 - **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state, theme preference (light/dark/system), current_journey_id
-- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags, journey_id
+- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags, journey_id, **interaction_type** (enum: markdown/drag_list/timed_challenge/breathing_exercise/reflection_prompts/journal/community_prompt), **interaction_config** (JSONB, type-specific parameters)
 - **user_progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking, journey_id
-- **check_ins**: quick rating + optional deeper reflections, tied to task + user + journey_id, includes `checked_in_at` (client timestamp for offline support)
+- **check_ins**: quick rating + optional deeper reflections, tied to task + user + journey_id, includes `checked_in_at` (client timestamp for offline support), `prompt_responses.interaction_data` for interactive task output
 - **spaced_repetition_state**: per-user per-task algorithm state (ease factor, interval, review count, next review date), journey_id
 - **spaced_repetition_config**: admin-tunable algorithm parameters (singleton row)
 - **community_posts / community_reactions / community_replies**: per-task discussion threads with reactions and replies. Thread access persists across journey restarts.
@@ -249,13 +260,33 @@ For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 All tables have Row Level Security (RLS) policies. See `architecture.md` for the complete schema.
 
+## New components (Phase 0)
+
+- **`ReactionPill`** (`apps/mobile/src/components/ReactionPill.tsx`): Pill-shaped community reaction button using `AnimatedPressable`. Props: `emoji`, `count`, `active`, `onPress`. Active state tracks per-user (`user_id`) not just count > 0.
+- **`EmojiText`** (`apps/mobile/src/components/ui/EmojiText.tsx`): Forces `Apple Color Emoji` font on iOS to prevent NativeWind font-weight stripping color from emoji. Props: `children`, `size`.
+- **`PrimaryButton` update**: Now supports non-string children (type-checks `children` — wraps strings in `<Text>`, passes JSX through directly).
+
+## Known temporary regressions
+
+- **`useReducedMotion` stubbed**: Returns `{ reducedMotion: false }` hardcoded. `AccessibilityInfo` listener removed to get Expo running. Must restore before release.
+- **Auth email confirmation bypassed**: `enable_confirmations = false` in `supabase/config.toml`, plus navigation bypasses in `RegisterScreen.tsx` (mobile) and `RegisterForm.tsx` (web). Must revert all three before deploy.
+- **React pinned to 19.2.0**: Downgraded from 19.2.4 for RN 0.83 compatibility.
+- **Shared package linked via `file:` protocol**: `@focuslab/shared` uses `"file:../../packages/shared"` in mobile `package.json`. May need adjustment for EAS builds.
+
+## Dependency changes (Expo runtime fixes)
+
+- Pinned all wildcard (`*`) mobile deps to specific versions compatible with Expo SDK 55 + RN 0.83
+- Added `react-native-svg` (`^15.15.3`) as direct dependency
+- Added `apps/mobile/App.tsx` (returns null — required entry point for Expo)
+- Added `expo-router/babel` plugin to `babel.config.js`
+
 ## Security
 
 - **RLS on all tables**: Each user can only read/write their own data. Admin role has broader read access.
 - **Never log PII**: No user emails, passwords, or payment details in any log output. Use user IDs (UUIDs) only.
 - **Service role key**: NEVER exposed to client code. Only used in Edge Functions and pg_net calls.
 - **XSS prevention**: Community post content sanitized on insert.
-- **Auth**: Supabase Auth handles password hashing (bcrypt), JWT, refresh tokens, rate limiting. Email confirmation required.
+- **Auth**: Supabase Auth handles password hashing (bcrypt), JWT, refresh tokens, rate limiting. Email confirmation required (currently bypassed for local testing — must revert before deploy).
 - **Payment**: Entitlements validated server-side by RevenueCat. Never trust client-side payment status alone.
 - **CORS**: Edge Functions return CORS headers for web dashboard access. Scope origin in production.
 

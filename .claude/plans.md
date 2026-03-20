@@ -414,7 +414,7 @@ Acceptance criteria:
 - Restart creates new journey_id, preserves old data, community stays unlocked. **[AUTO]** (test restart logic)
 - Post-completion notifications schedule correctly. **[AUTO]**
 
-### Milestone 15 — UX polish + animations [ ]
+### Milestone 15 — UX polish + animations [x]
 Scope:
 - Spring-based animations via react-native-reanimated `withSpring`. Use exact spring configs from `design.md`: `default` (damping:15, stiffness:150), `snappy` (damping:12, stiffness:200), `gentle` (damping:20, stiffness:80), `quick` (damping:20, stiffness:300). Implement all signature motions from `design.md`.
 - Confetti burst on check-in completion: `react-native-confetti-cannon` or custom Skia/reanimated particles. 15-20 colored circles, localized burst from button, 400ms. NOT full-screen.
@@ -462,7 +462,7 @@ Acceptance criteria:
 - Moderation queue shows reported posts with bulk hide/delete. **[LOCAL]**
 - All admin pages are role-gated. **[AUTO]**
 
-### Milestone 17 — Testing hardening + final sweep [ ]
+### Milestone 17 — Testing hardening + final sweep [x]
 Scope:
 - Fill test coverage gaps: spaced-repetition edge cases, journey progression edge cases (including journey restart + journey_id), RLS policy tests (including community thread permanence), notification scheduling edge cases, paywall gating logic, timezone boundary tests.
 - Integration tests: full auth flow (register → confirm email → login → access protected resource), full task unlock sequence (start → check-in → next task), payment verification (mock webhook), journey restart (new journey_id, old data preserved).
@@ -485,6 +485,133 @@ Acceptance criteria:
 - RLS isolation verified: user A cannot read user B's check-ins, progress, or notifications. **[AUTO]**
 - `documentation.md` is accurate and complete. **[MANUAL]**
 - All milestones in this file are checked off. **[AUTO]**
+
+### Milestone 18 — Phase 0: UX bug fixes [x]
+Scope:
+- Replace community `PrimaryButton` reactions with `ReactionPill` component (smaller pill shape, `AnimatedPressable`, `EmojiText` for proper emoji rendering).
+- Fix reaction toggle logic: track active state per-user via `reaction.user_id === user?.id` instead of `count > 0`.
+- De-emphasize Report button: replace `PrimaryButton` with ghost `Pressable` in muted `gray-400` text.
+- Fix username casing: remove `uppercase tracking-[2px]` from author name display.
+
+Key files/modules:
+- `apps/mobile/src/components/ReactionPill.tsx` (new)
+- `apps/mobile/src/components/ui/EmojiText.tsx` (new)
+- `apps/mobile/src/components/ui/PrimaryButton.tsx` (updated)
+- `apps/mobile/src/screens/community/CommunityScreen.tsx` (updated)
+
+Acceptance criteria:
+- Emoji renders in full color on iOS (not monochrome). **[LOCAL]**
+- Reaction pills are visually distinct from primary CTA buttons. **[MANUAL]**
+- Active reaction shows green-500 bg; inactive shows green-200/dark-border bg. **[LOCAL]**
+- Report button is muted text, not a green button. **[MANUAL]**
+- Author names display in natural case. **[LOCAL]**
+
+### Milestone 19 — Phase 1: Data model (interaction_type + interaction_config) [ ]
+Scope:
+- Add `interaction_type` enum and `interaction_config` JSONB column to `tasks` table via SQL migration.
+- Regenerate TypeScript types from schema.
+- Update shared domain types (`TaskRow`, `JourneyTaskState`).
+- Update admin CMS task editor with interaction_type dropdown and JSON config editor.
+- See `.claude/change-phase1.md` for full spec.
+
+Key files/modules:
+- `supabase/migrations/00004_task_interaction_type.sql` (new)
+- `packages/shared/src/types/database.ts` (regenerated)
+- `packages/shared/src/types/domain.ts` (updated)
+- `apps/web/src/app/admin/tasks/[id]/page.tsx` (updated)
+- `apps/web/src/app/admin/tasks/page.tsx` (updated)
+
+Acceptance criteria:
+- Migration applies cleanly via `supabase db reset`. **[AUTO]**
+- All existing tasks default to `interaction_type = 'markdown'`. **[AUTO]**
+- Admin CMS shows interaction_type dropdown and config editor. **[LOCAL]**
+- `turbo typecheck` passes after type regeneration. **[AUTO]**
+
+### Milestone 20 — Phase 2: Interactive task renderers [ ]
+Scope:
+- Create `TaskRenderer` component that switches on `interaction_type`.
+- Implement 6 interactive task type components (DragListTask, TimedChallengeTask, BreathingExerciseTask, ReflectionPromptsTask, JournalTask, CommunityPromptTask).
+- Gate "I did it" button until interactive component signals completion.
+- Pass interaction data through to check-in.
+- See `.claude/change-phase2.md` for full spec.
+
+Key files/modules:
+- `apps/mobile/src/components/tasks/TaskRenderer.tsx` (new)
+- `apps/mobile/src/components/tasks/DragListTask.tsx` (new)
+- `apps/mobile/src/components/tasks/TimedChallengeTask.tsx` (new)
+- `apps/mobile/src/components/tasks/BreathingExerciseTask.tsx` (new)
+- `apps/mobile/src/components/tasks/ReflectionPromptsTask.tsx` (new)
+- `apps/mobile/src/components/tasks/JournalTask.tsx` (new)
+- `apps/mobile/src/components/tasks/CommunityPromptTask.tsx` (new)
+- `apps/mobile/src/screens/journey/JourneyScreen.tsx` (updated)
+
+Acceptance criteria:
+- Each interactive type renders correctly and gates completion. **[LOCAL]**
+- "I did it" button is disabled until interaction is complete. **[LOCAL]**
+- Interaction data is passed to check-in `prompt_responses.interaction_data`. **[LOCAL]**
+- `turbo typecheck` passes. **[AUTO]**
+
+### Milestone 21 — Phase 3: Journey map overhaul + micro-feedback [ ]
+Scope:
+- Redesign `JourneyMap` to serpentine winding path with alternating node positions.
+- Animated active node (pulsing border, START badge), completed node jiggle, dashed locked nodes.
+- Day-unlock reveal animation with haptics.
+- Streak badge overhaul: always visible, dimmed at 0, animated increment.
+- Comprehensive haptics audit across all screens.
+- See `.claude/change-phase3.md` for full spec.
+
+Key files/modules:
+- `apps/mobile/src/components/JourneyMap.tsx` (rewritten)
+- `apps/mobile/src/components/JourneyMapNode.tsx` (new)
+- `apps/mobile/src/components/StreakBadge.tsx` (updated)
+
+Acceptance criteria:
+- Journey map renders serpentine layout with curved SVG lines. **[LOCAL]**
+- Active node pulses, completed nodes jiggle, locked nodes are dashed circles. **[MANUAL]**
+- Streak badge visible at count 0 with dimmed styling. **[LOCAL]**
+- Haptics fire on all key interactions (see design.md table). **[MANUAL]**
+
+### Milestone 22 — Phase 4: Done-for-today improvements [ ]
+Scope:
+- Add progress ring (animated SVG circle, N/30) to done-for-today state.
+- Add rotating motivational quote (deterministic per local date).
+- Upgrade review card presentation (use EmojiRating, not number buttons).
+- Dynamic heading based on streak count.
+- See `.claude/change-phase4.md` for full spec.
+
+Key files/modules:
+- `apps/mobile/src/components/ProgressRing.tsx` (new)
+- `apps/mobile/src/constants/motivation.ts` (new)
+- `apps/mobile/src/screens/journey/JourneyScreen.tsx` (updated)
+
+Acceptance criteria:
+- Progress ring renders with animated fill. **[LOCAL]**
+- Motivational quote changes daily, stable within a day. **[LOCAL]**
+- Review card uses EmojiRating component. **[LOCAL]**
+- Heading changes with streak: "Done for today" / "Building momentum" / "On fire". **[LOCAL]**
+
+### Milestone 23 — Phase 5+6: Content format + account polish [ ]
+Scope:
+- Assign interaction_type to all 30 tasks (no two consecutive same type).
+- Add interaction-type hint icons on journey map for unlocked nodes.
+- Admin CMS type distribution summary + consecutive-type warning.
+- Account screen: segmented control for theme, Switch toggles for notifications, sign-out, delete account, dark mode card border fix.
+- See `.claude/change-phase5.md` and `.claude/change-phase6.md` for full specs.
+
+Key files/modules:
+- `supabase/migrations/00005_seed_interaction_types.sql` (new)
+- `apps/mobile/src/components/ui/SegmentedControl.tsx` (new)
+- `apps/mobile/src/screens/account/AccountScreen.tsx` (updated)
+- `apps/mobile/src/components/ui/AppCard.tsx` (updated)
+- `apps/web/src/app/admin/tasks/page.tsx` (updated)
+
+Acceptance criteria:
+- All 30 tasks have an interaction_type assigned, no consecutive duplicates. **[AUTO]**
+- Journey map shows type hint icons on unlocked nodes. **[LOCAL]**
+- Admin CMS shows distribution summary and warns on consecutive same-type. **[LOCAL]**
+- Segmented control works for theme selection. **[LOCAL]**
+- Sign-out and delete-account are accessible on Account screen. **[LOCAL]**
+- Dark mode card borders are more visible. **[MANUAL]**
 
 ## Risk register (top technical risks + mitigations)
 
@@ -645,3 +772,9 @@ These features are explicitly deferred. Do NOT build them, but keep the codebase
 - 2026-03-17: RevenueCat integration is wrapped in lazy-loaded helpers so Expo Go/dev mode can continue working when the native module key is absent. The paywall uses a direct Supabase dev unlock when `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` is missing.
 - 2026-03-17: `supabase functions serve --env-file .env.local` still fails before project code boots because the local Edge Runtime rejects `https://deno.land/std/http/status.ts` with `invalid peer certificate: UnknownIssuer`. This remains an environment/runtime blocker and should not be treated as an application-code regression.
 - 2026-03-17: Milestone 15 is only partially complete in this pass. Error boundaries, toasts, welcome-back copy, theme preference persistence, and friendlier network failure handling are in place, but a full dark-mode token system and the larger animation/haptics pass still need finishing.
+- 2026-03-17: Milestone 15 completed — dark mode tokens on all screens, 4 spring configs, 5 haptic types, reduced motion support, skeleton shimmer.
+- 2026-03-17: Milestone 17 completed — 13 mobile unit tests, 29 EF equivalence tests, final dark mode sweep on QuizScreen/MindfulGateway/JourneyHomeScreen/MarkdownBlock.
+- 2026-03-20: Expo runtime fixes committed — pinned all wildcard deps, added react-native-svg, downgraded React 19.2.4→19.2.0 for RN 0.83, added App.tsx entry point + expo-router/babel plugin, linked shared package via file: protocol. Stubbed useReducedMotion to get Expo running (must restore before release). Bypassed auth email confirmation for local testing (must revert before deploy).
+- 2026-03-20: Phase 0 (Milestone 18) completed — ReactionPill component, EmojiText for iOS emoji rendering, PrimaryButton non-string children support, ghost report button, natural-case usernames, per-user reaction toggle fix.
+- 2026-03-20: Done-for-today state added to JourneyScreen — renders when no current task + nextUnlockDate exists. Two cards: "unlocks tomorrow" + "open community" CTA. This is the base for Phase 4 enhancements.
+- 2026-03-20: Phase doc corrections applied — EF domain.ts imports types from shared package (no manual duplication needed), testing should use dev build not Expo Go, motivation quote uses locale-aware date, review card already renders in done-for-today state.

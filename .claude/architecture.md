@@ -171,8 +171,12 @@ Note: Supabase Auth handles email, password hash, OAuth providers, JWT tokens, a
 - `difficulty_rating` (integer, 1–5, used by spaced-repetition)
 - `default_duration_days` (integer, default 1 — 2–3 for complex tasks)
 - `tags` (text[] — for categorization and search)
+- `interaction_type` (enum: `'markdown'` | `'drag_list'` | `'timed_challenge'` | `'breathing_exercise'` | `'reflection_prompts'` | `'journal'` | `'community_prompt'`, default `'markdown'` — determines which interactive renderer the mobile app uses for this task)
+- `interaction_config` (jsonb, default `'{}'` — type-specific configuration; schema varies per `interaction_type`, see `.claude/change-phase2.md` for config schemas per type)
 - `is_active` (boolean, default true — admin can draft/unpublish)
 - `created_at`, `updated_at`
+
+Note: No two consecutive tasks (by `order`) should share the same `interaction_type` — this preserves novelty for ADHD engagement. The admin CMS warns when this rule is violated.
 
 ### user_progress
 - `id` (uuid, primary key)
@@ -195,7 +199,7 @@ Note: Supabase Auth handles email, password hash, OAuth providers, JWT tokens, a
 - `type` (text — 'completion', 'reinforcement_review')
 - `quick_rating` (integer, 1–5)
 - `tried_it` (boolean)
-- `prompt_responses` (jsonb, nullable — `{ what_happened: "", what_was_hard: "", what_surprised: "" }`)
+- `prompt_responses` (jsonb, nullable — `{ what_happened: "", what_was_hard: "", what_surprised: "", interaction_data?: any }` — `interaction_data` holds output from interactive task renderers: drag-list items, journal text, reflection answers, etc.)
 - `time_spent_seconds` (integer)
 - `checked_in_at` (timestamptz — client-provided timestamp for offline support; defaults to `now()`)
 - `created_at` (timestamptz — server timestamp, always `now()`)
@@ -558,6 +562,13 @@ This means the agent can scaffold, migrate, seed, and test the entire backend **
 
 ### Inbucket for email testing
 Local Supabase routes all auth emails (confirmation, password reset) to Inbucket at http://localhost:54324. No real SMTP needed for local dev.
+
+## Known temporary regressions (must fix before release)
+
+- **`useReducedMotion` stubbed**: `apps/mobile/src/hooks/useReducedMotion.ts` currently returns `{ reducedMotion: false }` hardcoded. The `AccessibilityInfo` listener and `useProfilePreferences` integration were removed to get Expo running. Must be restored before release.
+- **Auth email confirmation bypassed**: `enable_confirmations = false` in `supabase/config.toml`, plus navigation bypasses in `RegisterScreen.tsx` and `RegisterForm.tsx`. Must revert all three before deploy.
+- **React pinned to 19.2.0**: Downgraded from 19.2.4 for RN 0.83 compatibility. Monitor for upstream fixes.
+- **Shared package linked via `file:` protocol**: `@focuslab/shared` uses `"file:../../packages/shared"` in mobile `package.json`. May need adjustment for EAS builds.
 
 ## Future extensibility (V2 — keep in mind, don't build yet)
 

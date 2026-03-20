@@ -47,10 +47,10 @@ A) Journey engine — the core loop
 
 * 30 sequential tasks, unlocked one at a time
 * Each task page shows:
-    * The task itself — immediately visible, above the fold, no scrolling required
+    * The task itself — immediately visible, above the fold, no scrolling required. Tasks are **interactive, not just readable** — the app renders a purpose-built mini-experience based on the task's `interaction_type` (see section Q).
     * Below the fold: explanation of why this task matters (the science/reasoning)
     * Below that: optional deeper reading / related concepts
-* Gated progression: user must complete a reflection check-in to unlock the next task
+* Gated progression: user must complete the interactive portion of the task AND a reflection check-in to unlock the next task. The "I did it" button is disabled until the interactive component signals completion.
 * Time-gating: next task unlocks no earlier than the following day (prevents binge-rushing)
 * Multi-day tasks: the spaced-repetition algorithm can extend a task across multiple days if the user's check-in signals struggle
 * Reinforcement days: the algorithm periodically resurfaces past tasks for review (Anki-style spacing)
@@ -110,10 +110,10 @@ G) Community — per-task discussion threads
 * Each of the 30 tasks has its own discussion thread
 * Threads are gated: only visible once the user has unlocked that task (no spoilers) — enforced by RLS policy on community_posts
 * Users can post text entries (wins, challenges, tips)
-* Reactions: fixed emoji set below each post: 👎 👍 🔥 ❤️ 😮. Tap to toggle. Active reaction shows count in a `green-100` pill.
+* Reactions: fixed emoji set below each post: 👎 👍 🔥 ❤️ 😮. Rendered via `ReactionPill` component (not `PrimaryButton`) — smaller pill shape, `EmojiText` for proper emoji rendering, active state tracks the current user's reaction (not just count > 0).
 * Replies: threaded below each post
-* Basic moderation: report button, admin can hide/delete posts from CMS
-* Author display: first name + day number (e.g., "Sarah — Day 12")
+* Basic moderation: report button rendered as ghost/muted text (gray-400, not a primary CTA), admin can hide/delete posts from CMS
+* Author display: first name in natural case (not uppercased), day number (e.g., "Sarah — Day 12")
 * Optional: use Supabase Realtime for live updates on threads
 
 H) Home screen widget — V2 (not in V1)
@@ -123,17 +123,30 @@ H) Home screen widget — V2 (not in V1)
 
 I) Progress + stats
 
-* In-app: visual journey map or progress bar showing completed / current / locked tasks
-* Streak counter (consecutive days with a check-in)
+* In-app: **Journey map** — a winding serpentine path (not a flat checklist). Nodes alternate left/right in a zig-zag pattern connected by curved SVG lines (solid for completed, dashed for locked). See `.claude/change-phase3.md` for full spec.
+    * Completed nodes: filled green circles with a subtle idle jiggle animation (2° rotation oscillation)
+    * Active node: larger (36px), pulsing green border, "START" badge below
+    * Locked nodes: dashed empty circles (no lock icon — locked should feel like "not yet", not "forbidden")
+    * Unlocked task nodes show a small interaction-type hint icon (Clock, Wind, Pen, etc.) for completed/active tasks only (preserves mystery for locked)
+    * Day-unlock reveal: when a new task unlocks, node scales in with `SPRING_SNAPPY` + haptic `impactMedium`
+    * Auto-scrolls to the active node on render
+* Streak counter: **always visible** (never hidden at 0). At count 0: dimmed grey flame with "0" (mild loss-aversion — the flame is "out" but can be relit). At count > 0: green pill with animated counter increment (scale pulse + flame wobble on increase). Supports `size="sm"` and `size="lg"` props.
 * "Your journey" timeline: scrollable history of completed tasks with check-in data
+* **"Done for today" state** (after completing today's check-in, before next day unlocks):
+    * "Your next task unlocks tomorrow" card + "Keep the momentum — Open community" card (already implemented)
+    * Progress ring: animated SVG circle showing N/30 completion
+    * Rotating motivational quote (deterministic per local date, changes daily)
+    * Spaced-reinforcement review card surfaces here (using EmojiRating, not number buttons)
+    * Heading adapts to streak: "Done for today" / "Building momentum" (3+) / "On fire" (7+)
 * Web dashboard: richer stats view — completion rate, average ratings, time per task, reinforcement history
 
 J) Admin CMS (web dashboard)
 
 * Auth-gated admin panel (RLS checks `profiles.role = 'admin'`)
 * Create / edit / reorder the 30 tasks (direct CRUD on `tasks` table)
-* Each task has: title, task body (markdown), explanation body (markdown), deeper reading (markdown), multi-day flag, difficulty rating, tags
+* Each task has: title, task body (markdown), explanation body (markdown), deeper reading (markdown), multi-day flag, difficulty rating, tags, **interaction type** (dropdown: markdown / drag_list / timed_challenge / breathing_exercise / reflection_prompts / journal / community_prompt), **interaction config** (JSON editor for type-specific parameters)
 * Preview task as it would appear on mobile
+* Task list shows interaction type badges and warns if two consecutive tasks share the same type (breaks novelty)
 * Manage notification templates (push + email) via `notification_templates` table
 * View community posts + moderate (hide/delete) via `community_posts.is_hidden`
 * View aggregate user analytics (active users, drop-off points, completion rates, popular discussion threads) via `admin-analytics` Edge Function
@@ -189,19 +202,58 @@ N) Quality and engineering
 * **Security**: All tables use RLS — each user can only see their own data. Never log PII (emails, passwords, payment info). Service role key never exposed to clients. Community posts sanitized for XSS.
 * **CORS**: All Edge Functions return CORS headers for web dashboard access.
 
-O) Timezone handling
+O) Account screen
+
+* Theme preference: **segmented control** (Light / Dark / System) — not three full-width buttons. Sliding indicator animation with `SPRING_QUICK`. Haptic `selectionChanged` on change.
+* Notification channels: native `Switch` toggles for push/email (not buttons with checkmark prefixes).
+* Sign-out button: visible, functional.
+* Delete account: muted text link at the bottom of the screen (App Store requirement). Shows confirmation `Alert` before proceeding.
+* Dark mode card borders: `AppCard` uses `dark:border-[#3A7D5C]` for better contrast (brighter than the default `dark-border` token).
+
+P) Timezone handling
 
 * All time-sensitive operations use the user's device timezone (stored in `profiles.notification_preferences.timezone`).
 * Calendar day: 00:00 to 23:59 in user's timezone. Check-in at 23:59 = same day. 00:00 = next day.
 * Time-gating, streak calculation, notification quiet hours all use this rule.
 * Offline check-ins record client-side timestamp; server uses it for time-gate calculations.
 
-P) Journey restart + journey_id
+Q) Interactive task types
+
+* Each task in the DB has `interaction_type` (enum) and `interaction_config` (JSONB) columns. Default: `interaction_type = 'markdown'`, `interaction_config = '{}'`.
+* The mobile app's `TaskRenderer` component switches on `interaction_type` to render the right interactive experience:
+    * **markdown** (default): renders `MarkdownBlock` with `task_body`. Calls `onComplete()` on mount (no gate).
+    * **drag_list**: user builds a reorderable list (e.g., "Build your rotation list"). Config: `{ minItems, maxItems, placeholder, instruction }`. Gate: items.length >= minItems.
+    * **timed_challenge**: countdown timer with optional breathing cadence overlay. Config: `{ durationSeconds, label, breathingCadence? }`. Gate: timer reaches 0.
+    * **breathing_exercise**: pulsing circle visual guide (inhale/hold/exhale). Config: `{ durationSeconds, inhaleSeconds, holdSeconds, exhaleSeconds, label }`. Gate: all cycles complete.
+    * **reflection_prompts**: 2–4 questions shown one at a time with slide transitions. Config: `{ prompts: string[] }`. Gate: all prompts answered (min 10 chars each).
+    * **journal**: prompted writing with character counter. Config: `{ prompt, minCharacters }`. Gate: text.length >= minCharacters.
+    * **community_prompt**: shows prompt + "Open community" button. Config: `{ prompt, navigateTo }`. Gate: immediate (honor system via check-in).
+* No two consecutive days should share the same `interaction_type` (novelty principle). Target distribution across 30 tasks: ~8 markdown, ~6 timed, ~6 reflection, ~5 journal, ~3 drag_list, ~2 community_prompt.
+* `onComplete(data?)` passes interaction output (list items, journal text, answers) into the check-in as `promptResponses.interaction_data`.
+* See `.claude/change-phase1.md` (data model), `.claude/change-phase2.md` (renderers), `.claude/change-phase5.md` (content assignment) for full implementation specs.
+
+R) Micro-feedback + haptics
+
+* Every meaningful interaction fires a haptic via `useHaptics` hook. Key additions beyond what's already implemented:
+    * Community: `successNotification` on post submit, `selectionChanged` on reaction toggle, `impactLight` on reply submit
+    * Journey map: `impactLight` on node tap, `impactMedium` on day unlock
+    * Streak: `successNotification` on increment
+    * Account: `selectionChanged` on theme/notification toggles
+    * Pull-to-refresh: `impactLight` on complete
+    * Interactive tasks: `selectionChanged` on drag-list add/reorder, `impactLight` on delete, `successNotification` on timer/breathing complete, `selectionChanged` on reflection "Next", `successNotification` on journal threshold crossed
+* All animations use spring physics from `animations/springs.ts` — never linear/ease. Respect `useReducedMotion` (currently stubbed to `false` for dev — **must restore before release**).
+
+S) Journey restart + journey_id
 
 * `journey_id` column on `tasks`, `user_progress`, `check_ins`, `spaced_repetition_state`.
 * Default UUID for V1's single journey. When user restarts, a new UUID is generated.
 * Old data preserved under old `journey_id`. Community thread access persists across all journeys.
 * `profiles.current_journey_id` tracks the active journey.
+
+T) Known temporary regressions (must fix before release)
+
+* `useReducedMotion` hook hardcoded to `{ reducedMotion: false }` — must restore `AccessibilityInfo` listener + `useProfilePreferences` integration.
+* Auth email confirmation bypassed in `RegisterScreen.tsx`, `RegisterForm.tsx`, and `supabase/config.toml` (`enable_confirmations = false`) — must revert all three.
 
 Process requirements (follow strictly)
 
