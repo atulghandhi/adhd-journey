@@ -357,3 +357,68 @@ Important: if your mobile env still points to `http://127.0.0.1:54321`, the phon
 If you want, I can set up the next easiest step for you:
 1. switch the mobile app to a staging Supabase config for device testing, or
 2. help expose the local Supabase URL so the iPhone can hit your Mac directly.
+
+
+-----------------------------------------------------------
+
+
+
+
+
+I made the setup portable across Macs.
+
+The key change is [scripts/sync-mobile-env.mjs](/Users/atul.ghandhi/WebstormProjects/adhd-journey/scripts/sync-mobile-env.mjs), wired into [package.json](/Users/atul.ghandhi/WebstormProjects/adhd-journey/package.json) as:
+
+```bash
+npm run mobile:env:sync
+```
+
+That reads your repo-root `.env.local` and writes `apps/mobile/.env.local` for Expo, so on any Mac you don’t have to hand-copy mobile env vars. I also updated [instructions.md](/Users/atul.ghandhi/WebstormProjects/adhd-journey/instructions.md) with the physical-iPhone flow.
+
+**Backend test on any Mac**
+No Xcode needed:
+
+```bash
+supabase start
+npm run test:delete-account
+```
+
+If corporate proxy breaks Edge Runtime first, run:
+
+```bash
+mkdir -p supabase/.local
+security find-certificate -a -p -c "caadmin.netskope.com" -c "ca.ctm.eu.goskope.com" /Library/Keychains/System.keychain ~/Library/Keychains/login.keychain-db > supabase/.local/proxy-ca.pem
+npm run supabase:edge-runtime:trust -- supabase/.local/proxy-ca.pem public.ecr.aws/supabase/edge-runtime:v1.71.0
+supabase stop
+supabase start
+```
+
+**iPhone on your personal Mac**
+1. Bring or recreate the repo-root `.env.local` with your real remote Supabase values.
+2. Run:
+
+```bash
+npm install
+npm run mobile:env:sync
+```
+
+3. Plug in the iPhone, unlock it, trust the Mac, enable Developer Mode if asked.
+4. Install the dev build:
+
+```bash
+cd /Users/atul.ghandhi/WebstormProjects/adhd-journey/apps/mobile
+npx expo run:ios --device
+```
+
+5. In another terminal, start Metro:
+
+```bash
+cd /Users/atul.ghandhi/WebstormProjects/adhd-journey
+npm run start --workspace @focuslab/mobile -- --tunnel
+```
+
+6. Open `FocusLab` on the phone.
+
+Important: the phone cannot use `127.0.0.1` for Supabase. With this setup, the mobile app uses the remote Supabase URL from your root `.env.local`, which is the right path for device testing.
+
+I haven’t committed these portability updates yet. If you want, I can commit them next.
