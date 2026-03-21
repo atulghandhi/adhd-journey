@@ -304,3 +304,56 @@ All tables have Row Level Security (RLS) policies. See `architecture.md` for the
 - **Payment sandbox issues**: Ensure RevenueCat is configured with sandbox credentials. Check `verify-payment` Edge Function logs. Dev mode bypass is available when `REVENUECAT_PUBLIC_SDK_KEY` is missing.
 - **Auth token expired**: Supabase JS client auto-refreshes tokens. If it fails, the user will be redirected to login. Check Supabase Auth logs in Studio (localhost:54323).
 - **Edge Function not responding**: Run `supabase functions serve` to serve locally. Check Deno runtime errors in terminal output. Ensure the function directory name matches the invocation URL.
+
+
+------------------------------------------
+
+
+
+Current `HEAD` is `bf3ee51`, and it includes the easy smoke test in [scripts/test-delete-account.ts](/Users/atul.ghandhi/WebstormProjects/adhd-journey/scripts/test-delete-account.ts). I ran it locally and it passed.
+
+For the backend smoke test, use:
+
+```bash
+supabase start
+npm run test:delete-account
+```
+
+If Edge Runtime is broken on your corporate network, rebuild the local trust image first:
+
+```bash
+mkdir -p supabase/.local
+security find-certificate -a -p -c "caadmin.netskope.com" -c "ca.ctm.eu.goskope.com" /Library/Keychains/System.keychain ~/Library/Keychains/login.keychain-db > supabase/.local/proxy-ca.pem
+npm run supabase:edge-runtime:trust -- supabase/.local/proxy-ca.pem public.ecr.aws/supabase/edge-runtime:v1.71.0
+supabase stop
+supabase start
+```
+
+For iPhone on a Mac: use a dev build, not Expo Go. This repo already has `expo-dev-client` enabled in [apps/mobile/app.config.ts](/Users/atul.ghandhi/WebstormProjects/adhd-journey/apps/mobile/app.config.ts) and uses Expo SDK 55 in [apps/mobile/package.json](/Users/atul.ghandhi/WebstormProjects/adhd-journey/apps/mobile/package.json).
+
+The practical flow is:
+
+1. Plug the iPhone into the Mac, unlock it, trust the Mac, and enable Developer Mode if iOS prompts.
+2. Install the dev client once:
+
+```bash
+cd /Users/atul.ghandhi/WebstormProjects/adhd-journey/apps/mobile
+npx expo run:ios --device
+```
+
+3. Start Metro from the repo root:
+
+```bash
+cd /Users/atul.ghandhi/WebstormProjects/adhd-journey
+npm run start --workspace @focuslab/mobile -- --tunnel
+```
+
+4. Open the installed `FocusLab` app on the phone.
+
+Important: if your mobile env still points to `http://127.0.0.1:54321`, the phone will not reach your local Supabase. The cable helps install the app, but it does not make the phone’s `127.0.0.1` point to your Mac. For real phone testing, the easiest path is:
+- use a staging/remote Supabase project in `.env.local`, or
+- expose your local Supabase with a reachable tunnel/LAN URL and point `EXPO_PUBLIC_SUPABASE_URL` at that.
+
+If you want, I can set up the next easiest step for you:
+1. switch the mobile app to a staging Supabase config for device testing, or
+2. help expose the local Supabase URL so the iPhone can hit your Mac directly.
