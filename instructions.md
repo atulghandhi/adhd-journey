@@ -88,6 +88,14 @@ npm run dev --workspace @focuslab/web
 npm run start --workspace @focuslab/mobile
 ```
 
+8. Sync Expo mobile env vars into the mobile workspace before testing on a physical device or simulator.
+
+```bash
+npm run mobile:env:sync
+```
+
+This writes `apps/mobile/.env.local` from your repo root `.env.local` so Expo sees the same Supabase project.
+
 ## 4. Set up an admin account
 
 ### Local admin setup
@@ -269,6 +277,39 @@ npm run start --workspace @focuslab/mobile
 5. If RevenueCat is not configured, test the paywall with the dev bypass button.
 
 6. If you need real native-module validation for notifications or purchases, create a development build rather than relying only on the local dev server.
+
+### Physical iPhone on a personal Mac
+
+Expo Go is not the right path for this repo. Use a development build.
+
+1. On the Mac you will use for the device build, install Xcode and make sure the iPhone trusts that Mac.
+2. From the repo root, sync the mobile env:
+
+```bash
+npm run mobile:env:sync
+```
+
+3. Plug the iPhone into the Mac, unlock it, and enable Developer Mode if iOS asks.
+4. Install the dev build:
+
+```bash
+cd apps/mobile
+npx expo run:ios --device
+```
+
+5. In a second terminal, start Metro:
+
+```bash
+cd /path/to/adhd-journey
+npm run start --workspace @focuslab/mobile -- --tunnel
+```
+
+6. Open the installed `FocusLab` app on the phone.
+
+Notes:
+
+- The phone cannot use `http://127.0.0.1:54321` to reach Supabase on your Mac. For device testing, make sure the mobile env points at a reachable remote project or tunneled backend.
+- If signing fails on the personal Mac, open the generated Xcode project in `apps/mobile/ios`, select a Personal Team for the app target, and rerun `npx expo run:ios --device`.
 
 ### Android testing
 

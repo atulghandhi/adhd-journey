@@ -18,6 +18,7 @@
     "format": "prettier --write .",
     "lint": "turbo run lint",
     "make-admin": "tsx scripts/make-admin.ts",
+    "mobile:env:sync": "node scripts/sync-mobile-env.mjs",
     "supabase:edge-runtime:trust": "bash scripts/build-edge-runtime-with-local-ca.sh",
     "test:delete-account": "tsx scripts/test-delete-account.ts",
     "test": "turbo run test",
