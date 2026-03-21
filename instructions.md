@@ -153,7 +153,48 @@ Useful local tools:
 
 Known local limitation:
 
-- `supabase functions serve` may fail with a TLS certificate error (`UnknownIssuer`) if you are behind a corporate proxy that intercepts `deno.land` certificates. This is a network/proxy issue, not a Supabase or code bug. Workaround: use a personal network or deploy Edge Functions to a staging project. Database, auth, web, and mobile testing still work locally without Edge Functions.
+- `supabase start` or `supabase functions serve` may fail with a TLS certificate error (`UnknownIssuer`) if you are behind a corporate proxy that intercepts `deno.land` or `jsr.io` traffic. This is a container trust-store issue, not a FocusLab code bug.
+
+Corporate proxy workaround for Edge Functions:
+
+1. Create a local scratch directory. It is ignored by git.
+
+```bash
+mkdir -p supabase/.local
+```
+
+2. Export the proxy CA chain into a local PEM file.
+
+For Netskope / Goskope on macOS:
+
+```bash
+security find-certificate -a -p -c "caadmin.netskope.com" -c "ca.ctm.eu.goskope.com" /Library/Keychains/System.keychain ~/Library/Keychains/login.keychain-db > supabase/.local/proxy-ca.pem
+```
+
+If your company uses a different proxy, export that root or intermediate CA chain instead.
+
+3. Build a local Edge Runtime image override using the CA bundle.
+
+```bash
+npm run supabase:edge-runtime:trust -- supabase/.local/proxy-ca.pem public.ecr.aws/supabase/edge-runtime:v1.71.0
+```
+
+If `supabase start` is using a different Edge Runtime tag, pass that tag as the second argument instead.
+
+4. Restart Supabase.
+
+```bash
+supabase stop
+supabase start
+```
+
+5. Remove the exported certificate file if you no longer need it.
+
+```bash
+rm -f supabase/.local/proxy-ca.pem
+```
+
+The Docker image override stays only on your machine. If the Edge Runtime tag changes later, rerun the helper script for the new tag.
 
 ### Web testing
 
