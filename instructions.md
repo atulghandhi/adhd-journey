@@ -151,6 +151,14 @@ Useful local tools:
 - Inbucket email inbox: `http://127.0.0.1:54324`
 - Web app: `http://127.0.0.1:3000`
 
+Quick local Edge Function smoke test:
+
+```bash
+npm run test:delete-account
+```
+
+That script creates a disposable local user, inserts owned rows, calls `delete-account`, and verifies the auth user, profile, progress, and community post rows are gone.
+
 Known local limitation:
 
 - `supabase start` or `supabase functions serve` may fail with a TLS certificate error (`UnknownIssuer`) if you are behind a corporate proxy that intercepts `deno.land` or `jsr.io` traffic. This is a container trust-store issue, not a FocusLab code bug.

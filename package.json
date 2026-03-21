@@ -19,6 +19,7 @@
     "lint": "turbo run lint",
     "make-admin": "tsx scripts/make-admin.ts",
     "supabase:edge-runtime:trust": "bash scripts/build-edge-runtime-with-local-ca.sh",
+    "test:delete-account": "tsx scripts/test-delete-account.ts",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
