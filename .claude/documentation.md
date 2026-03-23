@@ -367,13 +367,13 @@ If you want, I can set up the next easiest step for you:
 
 I made the setup portable across Macs.
 
-The key change is [scripts/sync-mobile-env.mjs](/Users/atul.ghandhi/WebstormProjects/adhd-journey/scripts/sync-mobile-env.mjs), wired into [package.json](/Users/atul.ghandhi/WebstormProjects/adhd-journey/package.json) as:
+The key change is [scripts/sync-mobile-env.mjs](/Users/atulghandhi/WebstormProjects/adhd-journey/scripts/sync-mobile-env.mjs), wired into [package.json](/Users/atul.ghandhi/WebstormProjects/adhd-journey/package.json) as:
 
 ```bash
 npm run mobile:env:sync
 ```
 
-That reads your repo-root `.env.local` and writes `apps/mobile/.env.local` for Expo, so on any Mac you don’t have to hand-copy mobile env vars. I also updated [instructions.md](/Users/atul.ghandhi/WebstormProjects/adhd-journey/instructions.md) with the physical-iPhone flow.
+That reads your repo-root `.env.local` and writes `apps/mobile/.env.local` for Expo, so on any Mac you don’t have to hand-copy mobile env vars.
 
 **Backend test on any Mac**
 No Xcode needed:
@@ -383,7 +383,7 @@ supabase start
 npm run test:delete-account
 ```
 
-If corporate proxy breaks Edge Runtime first, run:
+If the corporate proxy breaks Edge Runtime first, run:
 
 ```bash
 mkdir -p supabase/.local
@@ -406,14 +406,14 @@ npm run mobile:env:sync
 4. Install the dev build:
 
 ```bash
-cd /Users/atul.ghandhi/WebstormProjects/adhd-journey/apps/mobile
+cd /Users/atulghandhi/WebstormProjects/adhd-journey/apps/mobile
 npx expo run:ios --device
 ```
 
 5. In another terminal, start Metro:
 
 ```bash
-cd /Users/atul.ghandhi/WebstormProjects/adhd-journey
+cd /Users/atulghandhi/WebstormProjects/adhd-journey
 npm run start --workspace @focuslab/mobile -- --tunnel
 ```
 
