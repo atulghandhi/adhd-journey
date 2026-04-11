@@ -22,6 +22,11 @@
     "supabase:edge-runtime:trust": "bash scripts/build-edge-runtime-with-local-ca.sh",
     "test:delete-account": "tsx scripts/test-delete-account.ts",
     "test": "turbo run test",
+    "test:db": "supabase test db",
+    "test:edge": "deno test supabase/functions/_shared/ --allow-net --allow-read",
+    "test:ci": "npm run typecheck && npm run test && npm run test:edge",
+    "test:web:e2e": "npm run test:e2e --workspace=@focuslab/web",
+    "test:mobile:e2e": "maestro test apps/mobile/e2e/",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

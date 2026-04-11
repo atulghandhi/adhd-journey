@@ -1,0 +1,48 @@
+appId: com.focuslab.app
+name: "Daily Loop - Golden Path"
+---
+# Assumes user is already authenticated and on the Journey Map
+- launchApp
+
+# Wait for the journey map to load
+- assertVisible:
+    text: "Day 1"
+    timeout: 10000
+
+# Tap the active task node
+- tapOn: "Day 1"
+
+# Wait for task content to load (markdown body)
+- assertVisible:
+    text: ".*Task.*"
+    timeout: 5000
+
+# Scroll through the task content
+- scroll:
+    direction: DOWN
+    duration: 1500
+
+# Look for the interactive exercise or completion area
+- assertVisible:
+    text: ".*I did it.*"
+    timeout: 5000
+
+# Complete the interactive exercise (tap "I did it")
+- tapOn: "I did it"
+
+# Wait for the rating/check-in screen
+- assertVisible:
+    text: ".*rate.*"
+    timeout: 5000
+
+# Select a rating (tap on a rating option)
+- tapOn:
+    id: "rating-4"
+
+# Submit the check-in
+- tapOn: "Submit"
+
+# Verify we see the completion state
+- assertVisible:
+    text: ".*Done.*"
+    timeout: 5000

@@ -1,0 +1,27 @@
+appId: com.focuslab.app
+name: "Auth Flow - Golden Path"
+---
+# Boot app and register with test credentials
+- launchApp
+
+# Wait for the auth screen to appear
+- assertVisible: "Sign in"
+
+# Tap sign up / create account
+- tapOn: "Create account"
+
+# Fill in registration form
+- tapOn:
+    id: "email-input"
+- inputText: "e2e-test@focuslab.test"
+
+- tapOn:
+    id: "password-input"
+- inputText: "TestPassword123!"
+
+- tapOn: "Sign up"
+
+# Wait for onboarding or journey map to appear
+- assertVisible:
+    text: ".*Journey.*"
+    timeout: 10000
