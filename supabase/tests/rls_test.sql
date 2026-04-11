@@ -9,7 +9,7 @@ SELECT plan(22);
 --------------------------------------------------------------------------------
 
 -- Create two test users in auth.users (mimics sign-up trigger)
-INSERT INTO auth.users (id, email, instance_id, aud, role, encrypted_password, confirmed_at, created_at, updated_at)
+INSERT INTO auth.users (id, email, instance_id, aud, role, encrypted_password, email_confirmed_at, created_at, updated_at)
 VALUES
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'alice@test.com', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', crypt('password', gen_salt('bf')), now(), now(), now()),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'bob@test.com', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', crypt('password', gen_salt('bf')), now(), now(), now());
