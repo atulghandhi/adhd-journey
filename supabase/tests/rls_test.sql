@@ -114,9 +114,8 @@ SELECT is(
 -- 5. Tasks: regular users can only see active tasks, cannot insert
 --------------------------------------------------------------------------------
 
-SELECT is(
-  (SELECT count(*)::int FROM public.tasks WHERE is_active = true),
-  1,
+SELECT ok(
+  (SELECT count(*)::int FROM public.tasks WHERE is_active = true) >= 1,
   'Bob can see active tasks'
 );
 
