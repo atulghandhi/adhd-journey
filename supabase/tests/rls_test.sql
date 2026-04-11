@@ -18,21 +18,21 @@ VALUES
 -- Promote Alice to admin.
 UPDATE public.profiles SET role = 'admin' WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
--- Seed a task
+-- Seed a task (use test-only journey_id to avoid collision with seed.sql)
 INSERT INTO public.tasks (id, journey_id, "order", title, task_body, explanation_body, is_active)
-VALUES ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 1, 'Day 1', 'Task body', 'Explanation', true);
+VALUES ('11111111-1111-1111-1111-111111111111', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 1, 'Day 1', 'Task body', 'Explanation', true);
 
 -- Seed user_progress for both users
 INSERT INTO public.user_progress (user_id, task_id, journey_id, status, unlocked_at)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 'active', now()),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 'active', now());
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 'active', now()),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 'active', now());
 
 -- Seed check_ins for both users
 INSERT INTO public.check_ins (user_id, task_id, journey_id, type, quick_rating, tried_it, time_spent_seconds)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 'completion', 4, true, 120),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 'completion', 3, true, 90);
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 'completion', 4, true, 120),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 'completion', 3, true, 90);
 
 -- Seed community post by Alice (visible, on unlocked task)
 INSERT INTO public.community_posts (id, user_id, task_id, body, is_hidden)
@@ -122,7 +122,7 @@ SELECT is(
 
 -- RLS throws on INSERT for non-admin
 SELECT throws_ok(
-  $$INSERT INTO public.tasks (journey_id, "order", title, task_body, explanation_body) VALUES ('00000000-0000-0000-0000-000000000001', 99, 'Evil', 'x', 'x')$$,
+  $$INSERT INTO public.tasks (journey_id, "order", title, task_body, explanation_body) VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 99, 'Evil', 'x', 'x')$$,
   '42501',
   NULL,
   'Bob cannot insert tasks (not admin)'
@@ -200,7 +200,7 @@ SELECT is(
 
 -- Admin can insert tasks
 SELECT lives_ok(
-  $$INSERT INTO public.tasks (journey_id, "order", title, task_body, explanation_body) VALUES ('00000000-0000-0000-0000-000000000001', 99, 'Admin Task', 'body', 'explanation')$$,
+  $$INSERT INTO public.tasks (journey_id, "order", title, task_body, explanation_body) VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', 99, 'Admin Task', 'body', 'explanation')$$,
   'Admin Alice can insert tasks'
 );
 
