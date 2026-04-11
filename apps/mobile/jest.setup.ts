@@ -50,8 +50,3 @@ jest.mock("react-native/Libraries/Components/AccessibilityInfo/AccessibilityInfo
   isReduceMotionEnabled: () => Promise.resolve(false),
 }));
 
-jest.mock("react-native-css-interop", () => ({
-  cssInterop: jest.fn(),
-  remapProps: jest.fn(),
-  useColorScheme: () => ({ colorScheme: "light" }),
-}));

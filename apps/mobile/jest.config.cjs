@@ -5,4 +5,8 @@ module.exports = {
   transformIgnorePatterns: [
     "node_modules/(?!((jest-)?react-native|@react-native|@react-navigation|expo(nent)?|@expo(nent)?/.*|expo-modules-core|expo-router|nativewind|react-native-css-interop)/)",
   ],
+  moduleNameMapper: {
+    "^react-native-css-interop$": "<rootDir>/__mocks__/react-native-css-interop.js",
+    "^react-native-css-interop/(.*)$": "<rootDir>/__mocks__/react-native-css-interop.js",
+  },
 };
