@@ -91,7 +91,12 @@ jobs:
         run: supabase start -x realtime,storage,imgproxy,inbucket,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Run Playwright tests
-        run: npm run test:web:e2e
+        run: |
+          if ls apps/web/e2e/*.spec.ts 2>/dev/null | grep -q .; then
+            npm run test:web:e2e
+          else
+            echo "No E2E specs found — skipping"
+          fi
         env:
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
