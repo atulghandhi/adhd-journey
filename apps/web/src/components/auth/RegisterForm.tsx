@@ -26,8 +26,7 @@ export function RegisterForm() {
         data: {
           name: name.trim(),
         },
-        // Temporary testing bypass while Supabase email confirmation is disabled.
-        // emailRedirectTo: "http://127.0.0.1:3000/auth/confirm",
+        emailRedirectTo: "http://127.0.0.1:3000/auth/confirm",
       },
     });
 
@@ -38,10 +37,7 @@ export function RegisterForm() {
       return;
     }
 
-    // Temporary testing bypass while Supabase email confirmation is disabled.
-    // router.push(`/auth/confirm?email=${encodeURIComponent(email.trim())}`);
-
-    router.push("/dashboard");
+    router.push(`/auth/confirm?email=${encodeURIComponent(email.trim())}`);
     router.refresh();
   };
 
