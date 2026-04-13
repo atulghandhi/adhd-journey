@@ -16,9 +16,24 @@ export function useHaptics() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [reducedMotion]);
 
+  const heavyImpact = useCallback(() => {
+    if (reducedMotion) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  }, [reducedMotion]);
+
   const successNotification = useCallback(() => {
     if (reducedMotion) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [reducedMotion]);
+
+  const completionSequence = useCallback(() => {
+    if (reducedMotion) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 80);
+    setTimeout(
+      () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+      160,
+    );
   }, [reducedMotion]);
 
   const errorNotification = useCallback(() => {
@@ -32,7 +47,9 @@ export function useHaptics() {
   }, [reducedMotion]);
 
   return {
+    completionSequence,
     errorNotification,
+    heavyImpact,
     lightImpact,
     mediumImpact,
     selectionChanged,

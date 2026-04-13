@@ -36,6 +36,33 @@ export interface CommunityPromptConfig {
   prompt: string;
 }
 
+export interface ChecklistItem {
+  label: string;
+}
+
+export interface ChecklistConfig {
+  instruction: string;
+  items: ChecklistItem[];
+  minChecked: number;
+}
+
+export interface GuidedStep {
+  prompt: string;
+  inputType: "text" | "textarea" | "none";
+  placeholder: string;
+}
+
+export interface GuidedStepsConfig {
+  instruction: string;
+  steps: GuidedStep[];
+}
+
+export interface TimeTrackerConfig {
+  instruction: string;
+  taskLabel: string;
+  estimateMinutes: number;
+}
+
 function asRecord(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {} as Record<string, unknown>;
@@ -146,6 +173,84 @@ export function normalizeCommunityPromptConfig(
       "Share one thing you learned from today's task with the community.",
     ),
   };
+}
+
+export function normalizeChecklistConfig(config: unknown): ChecklistConfig {
+  const source = asRecord(config);
+
+  const rawItems = Array.isArray(source.items) ? source.items : [];
+  const items: ChecklistItem[] = rawItems
+    .map((item) => {
+      if (typeof item === "string") {
+        return { label: item };
+      }
+      const rec = asRecord(item);
+      const label = readString(rec.label, "");
+      return label ? { label } : null;
+    })
+    .filter((item): item is ChecklistItem => item !== null);
+
+  const fallbackItems: ChecklistItem[] = [{ label: "Done for today" }];
+
+  return {
+    instruction: readString(source.instruction, "Check off what you did today"),
+    items: items.length > 0 ? items : fallbackItems,
+    minChecked: readNumber(source.minChecked, 1, 1),
+  };
+}
+
+export function normalizeGuidedStepsConfig(config: unknown): GuidedStepsConfig {
+  const source = asRecord(config);
+
+  const rawSteps = Array.isArray(source.steps) ? source.steps : [];
+  const steps: GuidedStep[] = rawSteps
+    .map((step) => {
+      const rec = asRecord(step);
+      const prompt = readString(rec.prompt, "");
+      if (!prompt) return null;
+      const inputType = rec.inputType === "text" || rec.inputType === "textarea" || rec.inputType === "none"
+        ? rec.inputType
+        : "textarea";
+      return {
+        prompt,
+        inputType,
+        placeholder: readString(rec.placeholder, "Write here..."),
+      };
+    })
+    .filter((step): step is GuidedStep => step !== null);
+
+  const fallbackSteps: GuidedStep[] = [
+    { prompt: "What is on your mind?", inputType: "textarea", placeholder: "Write here..." },
+  ];
+
+  return {
+    instruction: readString(source.instruction, "Follow each step"),
+    steps: steps.length > 0 ? steps : fallbackSteps,
+  };
+}
+
+export function normalizeTimeTrackerConfig(config: unknown): TimeTrackerConfig {
+  const source = asRecord(config);
+
+  return {
+    instruction: readString(source.instruction, "Track how long this takes you"),
+    taskLabel: readString(source.taskLabel, "My task"),
+    estimateMinutes: readNumber(source.estimateMinutes, 0, 0),
+  };
+}
+
+export function isChecklistComplete(checked: boolean[], minChecked: number) {
+  return checked.filter(Boolean).length >= minChecked;
+}
+
+export function isGuidedStepsComplete(
+  answers: string[],
+  steps: GuidedStep[],
+) {
+  return steps.every((step, i) => {
+    if (step.inputType === "none") return true;
+    return (answers[i] ?? "").trim().length >= 5;
+  });
 }
 
 export function normalizeBreathingCadence(value: unknown) {

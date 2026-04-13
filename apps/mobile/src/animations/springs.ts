@@ -30,4 +30,22 @@ export const SPRING_SQUISH: WithSpringConfig = {
   stiffness: 250,
 };
 
+export const SPRING_MAGNETIC: WithSpringConfig = {
+  damping: 8,
+  mass: 1.2,
+  stiffness: 120,
+};
+
+export const SPRING_FLUID: WithSpringConfig = {
+  damping: 14,
+  mass: 1.4,
+  stiffness: 100,
+};
+
+export const SPRING_BOUNCE: WithSpringConfig = {
+  damping: 6,
+  mass: 0.9,
+  stiffness: 180,
+};
+
 export const REDUCED_MOTION_DURATION = 150;

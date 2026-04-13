@@ -1,12 +1,15 @@
 import type { TaskRow } from "@focuslab/shared";
 
 import { BreathingExerciseTask } from "./tasks/BreathingExerciseTask";
+import { ChecklistTask } from "./tasks/ChecklistTask";
 import { CommunityPromptTask } from "./tasks/CommunityPromptTask";
 import { DragListTask } from "./tasks/DragListTask";
+import { GuidedStepsTask } from "./tasks/GuidedStepsTask";
 import { JournalTask } from "./tasks/JournalTask";
 import { MarkdownTask } from "./tasks/MarkdownTask";
 import { ReflectionPromptsTask } from "./tasks/ReflectionPromptsTask";
 import { TimedChallengeTask } from "./tasks/TimedChallengeTask";
+import { TimeTrackerTask } from "./tasks/TimeTrackerTask";
 import type { TaskCompletionChange } from "./tasks/types";
 
 interface TaskRendererProps {
@@ -50,6 +53,27 @@ export function TaskRenderer({
     case "journal":
       return (
         <JournalTask
+          config={task.interaction_config}
+          onCompletionChange={onCompletionChange}
+        />
+      );
+    case "checklist":
+      return (
+        <ChecklistTask
+          config={task.interaction_config}
+          onCompletionChange={onCompletionChange}
+        />
+      );
+    case "guided_steps":
+      return (
+        <GuidedStepsTask
+          config={task.interaction_config}
+          onCompletionChange={onCompletionChange}
+        />
+      );
+    case "time_tracker":
+      return (
+        <TimeTrackerTask
           config={task.interaction_config}
           onCompletionChange={onCompletionChange}
         />

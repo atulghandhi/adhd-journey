@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { REDUCED_MOTION_DURATION, SPRING_GENTLE } from "../animations/springs";
+import { REDUCED_MOTION_DURATION, SPRING_FLUID } from "../animations/springs";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { Text, View } from "./primitives";
 
@@ -47,10 +47,7 @@ export function ProgressRing({
       return;
     }
 
-    strokeDashoffset.value = withSpring(targetOffset, {
-      ...SPRING_GENTLE,
-      overshootClamping: true,
-    });
+    strokeDashoffset.value = withSpring(targetOffset, SPRING_FLUID);
   }, [reducedMotion, strokeDashoffset, targetOffset]);
 
   const animatedProps = useAnimatedProps(() => ({

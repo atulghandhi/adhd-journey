@@ -3,11 +3,13 @@ import { useEffect, useRef } from "react";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 
+import { SPRING_BOUNCE, SPRING_MAGNETIC } from "../animations/springs";
 import { useHaptics } from "../hooks/useHaptics";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { getStreakBadgePresentation } from "./streakBadgeUtils";
@@ -22,7 +24,7 @@ export function StreakBadge({
   count,
   size = "sm",
 }: StreakBadgeProps) {
-  const { successNotification } = useHaptics();
+  const { completionSequence } = useHaptics();
   const { reducedMotion } = useReducedMotion();
   const scale = useSharedValue(1);
   const rotation = useSharedValue(0);
@@ -31,12 +33,14 @@ export function StreakBadge({
 
   useEffect(() => {
     if (count > prevCountRef.current && count > 0) {
-      successNotification();
+      completionSequence();
 
       if (!reducedMotion) {
         scale.value = withSequence(
-          withSpring(1.3),
-          withSpring(1),
+          withSpring(1.3, SPRING_BOUNCE),
+          withSpring(1, SPRING_MAGNETIC),
+          withDelay(100, withSpring(1.08, SPRING_BOUNCE)),
+          withSpring(1, SPRING_MAGNETIC),
         );
         rotation.value = withSequence(
           withTiming(-10, { duration: 120 }),
@@ -47,7 +51,7 @@ export function StreakBadge({
     }
 
     prevCountRef.current = count;
-  }, [count, reducedMotion, rotation, scale, successNotification]);
+  }, [count, reducedMotion, rotation, scale, completionSequence]);
 
   const containerStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

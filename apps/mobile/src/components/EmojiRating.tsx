@@ -3,11 +3,17 @@ import { Pressable } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 
-import { REDUCED_MOTION_DURATION, SPRING_QUICK, SPRING_SNAPPY } from "../animations/springs";
+import {
+  REDUCED_MOTION_DURATION,
+  SPRING_BOUNCE,
+  SPRING_MAGNETIC,
+  SPRING_QUICK,
+} from "../animations/springs";
 import { useHaptics } from "../hooks/useHaptics";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { View } from "./primitives";
@@ -49,10 +55,14 @@ function AnimatedEmoji({
       });
     } else {
       if (selected) {
-        scaleX.value = 1.03;
-        scaleY.value = 0.95;
-        scaleX.value = withSpring(1.1, SPRING_SNAPPY);
-        scaleY.value = withSpring(1.1, SPRING_SNAPPY);
+        scaleX.value = withSequence(
+          withSpring(1.15, SPRING_BOUNCE),
+          withSpring(1.1, SPRING_MAGNETIC),
+        );
+        scaleY.value = withSequence(
+          withSpring(0.9, SPRING_BOUNCE),
+          withSpring(1.1, SPRING_MAGNETIC),
+        );
       } else {
         scaleX.value = withSpring(0.92, SPRING_QUICK);
         scaleY.value = withSpring(0.92, SPRING_QUICK);

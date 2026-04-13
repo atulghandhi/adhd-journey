@@ -680,6 +680,9 @@ export type Database = {
         | "reflection_prompts"
         | "journal"
         | "community_prompt"
+        | "checklist"
+        | "guided_steps"
+        | "time_tracker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -818,6 +821,9 @@ export const Constants = {
         "reflection_prompts",
         "journal",
         "community_prompt",
+        "checklist",
+        "guided_steps",
+        "time_tracker",
       ],
     },
   },
