@@ -22,6 +22,10 @@ import { useJourneyState } from "../../hooks/useJourneyState";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { useToolkit } from "../../hooks/useToolkit";
 import { useGatewayStore } from "../../stores/gatewayStore";
+import {
+  isFamilyControlsAvailable,
+  removeShieldsTemporarily,
+} from "../../../modules/family-controls-bridge";
 
 const APP_URL_SCHEMES: Record<string, string> = {
   facebook: "fb://",
@@ -68,27 +72,36 @@ export function DisruptScreen() {
   const updateStrategySnapshot = useGatewayStore((s) => s.updateStrategySnapshot);
   const resetIfNewDay = useGatewayStore((s) => s.resetIfNewDay);
 
-  // Write a toolkit strategy snapshot for display during the breathing pause
+  // Write a toolkit strategy snapshot for display during the breathing pause.
+  // keepItems and state?.tasks come from async hooks, so we watch them
+  // but only write once per mount via a ref.
+  const snapshotWritten = useRef(false);
   useEffect(() => {
+    if (snapshotWritten.current) return;
     if (!state?.tasks || keepItems.length === 0) return;
     const randomKeep = keepItems[Math.floor(Math.random() * keepItems.length)];
     const matchedTask = state.tasks.find((t) => t.task.id === randomKeep.task_id);
     if (matchedTask) {
+      snapshotWritten.current = true;
+      // task_body is the actionable strategy; title is the heading
+      const bodyPreview = matchedTask.task.task_body
+        ? matchedTask.task.task_body.slice(0, 120) + (matchedTask.task.task_body.length > 120 ? "…" : "")
+        : matchedTask.task.title;
       updateStrategySnapshot({
-        strategyText: matchedTask.task.title,
+        strategyText: bodyPreview,
         taskOrder: matchedTask.task.order,
         taskTitle: matchedTask.task.title,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [state?.tasks, keepItems, updateStrategySnapshot]);
 
   // Check free window
   const nowHHMM = formatHHMM(new Date());
   const inFreeWindow = isInFreeWindow(config.freeWindows, nowHHMM);
 
   // Compute duration based on open count + escalation
-  const appId = app ?? "unknown";
+  // FamilyControls path has no ?app= param; use aggregate "shielded_apps" id
+  const appId = app ?? "shielded_apps";
   const openCount = getOpenCount(appId);
   const pauseSeconds = inFreeWindow
     ? 0
@@ -97,7 +110,7 @@ export function DisruptScreen() {
   // Track this open
   useEffect(() => {
     resetIfNewDay();
-    if (app) incrementOpen(app);
+    incrementOpen(appId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -270,6 +283,11 @@ export function DisruptScreen() {
             <AnimatedPressable
               onPress={async () => {
                 lightImpact();
+                // Temporarily remove shields so the user isn't immediately re-blocked
+                if (isFamilyControlsAvailable()) {
+                  await removeShieldsTemporarily(60);
+                }
+                // Try to open the target app via URL scheme
                 const scheme = app ? APP_URL_SCHEMES[app.toLowerCase()] : undefined;
                 if (scheme) {
                   const canOpen = await Linking.canOpenURL(scheme);
@@ -278,6 +296,8 @@ export function DisruptScreen() {
                     return;
                   }
                 }
+                // FamilyControls path or unknown app: shields are temporarily removed,
+                // so the user can swipe back to the app they were trying to open
                 router.back();
               }}
             >

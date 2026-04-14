@@ -157,11 +157,11 @@ export function DisruptSetupScreen() {
                 <Smartphone color="#40916C" size={22} />
                 <View className="flex-1">
                   <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                    Uses iOS Shortcuts
+                    iOS Shortcuts fallback
                   </Text>
                   <Text className="mt-1 text-sm leading-6 text-focuslab-secondary dark:text-dark-text-secondary">
-                    We'll walk you through setting up an automation in the Shortcuts app.
-                    It takes about 2 minutes.
+                    For devices without FamilyControls support, we'll walk you through
+                    setting up an automation in the Shortcuts app. It takes about 2 minutes.
                   </Text>
                 </View>
               </View>
@@ -173,8 +173,7 @@ export function DisruptSetupScreen() {
                     Your data stays private
                   </Text>
                   <Text className="mt-1 text-sm leading-6 text-focuslab-secondary dark:text-dark-text-secondary">
-                    No tracking, no screen time access. The automation runs entirely on
-                    your device.
+                    Everything runs on your device. No usage data leaves your phone.
                   </Text>
                 </View>
               </View>

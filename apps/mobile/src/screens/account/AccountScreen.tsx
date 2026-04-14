@@ -26,6 +26,7 @@ import { fetchJourneyState, submitCompletionCheckIn } from "../../lib/journey-ap
 import { updateProfile } from "../../lib/profile";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../providers/ToastProvider";
+import { useGatewayStore } from "../../stores/gatewayStore";
 import { useOfflineQueueStore } from "../../stores/offlineQueueStore";
 
 export function AccountScreen() {
@@ -35,6 +36,7 @@ export function AccountScreen() {
   const { data: state, refetch: refetchJourney } = useJourneyState();
   const { showToast } = useToast();
   const { selectionChanged } = useHaptics();
+  const completedGatewayFirstRun = useGatewayStore((s) => s.completedFirstRun);
   const pendingCheckIns = useOfflineQueueStore((store) => store.pendingCheckIns);
   const removeCheckIn = useOfflineQueueStore((store) => store.removeCheckIn);
   const [savingTheme, setSavingTheme] = useState<string | null>(null);
@@ -376,7 +378,11 @@ export function AccountScreen() {
             Extras
           </Text>
           <View className="mt-4 gap-3">
-            <PrimaryButton onPress={() => router.push("/gateway-settings" as never)}>
+            <PrimaryButton onPress={() => router.push(
+              completedGatewayFirstRun
+                ? ("/gateway-settings" as never)
+                : ("/gateway-settings?firstRun=true" as never),
+            )}>
               App Disrupt settings
             </PrimaryButton>
             {state?.isPostCompletion && profile?.payment_status === "paid" ? (

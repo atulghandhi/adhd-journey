@@ -76,15 +76,14 @@ The native bridge already exposes functions for:
 - applying and removing shields
 - starting and stopping doom-scroll monitoring
 
-## Important Current Caveat
+## FamilyControls Status
 
-The native FamilyControls path is not fully enabled yet because `apps/mobile/app.config.ts` still does not include:
+The `withFamilyControls` plugin is registered in `apps/mobile/app.config.ts` and fully wired.
+Three extensions are built: **ShieldConfigExtension**, **ShieldActionExtension**, **DeviceActivityMonitorExtension**.
 
-```ts
-"./plugins/withFamilyControls/withFamilyControls"
-```
-
-So the repo currently contains real native code and UI for the feature, but the Expo config only wires in the Today Task widget plugin.
+FamilyControls uses opaque `ApplicationToken`s — individual app names are not available to JS.
+The UI therefore tracks aggregate opens via a single `"shielded_apps"` limit entry, while
+the Shortcuts path continues to support per-app tracking with named `?app=` params.
 
 ## Current Behavior of `DisruptScreen`
 

@@ -21,7 +21,7 @@ export function OpenLimitRow({ limit, onUpdate }: Props) {
   return (
     <View className="flex-row items-center justify-between rounded-xl bg-focuslab-background px-4 py-3 dark:bg-dark-bg">
       <Text className="text-sm font-medium capitalize text-focuslab-primaryDark dark:text-dark-text-primary">
-        {limit.appId}
+        {limit.appId === "shielded_apps" ? "Shielded apps" : limit.appId}
       </Text>
       <View className="flex-row items-center gap-3">
         <Pressable

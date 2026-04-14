@@ -84,15 +84,14 @@ export function GatewayFirstRunFlow({ onComplete }: Props) {
                   if (granted) {
                     const appCount = await presentAppPicker();
                     if (appCount > 0) {
-                      // Create one generic limit entry per selected app
-                      const defaultLimits: OpenLimitConfig[] = Array.from(
-                        { length: appCount },
-                        (_, i) => ({
-                          appId: `app_${i + 1}`,
-                          dailyLimit: 5,
+                      // FamilyControls uses opaque tokens — track as one aggregate limit
+                      const defaultLimits: OpenLimitConfig[] = [
+                        {
+                          appId: "shielded_apps",
+                          dailyLimit: appCount * 5,
                           enabled: true,
-                        }),
-                      );
+                        },
+                      ];
                       setLimits(defaultLimits);
                       setStep(1);
                     }
@@ -237,8 +236,8 @@ export function GatewayFirstRunFlow({ onComplete }: Props) {
             You&apos;re set!
           </Text>
           <Text className="mt-3 text-center text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-            {limits.length} apps shielded.{" "}
-            {limits[0]?.dailyLimit ?? 5} opens/day each.
+            Your selected apps are shielded.{" "}
+            {limits[0]?.dailyLimit ?? 5} opens/day before pauses escalate.
           </Text>
           <Text className="mt-2 text-center text-sm text-focuslab-secondary dark:text-dark-text-secondary">
             You can adjust everything in Toolkit → App Disrupt.

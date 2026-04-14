@@ -16,23 +16,22 @@ export function AppDisruptCard() {
   const getOpenCount = useGatewayStore((s) => s.getOpenCount);
   const completedFirstRun = useGatewayStore((s) => s.completedFirstRun);
 
-  const shieldedCount = config.openLimits.length;
   const isActive = config.enabled && completedFirstRun;
 
-  // Find the most relevant open count to display
+  // Build status line
   let statusLine = "";
   if (!completedFirstRun) {
     statusLine =
       "Add a breathing pause before distracting apps.";
   } else if (!config.enabled) {
     statusLine = "Paused";
-  } else if (shieldedCount > 0) {
+  } else if (config.openLimits.length > 0) {
     const firstLimit = config.openLimits[0];
     const count = getOpenCount(firstLimit.appId);
-    statusLine = `Active · ${shieldedCount} app${shieldedCount !== 1 ? "s" : ""} shielded`;
-    if (firstLimit) {
-      statusLine += ` · ${count}/${firstLimit.dailyLimit} ${firstLimit.appId}`;
-    }
+    const label = firstLimit.appId === "shielded_apps"
+      ? "opens"
+      : firstLimit.appId;
+    statusLine = `Active · ${count}/${firstLimit.dailyLimit} ${label} today`;
   } else {
     statusLine = "Active — choose apps to shield";
   }

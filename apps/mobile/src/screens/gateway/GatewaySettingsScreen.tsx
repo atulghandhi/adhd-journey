@@ -1,5 +1,5 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Switch } from "react-native";
 import { ChevronLeft, ChevronDown, ChevronUp, Minus, Plus } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
@@ -18,6 +18,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import { useGatewayStore } from "../../stores/gatewayStore";
 import {
   isFamilyControlsAvailable,
+  getFamilyControlsStatus,
   presentAppPicker,
   requestFamilyControlsAuth,
   applyShields,
@@ -46,6 +47,14 @@ export function GatewaySettingsScreen() {
   );
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Sync persisted auth state with live native status on mount
+  useEffect(() => {
+    if (!isFamilyControlsAvailable()) return;
+    void getFamilyControlsStatus().then((status) => {
+      setFamilyControlsAuthorized(status === "authorized");
+    });
+  }, [setFamilyControlsAuthorized]);
 
   // Show first-run flow if not yet completed and requested
   const showFirstRun = firstRun === "true" && !completedFirstRun;
@@ -88,13 +97,15 @@ export function GatewaySettingsScreen() {
     lightImpact();
     const appCount = await presentAppPicker();
     if (appCount > 0) {
-      // Rebuild openLimits to match the new selection count
-      const newLimits = Array.from({ length: appCount }, (_, i) => {
-        const existing = config.openLimits[i];
-        return existing
-          ? { ...existing, appId: `app_${i + 1}` }
-          : { appId: `app_${i + 1}`, dailyLimit: 5, enabled: true };
-      });
+      // Preserve existing aggregate limit if present, update count
+      const existing = config.openLimits.find((l) => l.appId === "shielded_apps");
+      const newLimits: OpenLimitConfig[] = [
+        {
+          appId: "shielded_apps",
+          dailyLimit: existing?.dailyLimit ?? appCount * 5,
+          enabled: true,
+        },
+      ];
       updateConfig({ openLimits: newLimits });
       await applyShields();
     }
@@ -404,7 +415,7 @@ export function GatewaySettingsScreen() {
                       <View key={limit.appId}>
                         <View className="flex-row items-center justify-between">
                           <Text className="text-sm capitalize text-focuslab-primaryDark dark:text-dark-text-primary">
-                            {limit.appId}
+                            {limit.appId === "shielded_apps" ? "Shielded apps" : limit.appId}
                           </Text>
                           <Text className="text-xs font-semibold text-focuslab-secondary dark:text-dark-text-secondary">
                             {count}/{limit.dailyLimit}

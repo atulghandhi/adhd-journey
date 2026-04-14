@@ -148,7 +148,7 @@ function addExtensionTarget(project, rootObject, ext, projectRoot) {
       // Only apply to this target's configs
       if (config.buildSettings.PRODUCT_BUNDLE_IDENTIFIER === targetBundleId ||
           config.buildSettings.PRODUCT_NAME === `"${targetName}"`) {
-        config.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+        config.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "16.0";
         config.buildSettings.SWIFT_VERSION = "5.0";
         config.buildSettings.CODE_SIGN_ENTITLEMENTS = `${targetName}/${targetName}.entitlements`;
         config.buildSettings.TARGETED_DEVICE_FAMILY = '"1,2"';
