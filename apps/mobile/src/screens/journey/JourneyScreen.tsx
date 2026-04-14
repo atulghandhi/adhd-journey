@@ -361,9 +361,9 @@ export function JourneyScreen() {
             {state.currentTask.task.order === 17 ? (
               <View className="mt-4">
                 <PrimaryButton
-                  onPress={() => router.push("/journey/mindful-gateway" as never)}
+                  onPress={() => router.push("/gateway-settings?firstRun=true" as never)}
                 >
-                  Open mindful gateway tutorial
+                  Set up App Disrupt
                 </PrimaryButton>
               </View>
             ) : null}

@@ -24,6 +24,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useToolkit } from "../../hooks/useToolkit";
 import { useToast } from "../../providers/ToastProvider";
+import { AppDisruptCard } from "../gateway/AppDisruptCard";
 
 const EMOJI_MAP: Record<number, string> = {
   1: "😫",
@@ -302,6 +303,10 @@ export function ProgressScreen() {
         ) : null}
 
         <AnimatedCardEntrance delay={100}>
+          <AppDisruptCard />
+        </AnimatedCardEntrance>
+
+        <AnimatedCardEntrance delay={200}>
           <AppCard>
             <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               🧰 My toolkit

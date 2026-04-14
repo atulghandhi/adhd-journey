@@ -187,4 +187,113 @@ export interface ToolkitItem {
   user_id: string;
 }
 
+// ---------------------------------------------------------------------------
+// Gateway (App Disrupt) V1.5 types
+// ---------------------------------------------------------------------------
+
+export interface TimeWindow {
+  end: string; // "HH:mm"
+  start: string; // "HH:mm"
+}
+
+export interface OpenLimitConfig {
+  appId: string;
+  dailyLimit: number;
+  enabled: boolean;
+}
+
+export interface EscalationConfig {
+  baseDurationSeconds: number;
+  capSeconds: number;
+  incrementPerOpenSeconds: number;
+}
+
+export interface DoomScrollConfig {
+  enabled: boolean;
+  firstThresholdMinutes: number;
+  secondThresholdMinutes: number;
+}
+
+export interface GatewayConfig {
+  breathDurationSeconds: number;
+  doomScroll: DoomScrollConfig;
+  enabled: boolean;
+  escalation: EscalationConfig;
+  freeWindows: TimeWindow[];
+  openLimits: OpenLimitConfig[];
+}
+
+export interface StrategySnapshot {
+  strategyText: string;
+  taskOrder: number;
+  taskTitle: string;
+}
+
+export interface DailyOpenCount {
+  count: number;
+  date: string; // "YYYY-MM-DD"
+}
+
+export const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
+  breathDurationSeconds: 5,
+  doomScroll: {
+    enabled: true,
+    firstThresholdMinutes: 10,
+    secondThresholdMinutes: 30,
+  },
+  enabled: false,
+  escalation: {
+    baseDurationSeconds: 5,
+    capSeconds: 20,
+    incrementPerOpenSeconds: 3,
+  },
+  freeWindows: [],
+  openLimits: [],
+};
+
+/**
+ * Compute the breathing pause duration for a gateway activation.
+ * Returns the base duration when under limit, escalating duration when over.
+ */
+export function computeGatewayDuration(
+  config: GatewayConfig,
+  appId: string,
+  openCount: number,
+): number {
+  const limitConfig = config.openLimits.find(
+    (l) => l.appId === appId && l.enabled,
+  );
+  const limit = limitConfig?.dailyLimit ?? Infinity;
+  const { baseDurationSeconds, capSeconds, incrementPerOpenSeconds } =
+    config.escalation;
+
+  if (openCount <= limit) {
+    return config.breathDurationSeconds;
+  }
+
+  const extra = (openCount - limit) * incrementPerOpenSeconds;
+  return Math.min(baseDurationSeconds + extra, capSeconds);
+}
+
+/**
+ * Check whether the current time falls within a free window.
+ */
+export function isInFreeWindow(
+  freeWindows: TimeWindow[],
+  currentHHMM: string,
+): boolean {
+  return freeWindows.some(
+    (w) => currentHHMM >= w.start && currentHHMM <= w.end,
+  );
+}
+
+/**
+ * Format current time as "HH:mm" for free-window comparison.
+ */
+export function formatHHMM(date: Date): string {
+  const h = String(date.getHours()).padStart(2, "0");
+  const m = String(date.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 export type JsonObject = Record<string, Json | undefined>;

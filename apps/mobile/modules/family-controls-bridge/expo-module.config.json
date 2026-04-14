@@ -1,0 +1,11 @@
+{
+  "platforms": ["ios"],
+  "ios": {
+    "modules": ["FamilyControlsBridgeModule"],
+    "frameworks": [
+      "FamilyControls",
+      "ManagedSettings",
+      "DeviceActivity"
+    ]
+  }
+}

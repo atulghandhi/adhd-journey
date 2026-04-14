@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { computeGatewayDuration, formatHHMM, isInFreeWindow } from "@focuslab/shared";
+
 import { SPRING_BOUNCE, SPRING_MAGNETIC } from "../../animations/springs";
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
 import { NextThingLogo } from "../../components/NextThingLogo";
@@ -17,8 +19,7 @@ import { SafeAreaView, Text, View } from "../../components/primitives";
 import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
-
-const PAUSE_SECONDS = 5;
+import { useGatewayStore } from "../../stores/gatewayStore";
 
 const INHALE_MS = 4000;
 const HOLD_MS = 2000;
@@ -46,7 +47,31 @@ export function DisruptScreen() {
   const { lightImpact, mediumImpact } = useHaptics();
   const { reducedMotion } = useReducedMotion();
 
-  const [countdown, setCountdown] = useState(PAUSE_SECONDS);
+  const config = useGatewayStore((s) => s.config);
+  const incrementOpen = useGatewayStore((s) => s.incrementOpen);
+  const getOpenCount = useGatewayStore((s) => s.getOpenCount);
+  const strategySnapshot = useGatewayStore((s) => s.strategySnapshot);
+  const resetIfNewDay = useGatewayStore((s) => s.resetIfNewDay);
+
+  // Check free window
+  const nowHHMM = formatHHMM(new Date());
+  const inFreeWindow = isInFreeWindow(config.freeWindows, nowHHMM);
+
+  // Compute duration based on open count + escalation
+  const appId = app ?? "unknown";
+  const openCount = getOpenCount(appId);
+  const pauseSeconds = inFreeWindow
+    ? 0
+    : computeGatewayDuration(config, appId, openCount);
+
+  // Track this open
+  useEffect(() => {
+    resetIfNewDay();
+    if (app) incrementOpen(app);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [countdown, setCountdown] = useState(pauseSeconds);
   const [phaseLabel, setPhaseLabel] = useState("Breathe in");
   const [paused, setPaused] = useState(false);
   const startTime = useRef(Date.now());
@@ -93,7 +118,7 @@ export function DisruptScreen() {
 
     const timer = setInterval(() => {
       const elapsed = Date.now() - startTime.current;
-      const remaining = Math.max(0, PAUSE_SECONDS - Math.floor(elapsed / 1000));
+      const remaining = Math.max(0, pauseSeconds - Math.floor(elapsed / 1000));
 
       setCountdown(remaining);
       setPhaseLabel(getPhaseLabel(elapsed));
@@ -168,6 +193,30 @@ export function DisruptScreen() {
             </Text>
             <Text className="mt-1 text-base font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
               {currentTask.task.title}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Toolkit strategy reminder */}
+        {strategySnapshot && canContinue ? (
+          <View className="mt-4 w-full rounded-2xl border border-focuslab-border bg-white px-5 py-4 dark:border-dark-border dark:bg-dark-surface">
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+              🧰 From your toolkit — Day {strategySnapshot.taskOrder}
+            </Text>
+            <Text className="mt-1 text-base font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+              {strategySnapshot.taskTitle}
+            </Text>
+            <Text className="mt-1 text-sm leading-5 text-focuslab-secondary dark:text-dark-text-secondary">
+              {strategySnapshot.strategyText}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Open count badge */}
+        {canContinue && openCount > 0 ? (
+          <View className="mt-3">
+            <Text className="text-center text-xs text-focuslab-secondary dark:text-dark-text-secondary">
+              {app ? `You've opened ${appLabel} ${openCount} time${openCount !== 1 ? "s" : ""} today` : ""}
             </Text>
           </View>
         ) : null}

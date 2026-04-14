@@ -364,8 +364,8 @@ export function AccountScreen() {
             Extras
           </Text>
           <View className="mt-4 gap-3">
-            <PrimaryButton onPress={() => router.push("/disrupt-setup" as never)}>
-              Set up App Disrupt
+            <PrimaryButton onPress={() => router.push("/gateway-settings" as never)}>
+              App Disrupt settings
             </PrimaryButton>
             <PrimaryButton onPress={() => router.push("/completion/resources" as never)}>
               Open resources
