@@ -224,7 +224,7 @@ export function AccountScreen() {
   const confirmDeleteAccount = () => {
     Alert.alert(
       "Delete account?",
-      "This permanently deletes your FocusLab account, journey progress, and community activity.",
+      "This permanently deletes your Next Thing account, journey progress, and all data.",
       [
         {
           style: "cancel",
@@ -287,7 +287,7 @@ export function AccountScreen() {
             {Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"}.
           </Text>
           <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-            FocusLab uses your saved quiet hours and alternates between push and email
+            Next Thing uses your saved quiet hours and alternates between push and email
             when it can.
           </Text>
           <View className="mt-4 gap-3">
@@ -302,7 +302,7 @@ export function AccountScreen() {
                   </Text>
                   <Text className="mt-1 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
                     {channel === "push"
-                      ? "Use device reminders when FocusLab can reach you."
+                      ? "Use device reminders when Next Thing can reach you."
                       : "Keep email as a backup reminder channel."}
                   </Text>
                 </View>
@@ -364,6 +364,9 @@ export function AccountScreen() {
             Extras
           </Text>
           <View className="mt-4 gap-3">
+            <PrimaryButton onPress={() => router.push("/disrupt-setup" as never)}>
+              Set up App Disrupt
+            </PrimaryButton>
             <PrimaryButton onPress={() => router.push("/completion/resources" as never)}>
               Open resources
             </PrimaryButton>

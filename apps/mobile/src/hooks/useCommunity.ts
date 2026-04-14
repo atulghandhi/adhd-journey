@@ -45,7 +45,7 @@ async function fetchThread(taskId: string) {
 
   return (posts ?? []).map((post) => ({
     ...post,
-    authorName: authorsById.get(post.user_id) ?? "FocusLab user",
+    authorName: authorsById.get(post.user_id) ?? "Next Thing user",
     reactions: (reactionsResponse.data ?? []).filter(
       (reaction) => reaction.post_id === post.id,
     ),

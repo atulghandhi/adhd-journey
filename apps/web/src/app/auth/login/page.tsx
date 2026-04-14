@@ -13,7 +13,7 @@ export default function LoginPage() {
           Welcome back
         </h1>
         <p className="mt-4 text-base leading-7 text-focuslab-secondary">
-          Sign in to keep your FocusLab journey synced.
+          Sign in to keep your Next Thing journey synced.
         </p>
         <div className="mt-8">
           <LoginForm />

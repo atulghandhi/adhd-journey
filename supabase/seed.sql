@@ -734,7 +734,7 @@ BEGIN
     FROM jsonb_to_recordset($quiz$[
   {
     "task_order": 1,
-    "question": "What is the primary goal of the first task in the FocusLab journey?",
+    "question": "What is the primary goal of the first task in the Next Thing journey?",
     "options": [
       "Build a complex habit system",
       "Take one small immediate action",
@@ -1079,7 +1079,7 @@ BEGIN
     FROM jsonb_to_recordset($templates$[
   {
     "channel": "push",
-    "subject": "Your next FocusLab step is ready",
+    "subject": "Your next step is ready",
     "body": "Day {{day_number}} is waiting for you. Tiny step, then momentum.",
     "tone_tag": "encouraging"
   },
@@ -1092,7 +1092,7 @@ BEGIN
   {
     "channel": "push",
     "subject": "One task. Then done.",
-    "body": "FocusLab only needs one small win today: {{task_title}}.",
+    "body": "Next Thing only needs one small win today: {{task_title}}.",
     "tone_tag": "direct"
   },
   {
@@ -1104,13 +1104,13 @@ BEGIN
   {
     "channel": "push",
     "subject": "Momentum likes consistency",
-    "body": "Open FocusLab, do {{task_title}}, and let tomorrow be easier.",
+    "body": "Open Next Thing, do {{task_title}}, and let tomorrow be easier.",
     "tone_tag": "encouraging"
   },
   {
     "channel": "email",
-    "subject": "Your FocusLab check-in for today",
-    "body": "<p>Hi {{user_name}},</p><p>Your next FocusLab action is <strong>{{task_title}}</strong>.</p><p>You are on day {{day_number}} with a {{streak}} day streak. One small action counts.</p>",
+    "subject": "Your Next Thing check-in for today",
+    "body": "<p>Hi {{user_name}},</p><p>Your next action is <strong>{{task_title}}</strong>.</p><p>You are on day {{day_number}} with a {{streak}} day streak. One small action counts.</p>",
     "tone_tag": "encouraging"
   },
   {

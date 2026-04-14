@@ -4,10 +4,12 @@ import {
   createInitialJourneyProgress,
   DEFAULT_JOURNEY_ID,
   processCompletionCheckIn,
+  processSkipCheckIn,
   type CheckInRow,
   type CompletionCheckInInput,
   type JourneyState,
   type ProfileRow,
+  type SkipCheckInInput,
   type SpacedRepetitionStateRow,
   type TaskRow,
   type UserProgressRow,
@@ -332,4 +334,43 @@ export async function submitReviewCheckIn(args: {
       supabase.from("spaced_repetition_state").upsert(nextReview.nextState),
     ]);
   }
+}
+
+export async function submitSkipCheckIn(
+  taskId: string,
+  input: SkipCheckInInput,
+) {
+  const userId = await getCurrentUserId();
+  const profile = await fetchProfile(userId);
+  const tasks = await fetchTasks();
+  const progressRows = await ensureJourneyProgress(profile, tasks);
+  const task = tasks.find((candidate) => candidate.id === taskId);
+
+  if (!task) {
+    throw new Error("Task not found.");
+  }
+
+  const transition = processSkipCheckIn({
+    input,
+    paymentStatus: profile.payment_status === "paid" ? "paid" : "free",
+    profile,
+    progressRows,
+    task,
+    tasks,
+  });
+
+  const [{ error: checkInError }, { error: progressError }] = await Promise.all([
+    supabase.from("check_ins").insert(transition.checkIn).select(),
+    supabase.from("user_progress").upsert(transition.progress).select(),
+  ]);
+
+  if (checkInError) {
+    throw checkInError;
+  }
+
+  if (progressError) {
+    throw progressError;
+  }
+
+  return fetchJourneyState();
 }

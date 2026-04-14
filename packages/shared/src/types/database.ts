@@ -327,6 +327,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           current_journey_id: string
+          focus_area: string | null
           id: string
           last_active_at: string
           motivating_answer: string | null
@@ -342,6 +343,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           current_journey_id?: string
+          focus_area?: string | null
           id: string
           last_active_at?: string
           motivating_answer?: string | null
@@ -357,6 +359,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           current_journey_id?: string
+          focus_area?: string | null
           id?: string
           last_active_at?: string
           motivating_answer?: string | null

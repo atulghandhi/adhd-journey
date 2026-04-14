@@ -29,7 +29,7 @@ export default async function AdminLayout({
                 Admin CMS
               </p>
               <h1 className="mt-3 text-4xl font-bold tracking-[-0.03em] text-focuslab-primaryDark">
-                FocusLab control room
+                Next Thing control room
               </h1>
               <p className="mt-3 max-w-3xl text-base leading-7 text-focuslab-secondary">
                 Signed in as {profile?.name ?? "Admin"}. Manage the 30-day journey,

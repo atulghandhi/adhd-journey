@@ -66,7 +66,7 @@ export default function AdminModerationPage() {
     setPosts(
       ((postsData ?? []) as CommunityPostRow[]).map((post) => ({
         ...post,
-        authorName: authorsById.get(post.user_id) ?? "FocusLab user",
+        authorName: authorsById.get(post.user_id) ?? "Next Thing user",
         reportCount: reportCounts[post.id] ?? 0,
       })),
     );

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BarChart2, Compass, MessageCircle, User } from "lucide-react-native";
+import { BarChart2, Compass, User } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
 export default function TabsLayout() {
@@ -39,8 +39,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="community"
         options={{
-          tabBarIcon: ({ color }) => <MessageCircle color={color} size={20} />,
-          title: "Community",
+          href: null,
         }}
       />
       <Tabs.Screen

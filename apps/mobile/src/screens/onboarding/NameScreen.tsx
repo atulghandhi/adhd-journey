@@ -23,7 +23,7 @@ export function NameScreen() {
 
     try {
       await updateProfile(user.id, { name: name.trim() });
-      router.push("/onboarding/motivation" as never);
+      router.push("/onboarding/focus-area" as never);
     } catch {
       showToast("Couldn’t save your name just yet.", "error");
     } finally {
@@ -38,7 +38,7 @@ export function NameScreen() {
           What should we call you?
         </Text>
         <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-          We use your name in community threads and a few encouragement moments.
+          We use your name in a few encouragement moments throughout the journey.
         </Text>
 
         <View className="mt-8 rounded-[24px] bg-white p-6 dark:border dark:border-dark-border dark:bg-dark-surface">

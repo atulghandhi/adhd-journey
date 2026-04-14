@@ -1,9 +1,9 @@
 import type { ExpoConfig } from "expo/config";
 
 const config: ExpoConfig = {
-  name: "FocusLab",
-  slug: "focuslab-mobile",
-  scheme: "focuslab",
+  name: "Next Thing",
+  slug: "next-thing-mobile",
+  scheme: "nextthing",
   version: "1.0.0",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
@@ -15,10 +15,10 @@ const config: ExpoConfig = {
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "app.focuslab.mobile",
+    bundleIdentifier: "app.nextthing.mobile",
   },
   android: {
-    package: "app.focuslab.mobile",
+    package: "app.nextthing.mobile",
     adaptiveIcon: {
       backgroundColor: "#D8F3DC",
       foregroundImage: "./assets/android-icon-foreground.png",

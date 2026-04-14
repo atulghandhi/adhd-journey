@@ -18,7 +18,7 @@ export default function Home() {
             <a href="/dashboard">Dashboard</a>
           </div>
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-focuslab-secondary">
-            FocusLab
+            Next Thing
           </p>
           <h1 className="max-w-3xl text-4xl font-bold tracking-[-0.03em] text-focuslab-primaryDark md:text-6xl">
             {appMetadata.tagline}

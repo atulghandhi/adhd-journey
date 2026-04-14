@@ -31,7 +31,7 @@ export function ConfirmEmailScreen() {
   return (
     <AuthScaffold
       title="Check your email"
-      subtitle="We sent a confirmation link so you can finish setting up FocusLab."
+      subtitle="We sent a confirmation link so you can finish setting up Next Thing."
     >
       <Text className="text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
         {email

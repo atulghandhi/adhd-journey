@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<
           <View style={styles.container}>
             <Text style={styles.title}>Something went wrong</Text>
             <Text style={styles.subtitle}>
-              FocusLab hit a snag, but your progress is still safe. Let&apos;s try
+              Next Thing hit a snag, but your progress is still safe. Let&apos;s try
               again.
             </Text>
             <Pressable onPress={this.handleRetry} style={styles.button}>

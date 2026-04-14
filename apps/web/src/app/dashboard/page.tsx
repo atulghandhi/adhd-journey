@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buildJourneyState, DEFAULT_JOURNEY_ID } from "@focuslab/shared";
 
+import { DayCard } from "@/components/DayCard";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { getCurrentProfile, requireUser } from "@/lib/auth";
 
@@ -32,7 +33,7 @@ export default async function DashboardPage() {
           .select("*")
           .eq("user_id", profile.id)
           .order("checked_in_at", { ascending: false })
-          .limit(8)
+          .limit(60)
       : Promise.resolve({ data: [], error: null }),
     profile
       ? supabase
@@ -67,7 +68,7 @@ export default async function DashboardPage() {
                 Dashboard
               </p>
               <h1 className="mt-4 text-4xl font-bold text-focuslab-primaryDark">
-                {profile?.name ? `Welcome back, ${profile.name}` : "Your FocusLab dashboard"}
+                {profile?.name ? `Welcome back, ${profile.name}` : "Your Next Thing dashboard"}
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-focuslab-secondary">
                 {user.email
@@ -180,6 +181,37 @@ export default async function DashboardPage() {
             </div>
           </article>
         </section>
+
+        {journeyState && journeyState.completedCount > 0 ? (
+          <section className="rounded-[32px] bg-white p-8 shadow-[0_24px_80px_rgba(27,67,50,0.08)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-focuslab-secondary">
+              Your journey so far
+            </p>
+            <h2 className="mt-3 text-2xl font-bold text-focuslab-primaryDark">
+              {journeyState.completedCount} of {journeyState.tasks.length} days complete
+            </h2>
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {journeyState.tasks
+                .filter((t) => t.isCompleted)
+                .reverse()
+                .map((taskState) => {
+                  const checkIn =
+                    safeCheckIns.find(
+                      (c) =>
+                        c.task_id === taskState.task.id &&
+                        (c.type === "completion" || c.type === "skip"),
+                    ) ?? null;
+                  return (
+                    <DayCard
+                      checkIn={checkIn}
+                      key={taskState.task.id}
+                      taskState={taskState}
+                    />
+                  );
+                })}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

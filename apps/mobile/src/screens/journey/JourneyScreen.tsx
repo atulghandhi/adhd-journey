@@ -24,7 +24,9 @@ import { useJourneyState } from "../../hooks/useJourneyState";
 import { useProfile } from "../../hooks/useProfile";
 import { useToast } from "../../providers/ToastProvider";
 import { CheckInSheet } from "./CheckInSheet";
-import type { CompletionCheckInInput } from "@focuslab/shared";
+import { StuckSheet } from "./StuckSheet";
+import type { CompletionCheckInInput, SkipReason } from "@focuslab/shared";
+import { AnimatedPressable } from "../../animations/AnimatedPressable";
 
 function getWelcomeBackMessage(lastActiveAt: string | null | undefined) {
   if (!lastActiveAt) {
@@ -50,10 +52,11 @@ export function JourneyScreen() {
   const { showToast } = useToast();
   const { data: profile } = useProfile();
   const { data: state, isLoading, refetch, isRefetching } = useJourneyState();
-  const { submitCompletionCheckIn, submitReviewCheckIn, submittingCompletion } =
+  const { submitCompletionCheckIn, submitReviewCheckIn, submitSkipCheckIn, submittingCompletion, submittingSkip } =
     useCheckIn();
   const { errorNotification, lightImpact, successNotification } = useHaptics();
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [stuckSheetVisible, setStuckSheetVisible] = useState(false);
   const [selectedReviewRating, setSelectedReviewRating] = useState<number | null>(null);
   const [taskInteractionComplete, setTaskInteractionComplete] = useState(false);
   const [taskInteractionData, setTaskInteractionData] = useState<
@@ -121,6 +124,42 @@ export function JourneyScreen() {
         "Couldn't save your check-in right away — we'll try again when you're back online.",
         "error",
       );
+    }
+  };
+
+  const handleSkip = async (reason: SkipReason) => {
+    if (!state?.currentTask) {
+      return;
+    }
+
+    try {
+      await submitSkipCheckIn({
+        input: { reason },
+        taskId: state.currentTask.task.id,
+      });
+      successNotification();
+      showToast("Skipped. You can always come back to this one.");
+    } catch {
+      errorNotification();
+      showToast("Couldn't skip right now. Try again in a moment.", "error");
+    }
+  };
+
+  const handleNotForMeToday = async () => {
+    if (!state?.currentTask) {
+      return;
+    }
+
+    try {
+      await submitSkipCheckIn({
+        input: { reason: "not_in_mood" },
+        taskId: state.currentTask.task.id,
+      });
+      successNotification();
+      showToast("No worries. Tomorrow's task is ready when you are.");
+    } catch {
+      errorNotification();
+      showToast("Couldn't skip right now. Try again in a moment.", "error");
     }
   };
 
@@ -286,6 +325,26 @@ export function JourneyScreen() {
               </PrimaryButton>
             </View>
 
+            <View className="mt-3 flex-row justify-center gap-4">
+              <AnimatedPressable
+                onPress={() => setStuckSheetVisible(true)}
+              >
+                <Text className="text-sm font-medium text-focuslab-secondary dark:text-dark-text-secondary">
+                  I'm stuck
+                </Text>
+              </AnimatedPressable>
+              <View className="w-px bg-focuslab-border dark:bg-dark-border" />
+              <AnimatedPressable
+                onPress={() => {
+                  void handleNotForMeToday();
+                }}
+              >
+                <Text className="text-sm font-medium text-focuslab-secondary dark:text-dark-text-secondary">
+                  Not for me today
+                </Text>
+              </AnimatedPressable>
+            </View>
+
             {state.currentTask.task.order === 17 ? (
               <View className="mt-4">
                 <PrimaryButton
@@ -361,16 +420,11 @@ export function JourneyScreen() {
                 Keep the momentum
               </Text>
               <Text className="mt-2 text-xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
-                Share how today went in the community.
+                Reflect on today
               </Text>
               <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-                Post a win, a struggle, or a tip while the task is still fresh.
+                What worked? What felt hard? Writing it down helps it stick.
               </Text>
-              <View className="mt-6">
-                <PrimaryButton onPress={() => router.push("/community" as never)}>
-                  Open community
-                </PrimaryButton>
-              </View>
             </AppCard>
           </AnimatedCardEntrance>
         ) : null}
@@ -421,6 +475,13 @@ export function JourneyScreen() {
         onClose={() => setSheetVisible(false)}
         onSubmit={handleCheckIn}
         visible={sheetVisible}
+      />
+
+      <StuckSheet
+        loading={submittingSkip}
+        onClose={() => setStuckSheetVisible(false)}
+        onSkip={handleSkip}
+        visible={stuckSheetVisible}
       />
     </SafeAreaView>
   );

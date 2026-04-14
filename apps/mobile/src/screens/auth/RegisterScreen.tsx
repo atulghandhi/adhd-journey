@@ -44,7 +44,7 @@ export function RegisterScreen() {
   return (
     <AuthScaffold
       title="Create your account"
-      subtitle="We only need a few details to sync FocusLab across your devices."
+      subtitle="We only need a few details to sync Next Thing across your devices."
     >
       <TextInput
         className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"

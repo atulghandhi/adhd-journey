@@ -17,7 +17,7 @@ function createDraftTemplate(order: number): EditableTemplate {
     id: `draft-${order}`,
     is_active: true,
     localId: crypto.randomUUID(),
-    subject: order % 2 === 0 ? "Today’s FocusLab step" : "One doable step",
+    subject: order % 2 === 0 ? "Today’s Next Thing step" : "One doable step",
     tone_tag: "encouraging",
   };
 }

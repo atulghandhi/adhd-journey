@@ -33,8 +33,9 @@ export type NotificationTone = (typeof NOTIFICATION_TONES)[number];
 export type CommunityReactionEmoji = (typeof COMMUNITY_REACTION_EMOJIS)[number];
 export type ThemePreference = "light" | "dark" | "system";
 export type PaymentStatus = "free" | "paid";
-export type ProgressStatus = "locked" | "active" | "in_review" | "completed";
-export type CheckInType = "completion" | "reinforcement_review";
+export type ProgressStatus = "locked" | "active" | "in_review" | "completed" | "skipped";
+export type CheckInType = "completion" | "reinforcement_review" | "skip";
+export type SkipReason = "too_hard" | "not_relevant" | "dont_understand" | "not_in_mood";
 
 export interface NotificationPreferences {
   channels: NotificationChannel[];
@@ -94,6 +95,11 @@ export interface CompletionCheckInInput {
   triedIt: boolean;
 }
 
+export interface SkipCheckInInput {
+  reason: SkipReason;
+  skippedAt?: string;
+}
+
 export interface CompletionTransition {
   activatedTaskId: string | null;
   checkIn: CheckInInsert;
@@ -104,9 +110,10 @@ export interface CompletionTransition {
     | "continued_task"
     | "extended_task"
     | "paywall_blocked"
+    | "task_skipped"
     | "unlocked_next_task"
     | "waiting_until_tomorrow";
-  spacedRepetition: SpacedRepetitionStateInsert;
+  spacedRepetition: SpacedRepetitionStateInsert | null;
 }
 
 export interface NotificationHistoryItem {

@@ -6,7 +6,7 @@ describe("web home page", () => {
   it("renders the milestone scaffold content", () => {
     render(<Home />);
 
-    expect(screen.getByText("FocusLab")).toBeTruthy();
+    expect(screen.getByText("Next Thing")).toBeTruthy();
     expect(screen.getByText(/shared package check/i)).toBeTruthy();
   });
 });

@@ -21,6 +21,7 @@ import type {
   ProfileRow,
   PromptResponses,
   RestartJourneyPayload,
+  SkipCheckInInput,
   SpacedRepetitionConfigRow,
   SpacedRepetitionStateRow,
   TaskRow,
@@ -156,7 +157,7 @@ function resolveInactiveTask(
   const firstIncompleteTask = tasks.find((task) => {
     const progress = progressByTaskId.get(task.id);
 
-    return progress?.status !== "completed";
+    return progress?.status !== "completed" && progress?.status !== "skipped";
   });
 
   if (!firstIncompleteTask) {
@@ -255,7 +256,7 @@ export function buildJourneyState(args: {
       canOpen: status !== "locked" && !isPaywalled,
       currentDay: progress?.current_day ?? 1,
       isActive: status === "active",
-      isCompleted: status === "completed",
+      isCompleted: status === "completed" || status === "skipped",
       isLocked: status === "locked",
       isPaywalled,
       lastCheckInAt: getLatestCheckInForTask(args.checkIns, task.id),
@@ -539,6 +540,91 @@ export function processCompletionCheckIn(args: {
     progress: clonedProgress,
     reason: "unlocked_next_task",
     spacedRepetition: nextReview.nextState,
+  } satisfies CompletionTransition;
+}
+
+export function processSkipCheckIn(args: {
+  input: SkipCheckInInput;
+  now?: string;
+  paymentStatus: PaymentStatus;
+  profile: ProfileRow;
+  progressRows: UserProgressRow[];
+  task: TaskRow;
+  tasks: TaskRow[];
+}) {
+  const skippedAt = args.input.skippedAt ?? args.now ?? new Date().toISOString();
+  const now = args.now ?? new Date().toISOString();
+  const preferences = normalizeNotificationPreferences(
+    args.profile.notification_preferences,
+  );
+  const clonedProgress = cloneProgress(args.progressRows);
+  const currentProgress = clonedProgress.find((row) => row.task_id === args.task.id);
+
+  if (!currentProgress) {
+    throw new Error("User progress for the task was not found.");
+  }
+
+  if (currentProgress.status !== "active") {
+    throw new Error("Only the active task can be skipped.");
+  }
+
+  currentProgress.completed_at = skippedAt;
+  currentProgress.status = "skipped";
+
+  const checkIn: CheckInInsert = {
+    checked_in_at: skippedAt,
+    journey_id: currentProgress.journey_id,
+    prompt_responses: { skip_reason: args.input.reason },
+    quick_rating: 0,
+    task_id: args.task.id,
+    time_spent_seconds: 0,
+    tried_it: false,
+    type: "skip",
+    user_id: args.profile.id,
+  };
+
+  const currentTaskIndex = getTaskIndexById(args.tasks, args.task.id);
+  const nextTask = args.tasks[currentTaskIndex + 1];
+
+  if (!nextTask) {
+    return {
+      activatedTaskId: null,
+      checkIn,
+      nextUnlockDate: null,
+      progress: clonedProgress,
+      reason: "task_skipped",
+      spacedRepetition: null,
+    } satisfies CompletionTransition;
+  }
+
+  if (isTaskPaywalled(nextTask.order, args.paymentStatus)) {
+    return {
+      activatedTaskId: null,
+      checkIn,
+      nextUnlockDate: null,
+      progress: clonedProgress,
+      reason: "task_skipped",
+      spacedRepetition: null,
+    } satisfies CompletionTransition;
+  }
+
+  const nextProgress = clonedProgress.find((row) => row.task_id === nextTask.id);
+
+  if (!nextProgress) {
+    throw new Error("Next task progress was not found.");
+  }
+
+  // Skipping immediately unlocks the next task (no waiting until tomorrow)
+  nextProgress.status = "active";
+  nextProgress.unlocked_at = now;
+
+  return {
+    activatedTaskId: nextTask.id,
+    checkIn,
+    nextUnlockDate: null,
+    progress: clonedProgress,
+    reason: "task_skipped",
+    spacedRepetition: null,
   } satisfies CompletionTransition;
 }
 

@@ -11,7 +11,7 @@ export function WelcomeScreen() {
       <View className="flex-1 justify-between px-6 py-8">
         <View className="gap-6">
           <Text className="text-4xl font-bold leading-tight text-focuslab-primaryDark dark:text-dark-text-primary">
-            FocusLab helps you build attention one doable day at a time.
+            Next Thing helps you build attention one doable day at a time.
           </Text>
           <Text className="text-lg leading-8 text-focuslab-secondary dark:text-dark-text-secondary">
             You won&apos;t get a wall of advice. You&apos;ll get one small task, one

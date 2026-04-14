@@ -4,8 +4,8 @@ import "@uiw/react-markdown-preview/markdown.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FocusLab",
-  description: "A mobile-first ADHD journey with mobile and web clients.",
+  title: "Next Thing",
+  description: "Task-first ADHD support for real-world momentum.",
 };
 
 export default function RootLayout({

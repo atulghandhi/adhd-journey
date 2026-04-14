@@ -35,6 +35,7 @@ describe("journey progression helpers", () => {
     avatar_url: null,
     created_at: "2026-03-17T00:00:00.000Z",
     current_journey_id: "journey-1",
+    focus_area: null,
     id: "user-1",
     last_active_at: "2026-03-17T00:00:00.000Z",
     motivating_answer: "Write a book",

@@ -2,7 +2,6 @@ import type { TaskRow } from "@focuslab/shared";
 
 import { BreathingExerciseTask } from "./tasks/BreathingExerciseTask";
 import { ChecklistTask } from "./tasks/ChecklistTask";
-import { CommunityPromptTask } from "./tasks/CommunityPromptTask";
 import { DragListTask } from "./tasks/DragListTask";
 import { GuidedStepsTask } from "./tasks/GuidedStepsTask";
 import { JournalTask } from "./tasks/JournalTask";
@@ -79,12 +78,6 @@ export function TaskRenderer({
         />
       );
     case "community_prompt":
-      return (
-        <CommunityPromptTask
-          config={task.interaction_config}
-          onCompletionChange={onCompletionChange}
-        />
-      );
     case "markdown":
     default:
       return (
