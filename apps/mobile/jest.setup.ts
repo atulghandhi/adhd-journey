@@ -50,3 +50,8 @@ jest.mock("react-native/Libraries/Components/AccessibilityInfo/AccessibilityInfo
   isReduceMotionEnabled: () => Promise.resolve(false),
 }));
 
+jest.mock("../modules/widget-data-bridge", () => ({
+  setWidgetData: jest.fn(() => true),
+  clearWidgetData: jest.fn(() => true),
+}));
+

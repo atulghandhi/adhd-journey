@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { useAuth } from "../hooks/useAuth";
+import { useWidgetSync } from "../hooks/useWidgetSync";
 import { submitCompletionCheckIn } from "../lib/journey-api";
 import { queryClient } from "../lib/queryClient";
 import { useOfflineQueueStore } from "../stores/offlineQueueStore";
@@ -47,6 +48,11 @@ function OfflineQueueSync() {
   return null;
 }
 
+function WidgetSync() {
+  useWidgetSync();
+  return null;
+}
+
 export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -54,6 +60,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <ThemeProvider>
           <ToastProvider>
             <OfflineQueueSync />
+            <WidgetSync />
             {children}
           </ToastProvider>
         </ThemeProvider>

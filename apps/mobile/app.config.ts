@@ -34,6 +34,7 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-dev-client",
     "expo-notifications",
+    "./plugins/withTodayTaskWidget/withTodayTaskWidget",
   ],
   extra: {
     appVariant: "development",
