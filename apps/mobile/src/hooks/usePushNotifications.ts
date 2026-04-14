@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { useState } from "react";
 import { Platform } from "react-native";
@@ -41,7 +42,10 @@ export function usePushNotifications() {
         return;
       }
 
-      const pushToken = await Notifications.getExpoPushTokenAsync();
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+      const pushToken = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      );
 
       await supabase.from("push_tokens").upsert({
         platform: Platform.OS === "ios" ? "ios" : "android",

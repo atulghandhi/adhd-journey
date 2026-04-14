@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "../../components/primitives";
 import { StreakBadge } from "../../components/StreakBadge";
@@ -90,6 +91,8 @@ export function JourneyScreen() {
   }, [state?.streakCount]);
   const dailyMotivation = getDailyMotivation();
   const doneForTodayState = isDoneForToday ? state : null;
+  const [reflectionText, setReflectionText] = useState("");
+  const [reflectionSaved, setReflectionSaved] = useState(false);
 
   useEffect(() => {
     setTaskInteractionComplete(false);
@@ -416,6 +419,31 @@ export function JourneyScreen() {
               <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
                 What worked? What felt hard? Writing it down helps it stick.
               </Text>
+              {reflectionSaved ? (
+                <Text className="mt-4 text-sm font-semibold text-focuslab-primary">
+                  Saved — nice work reflecting.
+                </Text>
+              ) : (
+                <View className="mt-4 gap-3">
+                  <TextInput
+                    className="min-h-[80px] rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+                    multiline
+                    onChangeText={setReflectionText}
+                    placeholder="A few words is enough..."
+                    textAlignVertical="top"
+                    value={reflectionText}
+                  />
+                  <PrimaryButton
+                    disabled={reflectionText.trim().length === 0}
+                    onPress={() => {
+                      setReflectionSaved(true);
+                      showToast("Reflection saved.");
+                    }}
+                  >
+                    Save reflection
+                  </PrimaryButton>
+                </View>
+              )}
             </AppCard>
           </AnimatedCardEntrance>
         ) : null}

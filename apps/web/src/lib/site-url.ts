@@ -15,5 +15,9 @@ export function getSiteUrl(): string {
     return `https://${process.env.VERCEL_URL}`;
   }
 
+  if (typeof window !== "undefined" && window.location.origin) {
+    return window.location.origin;
+  }
+
   return "http://localhost:3000";
 }

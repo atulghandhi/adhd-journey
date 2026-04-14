@@ -29,7 +29,7 @@ export function LoginScreen() {
       return;
     }
 
-    router.replace("/journey" as never);
+    router.replace("/" as never);
   };
 
   return (

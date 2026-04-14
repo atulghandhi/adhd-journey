@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useWidgetSync } from "../hooks/useWidgetSync";
 import { submitCompletionCheckIn } from "../lib/journey-api";
 import { queryClient } from "../lib/queryClient";
-import { useOfflineQueueStore } from "../stores/offlineQueueStore";
+import { MAX_OFFLINE_RETRIES, useOfflineQueueStore } from "../stores/offlineQueueStore";
 import { AuthProvider } from "./AuthProvider";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
@@ -16,6 +16,7 @@ function OfflineQueueSync() {
   const { user } = useAuth();
   const pendingCheckIns = useOfflineQueueStore((state) => state.pendingCheckIns);
   const removeCheckIn = useOfflineQueueStore((state) => state.removeCheckIn);
+  const incrementRetry = useOfflineQueueStore((state) => state.incrementRetry);
   const isSyncing = useRef(false);
 
   const sync = useCallback(async () => {
@@ -26,17 +27,23 @@ function OfflineQueueSync() {
     isSyncing.current = true;
 
     for (const item of pendingCheckIns) {
+      if ((item.retryCount ?? 0) >= MAX_OFFLINE_RETRIES) {
+        removeCheckIn(item.id);
+        continue;
+      }
+
       try {
         await submitCompletionCheckIn(item.taskId, item.input);
         removeCheckIn(item.id);
         void queryClient.invalidateQueries({ queryKey: ["journey-state"] });
       } catch {
+        incrementRetry(item.id);
         break;
       }
     }
 
     isSyncing.current = false;
-  }, [pendingCheckIns, removeCheckIn, user?.id]);
+  }, [incrementRetry, pendingCheckIns, removeCheckIn, user?.id]);
 
   // Retry on state changes (new items, user login)
   useEffect(() => {

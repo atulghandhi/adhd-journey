@@ -147,7 +147,7 @@ export default async function DashboardPage() {
                   {journeyState.reviewTask.task.title}
                 </p>
                 <p className="mt-2 text-sm text-focuslab-secondary">
-                  Due {journeyState.reviewTask.dueDate}
+                  Due {new Date(`${journeyState.reviewTask.dueDate}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                 </p>
               </div>
             ) : null}
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
                     key={checkIn.id}
                   >
                     <p className="text-sm font-semibold uppercase tracking-[0.16em] text-focuslab-secondary">
-                      {new Date(checkIn.checked_in_at).toLocaleDateString()}
+                      {new Date(checkIn.checked_in_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
                     </p>
                     <p className="mt-2 text-base font-semibold text-focuslab-primaryDark">
                       Rating {checkIn.quick_rating} • {checkIn.type.replace("_", " ")}

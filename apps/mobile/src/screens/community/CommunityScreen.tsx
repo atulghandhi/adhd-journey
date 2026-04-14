@@ -86,12 +86,25 @@ export function CommunityScreen() {
               const selected = task.task.id === selectedTaskId;
 
               return (
-                <PrimaryButton
+                <Pressable
+                  className={`min-h-10 items-center justify-center rounded-full px-4 py-2 ${
+                    selected
+                      ? "bg-focuslab-primary"
+                      : "border border-focuslab-border bg-white dark:border-dark-border dark:bg-dark-card"
+                  }`}
                   key={task.task.id}
                   onPress={() => setSelectedTaskId(task.task.id)}
                 >
-                  {selected ? `✓ Day ${task.task.order}` : `Day ${task.task.order}`}
-                </PrimaryButton>
+                  <Text
+                    className={`text-sm font-semibold ${
+                      selected
+                        ? "text-white"
+                        : "text-focuslab-secondary dark:text-dark-text-secondary"
+                    }`}
+                  >
+                    Day {task.task.order}
+                  </Text>
+                </Pressable>
               );
             })}
           </View>

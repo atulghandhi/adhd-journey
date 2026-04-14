@@ -12,12 +12,19 @@ export function useCheckIn() {
   const completionMutation = useMutation({
     mutationFn: async (args: { input: CompletionCheckInInput; taskId: string }) =>
       submitCompletionCheckIn(args.taskId, args.input),
-    onError: (_error, variables) => {
-      enqueueCheckIn({
-        id: crypto.randomUUID(),
-        input: variables.input,
-        taskId: variables.taskId,
-      });
+    onError: (error, variables) => {
+      const isNetworkError =
+        error instanceof TypeError ||
+        (error instanceof Error && /network|fetch|timeout|abort/i.test(error.message));
+
+      if (isNetworkError) {
+        enqueueCheckIn({
+          id: crypto.randomUUID(),
+          input: variables.input,
+          retryCount: 0,
+          taskId: variables.taskId,
+        });
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["journey-state"] });

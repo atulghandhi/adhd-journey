@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 
 import { View, Text } from "../primitives";
@@ -12,9 +12,14 @@ export function CommunityPromptTask({
 }: InteractiveTaskProps) {
   const router = useRouter();
   const promptConfig = normalizeCommunityPromptConfig(config);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
-    // TODO: verify recent community activity and gate completion more strictly.
+    onCompletionChange(false, { prompt: promptConfig.prompt });
+  }, [onCompletionChange, promptConfig.prompt]);
+
+  const handleConfirm = useCallback(() => {
+    setConfirmed(true);
     onCompletionChange(true, { prompt: promptConfig.prompt });
   }, [onCompletionChange, promptConfig.prompt]);
 
@@ -25,14 +30,20 @@ export function CommunityPromptTask({
           {promptConfig.prompt}
         </Text>
       </View>
-      <View className="mt-4">
+      <View className="mt-4 gap-3">
         <PrimaryButton onPress={() => router.push(promptConfig.navigateTo as never)}>
           Open community
         </PrimaryButton>
+        {!confirmed ? (
+          <PrimaryButton onPress={handleConfirm}>
+            I posted in the thread
+          </PrimaryButton>
+        ) : (
+          <Text className="text-sm font-semibold text-focuslab-primary">
+            Nice work — you can submit your check-in now.
+          </Text>
+        )}
       </View>
-      <Text className="mt-3 text-sm leading-6 text-focuslab-secondary dark:text-dark-text-secondary">
-        Come back here and tap &quot;I did it&quot; after you&apos;ve posted.
-      </Text>
     </View>
   );
 }

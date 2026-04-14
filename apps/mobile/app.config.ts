@@ -38,6 +38,9 @@ const config: ExpoConfig = {
   ],
   extra: {
     appVariant: "development",
+    eas: {
+      projectId: process.env.EAS_PROJECT_ID ?? "REPLACE_WITH_EAS_PROJECT_ID",
+    },
   },
 };
 

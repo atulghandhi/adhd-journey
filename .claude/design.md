@@ -46,7 +46,7 @@ Green-themed wellness palette. Light, pale, and calming — evoking health, grow
 | Accent colors (`green-500`, `success`, `warning`, `error`) | Same as light mode | CTAs and feedback stay consistent across modes |
 
 #### Rules
-- Dark mode: **manual toggle in Settings** with 3 options: Light / Dark / System. Default: **Light**. Store preference in `profiles` table (add `theme_preference` column, default `'light'`).
+- Dark mode: **manual toggle in Account** with 3 options: Light / Dark / System. Default: **Light**. Store preference in `profiles` table as `theme_preference`.
 - Gradients: subtle top-to-bottom gradient (`green-50` → `white`) on journey screen background. Never on text or buttons.
 - Never use red/error color for missed days or inactivity. Only for destructive actions (delete account, report post).
 
@@ -131,7 +131,7 @@ All animations use `react-native-reanimated` with spring physics. No `Animated.t
 | Journal threshold crossed | Success | `Haptics.notificationAsync(NotificationFeedbackType.Success)` |
 
 #### Reduced motion
-- All animations respect OS `prefers-reduced-motion` (AccessibilityInfo on RN). Also provide a manual toggle in Settings.
+- All animations respect OS `prefers-reduced-motion` (AccessibilityInfo on RN). Also provide a manual toggle in Account.
 - When reduced motion is on: replace all springs with simple 150ms opacity fades. Disable confetti. Keep haptics (they're separate from visual motion).
 
 ## Signature Elements
@@ -146,8 +146,8 @@ Winding serpentine path (not a flat checklist) with nodes alternating left/right
 - The active node is always auto-scrolled into view on screen load.
 - Day number and task title appear alongside each node, alternating sides with the serpentine layout.
 
-### Journey progress (widget) — V2
-Widget is deferred to V2. When built: progress ring (arc) showing day/30 as fill percentage. Ring stroke in `green-500`, background stroke in `green-200`. Center text: "Day 12" in bold. Below ring: truncated task title. Tap → deep link to current task.
+### Journey progress (widget)
+An iOS Today Task widget is already implemented with small, medium, accessory rectangular, and accessory inline families. Future widget work should reuse the existing App Group and WidgetKit infrastructure rather than treating widgets as greenfield work.
 
 ### Task card
 The hero element. White card on `green-50` background. Rounded corners (16px). Soft shadow (`0 2px 8px rgba(27,67,50,0.08)`). Large task title (`screen title` weight), task body below. Inviting but not intimidating.
@@ -211,13 +211,12 @@ Accessible from Account tab or a "Resources" button in the journey header (post-
 - In dark mode: `dark-surface` background, shadow replaced by `dark-border` 1px border.
 
 ### Navigation
-Bottom tab bar with 4 tabs. Use icons from `lucide-react-native` (or `@expo/vector-icons` Feather set):
+Bottom tab bar currently exposes 3 visible tabs, with Community still available as a route but hidden from the tab bar. Use icons from `lucide-react-native` (or `@expo/vector-icons` Feather set):
 
 | Tab | Icon (active) | Icon (inactive) | Label |
 |---|---|---|---|
 | Journey | `compass` (filled) | `compass` (outline) | Journey |
-| Community | `message-circle` (filled) | `message-circle` (outline) | Community |
-| Progress | `bar-chart-2` (filled) | `bar-chart-2` (outline) | Progress |
+| Toolkit | `wrench` (filled) | `wrench` (outline) | Toolkit |
 | Account | `user` (filled) | `user` (outline) | Account |
 
 - Active tab: `green-500` icon + label. Inactive tab: `green-200` icon, `text-secondary` label.
@@ -282,7 +281,7 @@ When the user returns after inactivity, show a dismissible banner above the curr
 - Contrast targets: WCAG AA minimum (4.5:1 for body text, 3:1 for large text and UI elements)
 - Touch targets: minimum 44x44pt (iOS) / 48x48dp (Android)
 - Screen reader: all interactive elements labeled, task content structured with proper headings
-- Motion: respect `prefers-reduced-motion` and provide manual toggle in Settings. When on: replace springs with 150ms opacity fades, disable confetti, keep haptics.
+- Motion: respect `prefers-reduced-motion` and provide manual toggle in Account. When on: replace springs with 150ms opacity fades, disable confetti, keep haptics.
 - Color: never convey meaning through color alone; pair with icons or text labels.
 
 ## Do and Don't

@@ -15,7 +15,7 @@ import { useAuth } from "../../hooks/useAuth";
 
 export function QuizScreen() {
   const { user } = useAuth();
-  const { data: questions } = useQuery({
+  const { data: questions, isLoading, isError } = useQuery({
     enabled: Boolean(user?.id),
     queryFn: async () => {
       const { data, error } = await supabase.from("quiz_questions").select("*");
@@ -49,6 +49,26 @@ export function QuizScreen() {
             How much stuck?
           </Text>
         </View>
+
+        {isLoading ? (
+          <AppCard>
+            <Text className="text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+              Loading questions...
+            </Text>
+          </AppCard>
+        ) : isError ? (
+          <AppCard>
+            <Text className="text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+              Something went wrong loading the quiz. Please try again later.
+            </Text>
+          </AppCard>
+        ) : attempt.length === 0 ? (
+          <AppCard>
+            <Text className="text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+              No quiz questions available yet. Check back soon.
+            </Text>
+          </AppCard>
+        ) : null}
 
         {attempt.map((question, index) => (
           <AppCard key={question.id}>

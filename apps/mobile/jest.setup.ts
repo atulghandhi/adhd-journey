@@ -41,6 +41,13 @@ jest.mock("expo-haptics", () => ({
   selectionAsync: jest.fn(),
 }));
 
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { extra: { eas: { projectId: "test-project-id" } } },
+  },
+}));
+
 jest.mock("nativewind", () => ({
   useColorScheme: () => ({ colorScheme: "light", setColorScheme: jest.fn() }),
 }));

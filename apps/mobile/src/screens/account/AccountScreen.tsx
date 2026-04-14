@@ -22,7 +22,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useProfile } from "../../hooks/useProfile";
-import { fetchJourneyState } from "../../lib/journey-api";
+import { fetchJourneyState, submitCompletionCheckIn } from "../../lib/journey-api";
 import { updateProfile } from "../../lib/profile";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../providers/ToastProvider";
@@ -36,6 +36,7 @@ export function AccountScreen() {
   const { showToast } = useToast();
   const { selectionChanged } = useHaptics();
   const pendingCheckIns = useOfflineQueueStore((store) => store.pendingCheckIns);
+  const removeCheckIn = useOfflineQueueStore((store) => store.removeCheckIn);
   const [savingTheme, setSavingTheme] = useState<string | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -185,10 +186,21 @@ export function AccountScreen() {
   };
 
   const handleSyncPending = async () => {
+    let synced = 0;
+
     try {
-      await fetchJourneyState();
+      for (const item of pendingCheckIns) {
+        await submitCompletionCheckIn(item.taskId, item.input);
+        removeCheckIn(item.id);
+        synced++;
+      }
+
       await refetchJourney();
-      showToast("We checked for queued progress.");
+      showToast(
+        synced > 0
+          ? `Synced ${synced} pending check-in${synced > 1 ? "s" : ""}.`
+          : "Queue is empty — nothing to sync.",
+      );
     } catch {
       showToast("Couldn’t sync pending check-ins yet.", "error");
     }
@@ -367,12 +379,20 @@ export function AccountScreen() {
             <PrimaryButton onPress={() => router.push("/gateway-settings" as never)}>
               App Disrupt settings
             </PrimaryButton>
-            <PrimaryButton onPress={() => router.push("/completion/resources" as never)}>
-              Open resources
-            </PrimaryButton>
-            <PrimaryButton onPress={() => router.push("/completion/quiz" as never)}>
-              Take the quiz
-            </PrimaryButton>
+            {state?.isPostCompletion && profile?.payment_status === "paid" ? (
+              <>
+                <PrimaryButton onPress={() => router.push("/completion/resources" as never)}>
+                  Open resources
+                </PrimaryButton>
+                <PrimaryButton onPress={() => router.push("/completion/quiz" as never)}>
+                  Take the quiz
+                </PrimaryButton>
+              </>
+            ) : (
+              <Text className="text-sm leading-6 text-focuslab-secondary dark:text-dark-text-secondary">
+                Resources and the quiz unlock after you complete the 30-day journey.
+              </Text>
+            )}
             <PrimaryButton onPress={handleRestart}>Restart journey</PrimaryButton>
           </View>
         </AppCard>

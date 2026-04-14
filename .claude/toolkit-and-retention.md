@@ -25,10 +25,10 @@ The 30 tasks are not a checklist to complete and forget — they are strategies 
 
 ---
 
-## V1: Toolkit (IMPLEMENTING NOW)
+## V1: Toolkit (CURRENTLY IMPLEMENTED)
 
 ### Concept
-Each completed task can become a "keeper" — a strategy the user wants to incorporate into daily life. The Progress tab becomes the **Toolkit** tab.
+Each completed task can become a "keeper" — a strategy the user wants to incorporate into daily life. In the current app, the user-facing tab label is already **Toolkit**.
 
 ### Check-in flow addition
 After the emoji rating and reflection prompts, before submit:
@@ -67,7 +67,7 @@ After the emoji rating and reflection prompts, before submit:
 
 ---
 
-## V2: Mindful Gateway as Active Resurfacing (DEFERRED)
+## App Disrupt as Active Resurfacing
 
 ### Concept
 Instead of in-app nudges (which require the user to open the app), use the iOS Shortcuts mindful gateway as the delivery mechanism for strategy reminders.
@@ -88,9 +88,11 @@ Instead of in-app nudges (which require the user to open the app), use the iOS S
 - **Keeps daily task page clean** — no extra cards competing for attention
 - **The intercept IS the spaced repetition** — gateway = delivery mechanism for SR-scheduled strategy reminders
 
-### Implementation plan (iOS first)
-- V1: iOS Shortcuts tutorial, user sets up manually
-- V2: Native app intercept (Screen Time API / MDM-style, if permitted by Apple)
+### Current implementation status
+- The mobile app already includes a toolkit flow and an `App Disrupt` surface in the Toolkit screen.
+- The app-side breathing / gateway UI already exists.
+- Native FamilyControls bridge and extension files now exist in the worktree, but Expo config wiring is still pending.
+- The core retention idea remains the same: surface saved strategies at the moment of distraction instead of only inside the app.
 
 ---
 
@@ -126,7 +128,7 @@ Split 30 tasks into behavioral categories:
 ## 3rd Party Analysis: Key Takeaways
 
 ### Adopt now
-- Rename "Progress" tab → "Toolkit" — strategies are tools, not achievements
+- Keep the `Toolkit` naming consistent across mobile, docs, and any future web surface
 - "Keep / Maybe later / Not for me" > binary checkbox
 - Living tools should be editable from Toolkit (esp. Day 1 cycling list, Day 14 trap plans)
 - Copy improvements: "Did you give it a real try?" > "Did you try it?"
@@ -145,6 +147,6 @@ Split 30 tasks into behavioral categories:
 - Heavy emphasis on "course feel" problem — the structure IS the value prop for ADHD users
 
 ### Sequencing recommendation
-1. **Now**: Toolkit tab + "keep this strategy?" at check-in
-2. **Next**: Mindful gateway with strategy surfacing
+1. **Now**: keep the Toolkit flow strong and easy to edit
+2. **Next**: finish the native App Disrupt / FamilyControls wiring so strategy surfacing is fully automatic on iOS
 3. **Later**: Implementation intentions, identity cards, context chips, task taxonomy

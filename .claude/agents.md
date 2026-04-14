@@ -1,198 +1,161 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Naming
 
-```
+- The repository and npm scopes still use `focuslab` / `@focuslab/*`.
+- The shipped product name in the apps is `Next Thing`.
+- Treat `FocusLab` as the codebase namespace and `Next Thing` as the user-facing brand.
+
+## Project Structure
+
+```text
 focuslab/
 ├── apps/
-│   ├── mobile/                # React Native + Expo (SDK 55+, RN 0.83) — iOS + Android
-│   │   ├── App.tsx            # Minimal entry point (returns null, required by Expo)
+│   ├── mobile/                  # Expo 55 / React Native 0.83 app
+│   │   ├── app/                 # Expo Router routes
+│   │   │   ├── (tabs)/          # Visible tabs: Journey, Toolkit, Account
+│   │   │   ├── auth/            # Login, register, confirm-email, forgot-password
+│   │   │   ├── completion/      # Congrats, quiz, resources
+│   │   │   ├── disrupt.tsx      # App Disrupt breathing screen
+│   │   │   ├── disrupt-setup.tsx
+│   │   │   ├── gateway-settings.tsx
+│   │   │   └── journey/mindful-gateway.tsx
+│   │   ├── modules/
+│   │   │   ├── widget-data-bridge/
+│   │   │   └── family-controls-bridge/   # Native iOS work in progress
+│   │   ├── plugins/
+│   │   │   ├── withTodayTaskWidget/
+│   │   │   └── withFamilyControls/       # Present in tree, not yet enabled in app.config.ts
 │   │   ├── src/
-│   │   │   ├── screens/       # Screen components by feature (journey/, community/, progress/, auth/, onboarding/, payment/, completion/, settings/, account/)
-│   │   │   ├── components/    # Shared UI components
-│   │   │   │   ├── ui/        # Primitives: AppCard, PrimaryButton, EmojiText, Skeleton, SegmentedControl, Switch
-│   │   │   │   ├── tasks/     # Interactive task renderers: TaskRenderer, DragListTask, TimedChallengeTask, etc. (Phase 2)
-│   │   │   │   ├── ReactionPill.tsx      # Community reaction pill (Phase 0)
-│   │   │   │   ├── EmojiRating.tsx       # 5-emoji check-in control
-│   │   │   │   ├── JourneyMap.tsx        # Serpentine journey map (Phase 3 overhaul)
-│   │   │   │   ├── JourneyMapNode.tsx    # Individual map node (Phase 3)
-│   │   │   │   ├── StreakBadge.tsx       # Always-visible streak pill (Phase 3 overhaul)
-│   │   │   │   └── ProgressRing.tsx      # SVG progress ring (Phase 4)
-│   │   │   ├── navigation/    # Tab + stack navigation (Expo Router — file-based routing)
-│   │   │   ├── stores/        # Zustand stores (local UI state, offline queue)
-│   │   │   ├── hooks/         # Custom hooks (useHaptics, useJourneyProgress, useSupabase, useAuth, useReducedMotion)
-│   │   │   ├── lib/           # Supabase client init, RevenueCat init, query keys
-│   │   │   ├── constants/     # motivation.ts (Phase 4 quotes)
-│   │   │   ├── animations/    # Spring animation configs (react-native-reanimated withSpring — see design.md for values)
-│   │   │   └── theme/         # Colors, typography, spacing tokens (NativeWind)
-│   │   ├── app.config.ts      # Expo config (with plugins for notifications, RevenueCat)
-│   │   ├── babel.config.js    # Includes expo-router/babel plugin
-│   │   ├── eas.json           # EAS Build profiles (development, preview, production)
-│   │   └── tailwind.config.js # NativeWind config
-│   │
-│   └── web/                   # Next.js 14+ (App Router) — admin CMS + user dashboard
-│       ├── src/
-│       │   ├── app/           # App Router pages (admin/, dashboard/, auth/)
-│       │   ├── components/    # Shared UI components
-│       │   ├── lib/           # Supabase client init (server + client), query keys
-│       │   └── hooks/         # Custom hooks
-│       ├── tailwind.config.js
-│       └── next.config.js
-│
-├── packages/
-│   └── shared/                # Shared TypeScript types + pure utility functions
+│   │   │   ├── animations/
+│   │   │   ├── components/
+│   │   │   │   ├── tasks/      # Interactive task renderers
+│   │   │   │   └── ui/
+│   │   │   ├── hooks/
+│   │   │   ├── lib/
+│   │   │   ├── providers/
+│   │   │   ├── screens/
+│   │   │   │   ├── account/
+│   │   │   │   ├── auth/
+│   │   │   │   ├── completion/
+│   │   │   │   ├── disrupt/
+│   │   │   │   ├── gateway/
+│   │   │   │   ├── journey/
+│   │   │   │   ├── onboarding/
+│   │   │   │   ├── payment/
+│   │   │   │   └── progress/
+│   │   │   ├── stores/
+│   │   │   └── test/
+│   │   └── app.config.ts
+│   └── web/                     # Next.js 16 App Router app
 │       └── src/
-│           ├── types/         # Auto-generated DB types (database.ts) + app-level types
-│           └── algorithm/     # Spaced-repetition algorithm (pure, testable, no deps)
-│               └── __tests__/ # Algorithm unit tests
-│
-├── supabase/                  # Supabase project config (managed by Supabase CLI)
-│   ├── migrations/            # SQL migration files (schema changes)
-│   │   ├── 00001_initial_schema.sql
-│   │   ├── 00002_pg_cron_notifications.sql
-│   │   ├── 00003_reward_resources.sql
-│   │   ├── 00004_task_interaction_type.sql  # adds interaction_type enum + interaction_config JSONB
-│   │   ├── 00005_seed_interaction_types.sql # assigns interaction types to all 30 tasks
-│   │   └── 00006_add_interaction_types.sql  # adds checklist, guided_steps, time_tracker enum values
-│   ├── functions/             # Edge Functions (Deno runtime)
-│   │   ├── _shared/           # Shared utilities (CORS headers, response helpers, domain.ts)
-│   │   │   ├── cors.ts
-│   │   │   └── domain.ts      # Duplicated shared logic (993 lines) — Deno can't import npm workspace packages
+│           ├── app/
+│           │   ├── admin/
+│           │   ├── auth/
+│           │   └── dashboard/
+│           ├── components/
+│           ├── lib/
+│           └── test/
+├── packages/
+│   └── shared/
+│       └── src/
+│           ├── algorithm/
+│           ├── constants/
+│           ├── journey/
+│           ├── notifications/
+│           ├── quiz/
+│           ├── timezone.ts
+│           └── types/
+├── supabase/
+│   ├── functions/
+│   │   ├── _shared/
+│   │   ├── admin-analytics/
 │   │   ├── complete-check-in/
-│   │   ├── get-journey-state/
 │   │   ├── daily-notifications/
 │   │   ├── daily-reviews/
-│   │   ├── verify-payment/
-│   │   └── admin-analytics/
-│   ├── seed.sql               # Seed data (30 tasks, quiz questions, notification templates, SR config, admin user)
-│   └── config.toml            # Supabase local dev config
-│
-├── content/                   # Source content for the 30 journey tasks (human-authored drafts)
-│   ├── 30-tasks-draft.md      # The 30 task definitions — use this to populate seed data and CMS
-│   └── quiz-questions.json    # Placeholder quiz questions (30 items, one per task)
-├── scripts/
-│   ├── make-admin.ts          # CLI script to promote a user to admin role
-│   ├── sync-mobile-env.mjs    # Sync .env.local to apps/mobile/.env.local for Expo
-│   ├── test-delete-account.ts # Smoke test for delete-account flow
-│   └── build-edge-runtime-with-local-ca.sh  # Rebuild Edge Runtime with corporate proxy CA
-├── .claude/                   # Project spec files (prompt, plans, architecture, design, implementation rules)
-├── .env.example               # Required environment variables (never real values)
-├── turbo.json                 # Turborepo config
-├── package.json               # Workspace root
-└── tsconfig.json              # Root TS config
+│   │   ├── delete-account/
+│   │   ├── get-journey-state/
+│   │   ├── health/
+│   │   └── verify-payment/
+│   ├── migrations/
+│   └── seed.sql
+└── .claude/
 ```
 
-Key differences from a traditional API server setup:
-- **No `apps/api/` directory.** Supabase replaces the custom API server. CRUD operations use the Supabase JS client directly. Business logic lives in `supabase/functions/` (Edge Functions).
-- **No ORM.** Types are auto-generated from the Postgres schema via `supabase gen types typescript`.
-- **No Redis.** Supabase handles sessions/auth; TanStack Query handles client-side caching.
+## Current Product Surface
 
-## Build, Test, and Development Commands
+- Mobile auth, onboarding, journey progression, check-ins, skips, spaced repetition, paywall, completion quiz/resources, toolkit management, and account settings are implemented.
+- The visible mobile tab bar currently exposes `Journey`, `Toolkit`, and `Account`. The `community` route still exists, but the tab is hidden with `href: null`.
+- `App Disrupt` exists in two forms:
+  - a lightweight tutorial / shortcuts path
+  - a richer gateway flow with `gatewayStore`, settings UI, open limits, free windows, and native FamilyControls bridge files
+- iOS widget support is already in the repo via `withTodayTaskWidget`.
+- The web app includes the marketing page, auth routes, user dashboard, and admin CMS.
 
-### Prerequisites
-- Node.js 20+ (LTS)
-- Supabase CLI (`brew install supabase/tap/supabase`)
-- Docker Desktop (required by `supabase start` for local dev stack)
-- Expo CLI (`npx expo`)
-- Turborepo (`npx turbo`)
+## Commands
 
-### Dev (run from repo root)
-- `supabase start` — Start local Supabase stack (Postgres, Auth, Storage, Studio at localhost:54323)
-- `supabase functions serve` — Serve Edge Functions locally
-- `npx turbo dev` — Start mobile + web dev servers concurrently
-- `npx expo start` (from `apps/mobile/`) — Start Expo dev server
-- `npm run dev` (from `apps/web/`) — Start Next.js dev server
+### Root
 
-### Build
-- `npx turbo build` — Production builds for all apps
-- `eas build --profile development` — Expo Development Build (required for native modules: RevenueCat, push notifications)
-- `eas build --profile production` — Production mobile builds
+- `npm install`
+- `npm run dev`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run test:ci`
+- `npm run db:reset`
+- `npm run db:types`
+- `npm run mobile:env:sync`
 
-### Verification (run after every milestone)
-- `npx turbo lint` — ESLint across monorepo (zero warnings)
-- `npx turbo typecheck` — Strict TS checks without emitting
-- `npx turbo test` — All unit + integration tests
-- `npx turbo test -- --watch` — Watch mode during development
+### Mobile
 
-### Database
-- `supabase db push` — Apply migrations to local DB
-- `supabase db reset` — Reset local DB + re-apply all migrations + run seed
-- `supabase gen types typescript --local > packages/shared/src/types/database.ts` — Regenerate TS types after schema changes
-- `supabase functions deploy <name>` — Deploy an Edge Function to production
+- `npm run dev --workspace=@focuslab/mobile`
+- `npm run test --workspace=@focuslab/mobile`
+- `npm run typecheck --workspace=@focuslab/mobile`
 
-### Admin
-- `npx tsx scripts/make-admin.ts admin@example.com` — Promote a user to admin role
+### Web
 
-## Coding Style & Naming Conventions
-- Language: TypeScript (`.ts` / `.tsx`) across all apps and packages. Edge Functions use TypeScript on Deno runtime.
-- Indentation: 2 spaces; prefer clear, explicit code over cleverness.
-- Components: PascalCase filenames (for example, `TaskScreen.tsx`, `CheckInSheet.tsx`).
-- Hooks: `useX.ts` (for example, `useHaptics.ts`, `useJourneyProgress.ts`).
-- Stores: `xStore.ts` (for example, `offlineQueueStore.ts`, `onboardingStore.ts`) — Zustand stores.
-- Edge Functions: kebab-case directory names matching the function name (for example, `complete-check-in/index.ts`).
-- Supabase client: initialized once in `lib/supabase.ts` per app, imported everywhere.
-- Styling: NativeWind (Tailwind for RN) on mobile, Tailwind CSS on web. Use design tokens from `theme/` for colors, spacing, typography.
-- Linting: ESLint + Prettier. Zero warnings allowed. Run lint before all commits.
-- **Error handling**: Every network call in try/catch. Show user-friendly toast messages on failure — never raw errors or stack traces. Edge Functions return structured JSON errors.
-- **Security**: Never log PII (emails, passwords, payment info). Log user IDs (UUIDs) only. Service role key never in client code.
-- **CORS**: All Edge Functions return CORS headers via `supabase/functions/_shared/cors.ts`.
+- `npm run dev --workspace=@focuslab/web`
+- `npm run test --workspace=@focuslab/web`
+- `npm run test:e2e --workspace=@focuslab/web`
 
-## Testing Guidelines
-- Framework: Vitest for `packages/shared/` and `apps/web/`. Jest + React Native Testing Library for `apps/mobile/`. Deno test for Edge Functions.
-- Location: co-locate tests in `__tests__` directories alongside source.
-- Naming: `*.test.ts` / `*.test.tsx`.
-- Critical test coverage (must exist before milestone is marked done):
-    - Spaced-repetition algorithm: deterministic — same inputs always produce same output.
-    - Journey progression logic: unlock gating, time gating, multi-day extension, reinforcement insertion.
-    - Check-in validation: required fields, rating bounds, time-gate enforcement.
-    - Notification scheduling: template rotation, channel cycling, quiet hours.
-    - Paywall gating: free users blocked at task 16, paid users pass through.
-- Always run before merging: `npx turbo lint && npx turbo typecheck && npx turbo test`
+### Supabase
 
-## Commit & Pull Request Guidelines
-- Follow conventional commits: `feat: ...`, `fix: ...`, `docs: ...`, `test: ...`, `chore: ...`.
-- Keep commits focused and scoped to a single change.
-- PRs should include:
-    - A short problem/solution summary.
-    - Clear validation steps/commands.
-    - Screenshots or recordings for UI changes (especially mobile).
+- `supabase start`
+- `supabase db reset`
+- `supabase functions serve --env-file .env.local`
+- `supabase gen types typescript --local > packages/shared/src/types/database.ts`
 
-## Architecture Notes (Quick Map)
+## Working Notes
 
-### Business logic (Edge Functions — `supabase/functions/`)
-- `complete-check-in/` — Validates check-in, updates progress, triggers SR recalculation, enforces time-gating.
-- `get-journey-state/` — Aggregates user's current task, streak, reinforcement review, progress map.
-- `daily-notifications/` — Cron job: selects channel + template per user, sends via FCM/Resend.
-- `daily-reviews/` — Cron job: computes reinforcement reviews, updates spaced_repetition_state.
-- `verify-payment/` — RevenueCat webhook handler, updates payment_status.
-- `admin-analytics/` — Aggregates stats for admin dashboard.
+- When schema changes, regenerate `packages/shared/src/types/database.ts`.
+- Journey and notification logic is shared twice:
+  - source-of-truth app logic in `packages/shared/src/...`
+  - Deno-compatible copies in `supabase/functions/_shared/domain.ts`
+- If you change shared journey / notification behavior, keep the Deno copy aligned and run the equivalence tests in `packages/shared/src/__tests__/ef-equivalence.test.ts`.
+- Widget code is real production code, not a placeholder. Do not treat widgets as deferred work.
+- FamilyControls code exists in the worktree, but `apps/mobile/app.config.ts` still only enables `withTodayTaskWidget`. Native gateway work is not fully wired into Expo config yet.
+- The mobile deep-link scheme in `apps/mobile/app.config.ts` is `nextthing`. Some older config and docs still reference `focuslab://`; prefer the current scheme and document mismatches when touched.
 
-### Pure shared logic (`packages/shared/`)
-- Spaced-repetition algorithm: `src/algorithm/spacedRepetition.ts` — pure function, no DB deps.
-- Auto-generated DB types: `src/types/database.ts` — regenerated on schema changes.
-- App-level types: `src/types/` — journey state, check-in payloads, notification payloads, etc.
+## Testing Expectations
 
-### Mobile app (`apps/mobile/`)
-- Screens by feature: `src/screens/journey/`, `src/screens/community/`, `src/screens/progress/`, `src/screens/auth/`, `src/screens/onboarding/`, `src/screens/payment/`, `src/screens/completion/`, `src/screens/settings/`, `src/screens/account/`
-- Supabase client: `src/lib/supabase.ts`
-- Offline queue: `src/stores/offlineQueueStore.ts` (Zustand + persist)
-- Interactive task renderers: `src/components/tasks/` (TaskRenderer + 9 type-specific components: DragList, TimedChallenge, BreathingExercise, ReflectionPrompts, Journal, Markdown, Checklist, GuidedSteps, TimeTracker)
-- Community components: `src/components/ReactionPill.tsx`, `src/components/ui/EmojiText.tsx`
+- Shared package: Vitest
+- Web app: Vitest plus Playwright
+- Mobile app: Jest / React Native Testing Library
+- Edge Functions: Deno tests under `supabase/functions/_shared`
 
-### Web dashboard (`apps/web/`)
-- Admin CMS: `src/app/admin/` (tasks, templates, moderation, analytics, SR config, rewards)
-  - Task editor includes: interaction_type dropdown, JSON config editor
-  - Task list includes: type distribution summary, consecutive-type warning
-- User dashboard: `src/app/dashboard/` (stats, history)
-- Auth pages: `src/app/auth/`
-- Supabase clients: `src/lib/supabase-server.ts` (server components) + `src/lib/supabase-client.ts` (client components)
+Use at least the relevant local checks for the area you touched:
 
-### Task content source
-- `content/30-tasks-draft.md` — The human-authored 30 task definitions. Use this as the source of truth when writing `supabase/seed.sql` task rows and when populating the admin CMS.
+- UI copy or docs only: no build required, but verify paths / commands / feature names against code.
+- Shared logic: `npm run test --workspace=@focuslab/shared`
+- Mobile behavior: `npm run test --workspace=@focuslab/mobile`
+- Web behavior: `npm run test --workspace=@focuslab/web`
+- Schema / Edge Function changes: `supabase db reset` and `npm run test:edge`
 
-### Database schema
-- Managed via SQL migrations in `supabase/migrations/`.
-- Seed data in `supabase/seed.sql` — 30 tasks (sourced from `content/30-tasks-draft.md`), sample notification templates, default SR config.
-- See `architecture.md` for full table definitions, RLS policies, timezone handling, and security rules.
+## Conventions
 
-Note: Home screen widget is deferred to V2. Do not build native Swift/Kotlin widget code in V1.
+- TypeScript everywhere.
+- Use Expo Router routes in `apps/mobile/app`, with screen implementations in `apps/mobile/src/screens`.
+- Keep user-facing terminology aligned with the product:
+  - `Journey` for daily progression
+  - `Toolkit` for saved strategies
+  - `App Disrupt` for the gateway / mindful-intercept feature
