@@ -14,16 +14,13 @@ async function fetchThread(taskId: string) {
   }
 
   const postIds = (posts ?? []).map((post) => post.id);
-  const userIds = [...new Set((posts ?? []).map((post) => post.user_id))];
-  const [repliesResponse, reactionsResponse, authorsResponse] = await Promise.all([
+  const postUserIds = (posts ?? []).map((post) => post.user_id);
+  const [repliesResponse, reactionsResponse] = await Promise.all([
     postIds.length > 0
       ? supabase.from("community_replies").select("*").in("post_id", postIds)
       : Promise.resolve({ data: [], error: null }),
     postIds.length > 0
       ? supabase.from("community_reactions").select("*").in("post_id", postIds)
-      : Promise.resolve({ data: [], error: null }),
-    userIds.length > 0
-      ? supabase.from("profiles").select("id,name").in("id", userIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -34,6 +31,14 @@ async function fetchThread(taskId: string) {
   if (reactionsResponse.error) {
     throw reactionsResponse.error;
   }
+
+  // Collect all user IDs from posts AND replies for author name lookup
+  const replyUserIds = (repliesResponse.data ?? []).map((r) => r.user_id);
+  const allUserIds = [...new Set([...postUserIds, ...replyUserIds])];
+
+  const authorsResponse = allUserIds.length > 0
+    ? await supabase.from("profiles").select("id,name").in("id", allUserIds)
+    : { data: [], error: null };
 
   if (authorsResponse.error) {
     throw authorsResponse.error;
@@ -49,7 +54,12 @@ async function fetchThread(taskId: string) {
     reactions: (reactionsResponse.data ?? []).filter(
       (reaction) => reaction.post_id === post.id,
     ),
-    replies: (repliesResponse.data ?? []).filter((reply) => reply.post_id === post.id),
+    replies: (repliesResponse.data ?? [])
+      .filter((reply) => reply.post_id === post.id)
+      .map((reply) => ({
+        ...reply,
+        authorName: authorsById.get(reply.user_id) ?? "Next Thing user",
+      })),
   }));
 }
 
@@ -92,6 +102,12 @@ export function useCommunityActions(taskId: string | null) {
 
   const createReply = useMutation({
     mutationFn: async (args: { body: string; postId: string }) => {
+      const trimmedBody = args.body.trim();
+
+      if (!trimmedBody) {
+        throw new Error("Reply cannot be empty.");
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -101,7 +117,7 @@ export function useCommunityActions(taskId: string | null) {
       }
 
       const { error } = await supabase.from("community_replies").insert({
-        body: args.body,
+        body: trimmedBody,
         post_id: args.postId,
         user_id: user.id,
       });

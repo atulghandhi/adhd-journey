@@ -29,7 +29,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <AppProviders>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <Stack
           screenOptions={{
             contentStyle: {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { getSiteUrl } from "@/lib/site-url";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 
 export function ForgotPasswordForm() {
@@ -15,7 +16,7 @@ export function ForgotPasswordForm() {
     setIsSubmitting(true);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: "http://127.0.0.1:3000/auth/confirm",
+      redirectTo: `${getSiteUrl()}/auth/reset-password`,
     });
 
     setIsSubmitting(false);

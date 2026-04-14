@@ -13,11 +13,15 @@ export function ForgotPasswordScreen() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: "https://app.nextthing.co/auth/reset-password",
+    });
 
     setIsSubmitting(false);
     setMessage(
-      error ? error.message : "If that email exists, a password reset message is on the way.",
+      error
+        ? error.message
+        : "Check your email — the reset link will open in your browser where you can set a new password.",
     );
   };
 

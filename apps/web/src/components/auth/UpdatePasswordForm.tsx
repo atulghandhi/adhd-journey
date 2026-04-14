@@ -3,33 +3,33 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { getSiteUrl } from "@/lib/site-url";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 
-export function RegisterForm() {
+export function UpdatePasswordForm() {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setMessage(null);
 
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          name: name.trim(),
-        },
-        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
-      },
-    });
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const { error } = await supabase.auth.updateUser({ password });
 
     setIsSubmitting(false);
 
@@ -38,7 +38,7 @@ export function RegisterForm() {
       return;
     }
 
-    router.push(`/auth/confirm?email=${encodeURIComponent(email.trim())}`);
+    router.push("/dashboard");
     router.refresh();
   };
 
@@ -46,23 +46,17 @@ export function RegisterForm() {
     <form className="space-y-4" onSubmit={handleSubmit}>
       <input
         className="w-full rounded-2xl border border-focuslab-border px-4 py-3"
-        onChange={(event) => setName(event.target.value)}
-        placeholder="Name"
-        value={name}
-      />
-      <input
-        className="w-full rounded-2xl border border-focuslab-border px-4 py-3"
-        onChange={(event) => setEmail(event.target.value)}
-        placeholder="Email"
-        type="email"
-        value={email}
-      />
-      <input
-        className="w-full rounded-2xl border border-focuslab-border px-4 py-3"
         onChange={(event) => setPassword(event.target.value)}
-        placeholder="Password"
+        placeholder="New password"
         type="password"
         value={password}
+      />
+      <input
+        className="w-full rounded-2xl border border-focuslab-border px-4 py-3"
+        onChange={(event) => setConfirmPassword(event.target.value)}
+        placeholder="Confirm new password"
+        type="password"
+        value={confirmPassword}
       />
       {message ? <p className="text-sm text-red-600">{message}</p> : null}
       <button
@@ -70,7 +64,7 @@ export function RegisterForm() {
         disabled={isSubmitting}
         type="submit"
       >
-        {isSubmitting ? "Creating account..." : "Create account"}
+        {isSubmitting ? "Updating..." : "Set new password"}
       </button>
     </form>
   );

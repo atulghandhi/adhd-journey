@@ -92,7 +92,7 @@ export function PaywallScreen() {
             >
               Purchase unlock
             </PrimaryButton>
-            {!isConfigured ? (
+            {__DEV__ && !isConfigured ? (
               <PrimaryButton onPress={() => void handleDevUnlock()}>
                 Dev mode: tap to unlock paid tier
               </PrimaryButton>

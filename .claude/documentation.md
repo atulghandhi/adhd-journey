@@ -37,7 +37,7 @@ This document is updated continuously as milestones land so it reflects reality.
 - **Phase 5 — Variable content format**: complete (all 30 tasks assigned interaction_type with no consecutive duplicates, format hint icons on journey map, admin CMS type distribution + consecutive-type warnings)
 - **Phase 6 — Account screen polish**: complete (SegmentedControl for theme, Switch toggles for notifications, sign-out, delete account, dark mode card border visibility)
 
-Note: Home screen widget is deferred to V2.
+- **iOS Widget (Today's Task)**: implemented — Expo config plugin adds WidgetKit extension target. Requires native dev build.
 
 Bootstrap note:
 - 2026-03-17: Implementation started from an almost-empty repository containing only spec files, content drafts, and Supabase local config.
@@ -119,6 +119,72 @@ supabase gen types typescript --local > packages/shared/src/types/database.ts  #
 supabase functions deploy <function-name>  # Deploy Edge Function to production
 ```
 
+## iOS Widget (Today's Task) — Build & Test
+
+The Today's Task widget uses WidgetKit and is added to the Xcode project via an Expo config plugin. It requires a native dev build (not Expo Go).
+
+### Architecture
+
+```
+React Native app
+  └─ useWidgetSync hook (fires on journey state change + foreground)
+       └─ WidgetDataBridge native module (Expo Module)
+            └─ UserDefaults(suiteName: "group.app.nextthing")
+                 └─ WidgetCenter.shared.reloadAllTimelines()
+                      └─ TodayTaskWidget reads shared data
+```
+
+### Key files
+
+- **Config plugin**: `apps/mobile/plugins/withTodayTaskWidget/withTodayTaskWidget.js` — adds widget extension target + App Group entitlements to the Xcode project during `expo prebuild`
+- **Swift widget sources**: `apps/mobile/plugins/withTodayTaskWidget/swift/` — `TodayTaskWidgetBundle.swift`, `TodayTaskWidget.swift`, `WidgetData.swift`
+- **Native bridge module**: `apps/mobile/modules/widget-data-bridge/` — Expo Module that writes JSON to shared UserDefaults and reloads timelines
+- **React Native hook**: `apps/mobile/src/hooks/useWidgetSync.ts` — syncs `JourneyState` to the bridge on data change and app foreground
+- **Wired in**: `apps/mobile/src/providers/AppProviders.tsx` — `<WidgetSync />` headless component
+
+### Widget sizes
+
+| Family | Size | Content |
+|---|---|---|
+| `systemSmall` | 2×2 | Day number, task title (3 lines), streak badge, "Check in →" |
+| `systemMedium` | 4×2 | Day X of 30, task title + description, streak, "Start check-in →" |
+| `accessoryRectangular` | Lock screen | Day count + task title (compact) |
+| `accessoryInline` | Lock screen | "Day 12/30 🔥7" one-liner |
+
+### Build & test
+
+```bash
+# 1. Regenerate the iOS project with the widget extension
+cd apps/mobile
+npx expo prebuild --platform ios --clean
+
+# 2. Open in Xcode
+open ios/FocusLab.xcworkspace
+
+# 3. Select the main app target (FocusLab), pick your device/simulator, Build & Run (⌘R)
+
+# 4. Add the widget:
+#    - Long-press Home Screen → "+" → search "Next Thing" or "Today's Task"
+#    - Choose small or medium size → Add Widget
+
+# 5. Verify widget updates:
+#    - Open the app, complete a check-in → widget should refresh within seconds
+#    - Background the app and re-open → widget refreshes on foreground
+```
+
+### Troubleshooting
+
+- **Widget not in picker**: Ensure the `TodayTaskWidgetExtension` target built successfully in Xcode. Check Build Phases for the widget target.
+- **Widget shows "Open Next Thing"**: The app hasn't synced data yet. Open the app while signed in and wait for journey state to load.
+- **Widget doesn't refresh**: Verify App Group `group.app.nextthing` is in both the main app and widget extension entitlements. Check that `WidgetCenter.shared.reloadAllTimelines()` is being called (add a breakpoint in `WidgetDataBridgeModule.swift`).
+- **Xcode build error on widget target**: Ensure deployment target is iOS 17.0+ and Swift language version is 5.0+ in the widget extension build settings.
+
+### App Group
+
+- **ID**: `group.app.nextthing`
+- **UserDefaults key**: `widget_data`
+- **Data format**: JSON string matching the `WidgetData` Swift struct (see `WidgetData.swift`)
+
 ## Admin CMS usage
 
 - Access: navigate to `/admin` on the web dashboard. The server layout checks `profiles.role = 'admin'` and redirects non-admins back to `/dashboard`.
@@ -155,7 +221,7 @@ If credentials are missing, the notification Edge Function logs `[STUB]` warning
 - **REVENUECAT_SECRET_KEY**: RevenueCat secret key for webhook verification in `verify-payment` Edge Function.
 
 ### Dev mode bypass
-If `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` is missing, the paywall screen shows a "Dev mode: tap to unlock paid tier" button that sets `profiles.payment_status = 'paid'` directly.
+If `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` is missing **and the app is running in `__DEV__` mode**, the paywall screen shows a "Dev mode: tap to unlock paid tier" button that sets `profiles.payment_status = 'paid'` directly. In production builds, this button is never shown.
 
 ### In-app flow
 - `apps/mobile/src/lib/revenuecat.ts` lazy-loads `react-native-purchases`, configures the SDK when the public key is present, loads the current offering, and attempts to purchase the primary package.
@@ -237,6 +303,7 @@ All variables are documented in `.env.example`. Required for production:
 | `FCM_SERVER_KEY` | For push notifications | Firebase Cloud Messaging server key |
 | `RESEND_API_KEY` | For email | Resend API key |
 | `RESEND_FROM_EMAIL` | For email | Verified sender email address |
+| `NEXT_PUBLIC_SITE_URL` | For deployed web | Base URL for auth email redirect links (e.g. `https://app.nextthing.co`) |
 | `EXPO_PUBLIC_REVENUECAT_PUBLIC_SDK_KEY` | For payments (mobile) | RevenueCat public SDK key exposed to Expo |
 | `REVENUECAT_SECRET_KEY` | For payments (webhook) | RevenueCat secret key for verification |
 
@@ -336,7 +403,7 @@ All tables have Row Level Security (RLS) policies. See `architecture.md` for the
 - **Push notifications not delivering**: Check `FCM_SERVER_KEY` env var. If missing, stub mode is active (check logs for `[STUB]`). Verify device token is registered in `push_tokens` table.
 - **Email not sending**: Check `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. Verify sender domain in Resend dashboard.
 - **`supabase functions serve` fails immediately**: In this environment the bundled Edge Runtime aborts before loading project code because it cannot validate `https://deno.land/std/http/status.ts` (`invalid peer certificate: UnknownIssuer`). This is currently an external runtime/certificate problem rather than a FocusLab import or syntax error.
-- **Widget not updating (V2)**: Home screen widget is deferred to V2. If building it later: widget reads from shared app storage; ensure the app has written fresh data after task unlock. Requires native build.
+- **Widget not updating**: The widget reads from App Group UserDefaults (`group.app.nextthing`). Data is written by the `useWidgetSync` hook when journey state changes. If the widget shows stale data: open the app to trigger a sync, or verify the App Group entitlement is correctly configured in the Xcode project.
 - **Payment sandbox issues**: Ensure RevenueCat is configured with sandbox credentials. Check `verify-payment` Edge Function logs. Dev mode bypass is available when `REVENUECAT_PUBLIC_SDK_KEY` is missing.
 - **Auth token expired**: Supabase JS client auto-refreshes tokens. If it fails, the user will be redirected to login. Check Supabase Auth logs in Studio (localhost:54323).
 - **Edge Function not responding**: Run `supabase functions serve` to serve locally. Check Deno runtime errors in terminal output. Ensure the function directory name matches the invocation URL.

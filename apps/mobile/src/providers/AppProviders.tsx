@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { AppState } from "react-native";
 
 import { useAuth } from "../hooks/useAuth";
 import { useWidgetSync } from "../hooks/useWidgetSync";
@@ -15,35 +16,43 @@ function OfflineQueueSync() {
   const { user } = useAuth();
   const pendingCheckIns = useOfflineQueueStore((state) => state.pendingCheckIns);
   const removeCheckIn = useOfflineQueueStore((state) => state.removeCheckIn);
+  const isSyncing = useRef(false);
 
-  useEffect(() => {
-    if (!user?.id || pendingCheckIns.length === 0) {
+  const sync = useCallback(async () => {
+    if (!user?.id || pendingCheckIns.length === 0 || isSyncing.current) {
       return;
     }
 
-    let cancelled = false;
+    isSyncing.current = true;
 
-    const sync = async () => {
-      for (const item of pendingCheckIns) {
-        try {
-          await submitCompletionCheckIn(item.taskId, item.input);
-
-          if (!cancelled) {
-            removeCheckIn(item.id);
-            void queryClient.invalidateQueries({ queryKey: ["journey-state"] });
-          }
-        } catch {
-          return;
-        }
+    for (const item of pendingCheckIns) {
+      try {
+        await submitCompletionCheckIn(item.taskId, item.input);
+        removeCheckIn(item.id);
+        void queryClient.invalidateQueries({ queryKey: ["journey-state"] });
+      } catch {
+        break;
       }
-    };
+    }
 
-    void sync();
-
-    return () => {
-      cancelled = true;
-    };
+    isSyncing.current = false;
   }, [pendingCheckIns, removeCheckIn, user?.id]);
+
+  // Retry on state changes (new items, user login)
+  useEffect(() => {
+    void sync();
+  }, [sync]);
+
+  // Retry when app comes to foreground (network recovery)
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void sync();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [sync]);
 
   return null;
 }

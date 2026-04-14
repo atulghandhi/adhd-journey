@@ -24,7 +24,8 @@ const reactionOptions = ["👎", "👍", "🔥", "❤️", "😮"] as const;
 type CommunityPost = Database["public"]["Tables"]["community_posts"]["Row"];
 type CommunityReaction =
   Database["public"]["Tables"]["community_reactions"]["Row"];
-type CommunityReply = Database["public"]["Tables"]["community_replies"]["Row"];
+type CommunityReplyRow = Database["public"]["Tables"]["community_replies"]["Row"];
+type CommunityReply = CommunityReplyRow & { authorName: string };
 type ThreadPost = CommunityPost & {
   authorName: string;
   reactions: CommunityReaction[];
@@ -197,6 +198,9 @@ export function CommunityScreen() {
                   className="rounded-2xl bg-focuslab-background px-4 py-3 dark:bg-dark-bg"
                   key={reply.id}
                 >
+                  <Text className="mb-1 text-xs font-semibold text-focuslab-secondary dark:text-dark-text-secondary">
+                    {reply.authorName}
+                  </Text>
                   <Text className="text-sm leading-6 text-focuslab-primaryDark dark:text-dark-text-primary">
                     {reply.body}
                   </Text>

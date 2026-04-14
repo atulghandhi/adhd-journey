@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { getSiteUrl } from "@/lib/site-url";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 
 interface ResendConfirmationButtonProps {
@@ -27,7 +28,7 @@ export function ResendConfirmationButton({
       email,
       type: "signup",
       options: {
-        emailRedirectTo: "http://127.0.0.1:3000/auth/confirm",
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     });
 

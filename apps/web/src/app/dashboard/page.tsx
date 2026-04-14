@@ -47,6 +47,9 @@ export default async function DashboardPage() {
   const safeProgressRows = progressRows ?? [];
   const safeCheckIns = checkIns ?? [];
   const safeReviewStates = reviewStates ?? [];
+  const taskTitleById = new Map(
+    safeTasks.map((t) => [t.id, t.title]),
+  );
   const journeyState = profile
     ? buildJourneyState({
         checkIns: safeCheckIns,
@@ -173,7 +176,7 @@ export default async function DashboardPage() {
                       Rating {checkIn.quick_rating} • {checkIn.type.replace("_", " ")}
                     </p>
                     <p className="mt-2 text-sm text-focuslab-secondary">
-                      Task {checkIn.task_id}
+                      {taskTitleById.get(checkIn.task_id) ?? `Task ${checkIn.task_id}`}
                     </p>
                   </div>
                 ))
