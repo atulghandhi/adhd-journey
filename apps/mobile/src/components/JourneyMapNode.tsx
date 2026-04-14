@@ -65,7 +65,7 @@ export function JourneyMapNode({
   const pulseOpacity = useSharedValue(0.5);
   const nodeRotation = useSharedValue(0);
   const nodeScale = useSharedValue(1);
-  const circleSize = isActive ? 36 : isCompleted ? 32 : 28;
+  const circleSize = isActive ? 48 : isCompleted ? 40 : 36;
   const textAlignClass = position === "right" ? "text-right" : "text-left";
   const TypeIcon = INTERACTION_TYPE_ICONS[interactionType];
   const shouldShowInteractionHint = Boolean(
@@ -167,7 +167,7 @@ export function JourneyMapNode({
 
   return (
     <Pressable
-      className="w-[52%]"
+      className="w-[56%]"
       disabled={!canOpen}
       onLayout={handleLayout}
       onPress={() => {
@@ -179,7 +179,7 @@ export function JourneyMapNode({
         onPress?.();
       }}
       style={{
-        marginLeft: position === "left" ? "4%" : "44%",
+        marginLeft: position === "left" ? "2%" : "42%",
       }}
     >
       <View
@@ -211,24 +211,33 @@ export function JourneyMapNode({
               />
             ) : null}
             <View
-              className={`items-center justify-center rounded-full border ${
+              className={`items-center justify-center rounded-full ${
                 isCompleted
-                  ? "border-focuslab-primary bg-focuslab-primary"
+                  ? "border-2 border-focuslab-primary bg-focuslab-primary"
                   : isActive
-                    ? "border-focuslab-primary bg-white dark:bg-dark-surface"
-                    : "border-focuslab-border bg-white dark:border-dark-border dark:bg-dark-surface"
+                    ? "border-2 border-focuslab-primary bg-white dark:bg-dark-surface"
+                    : "border border-focuslab-border bg-focuslab-background dark:border-dark-border dark:bg-dark-bg"
               }`}
-              style={{
-                height: circleSize,
-                width: circleSize,
-              }}
+              style={[
+                {
+                  height: circleSize,
+                  width: circleSize,
+                },
+                (isCompleted || isActive) && {
+                  elevation: 4,
+                  shadowColor: "#40916C",
+                  shadowOffset: { height: 2, width: 0 },
+                  shadowOpacity: isActive ? 0.3 : 0.15,
+                  shadowRadius: isActive ? 8 : 4,
+                },
+              ]}
             >
               {isCompleted ? (
-                <Check color="#FFFFFF" size={16} />
+                <Check color="#FFFFFF" size={18} />
               ) : isLocked ? (
-                <View className="h-3 w-3 rounded-full border border-dashed border-focuslab-border dark:border-dark-border" />
+                <Circle color="#D8F3DC" fill="#D8F3DC" size={12} />
               ) : (
-                <Circle color="#40916C" fill="#40916C" size={14} />
+                <Circle color="#40916C" fill="#40916C" size={16} />
               )}
             </View>
           </Animated.View>
@@ -238,13 +247,25 @@ export function JourneyMapNode({
         </View>
 
         <View className={`flex-1 ${position === "right" ? "items-end" : ""}`}>
-          <Text
-            className={`text-xs font-medium uppercase tracking-[1.6px] text-focuslab-secondary dark:text-dark-text-secondary ${textAlignClass}`}
+          <View
+            className={`self-start rounded-full px-2 py-0.5 ${
+              isActive
+                ? "bg-focuslab-primary"
+                : isCompleted
+                  ? "bg-focuslab-background dark:bg-dark-bg"
+                  : "bg-focuslab-border dark:bg-dark-border"
+            } ${position === "right" ? "self-end" : ""}`}
           >
-            Day {order}
-          </Text>
+            <Text
+              className={`text-[10px] font-bold ${
+                isActive ? "text-white" : "text-focuslab-secondary dark:text-dark-text-secondary"
+              }`}
+            >
+              {isActive ? "START · " : ""}DAY {order}
+            </Text>
+          </View>
           <Text
-            className={`mt-1 text-base font-semibold ${
+            className={`mt-1.5 text-base font-semibold leading-5 ${
               isLocked
                 ? "text-focuslab-border dark:text-dark-border"
                 : "text-focuslab-primaryDark dark:text-dark-text-primary"
@@ -254,15 +275,10 @@ export function JourneyMapNode({
           </Text>
           {subtitle ? (
             <Text
-              className={`mt-1 text-sm text-gray-500 dark:text-dark-text-secondary ${textAlignClass}`}
+              className={`mt-1 text-xs text-focuslab-secondary dark:text-dark-text-secondary ${textAlignClass}`}
             >
               {subtitle}
             </Text>
-          ) : null}
-          {isActive && !isCompleted ? (
-            <View className="mt-2 rounded-full bg-focuslab-primary px-2 py-0.5">
-              <Text className="text-[10px] font-bold text-white">START</Text>
-            </View>
           ) : null}
         </View>
       </View>

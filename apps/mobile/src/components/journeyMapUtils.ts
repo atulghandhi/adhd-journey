@@ -6,8 +6,8 @@ export function getJourneyMapConnectorPath(
   fromPosition: "left" | "right",
   toPosition: "left" | "right",
 ) {
-  const fromX = fromPosition === "left" ? 26 : 74;
-  const toX = toPosition === "left" ? 26 : 74;
+  const fromX = fromPosition === "left" ? 20 : 80;
+  const toX = toPosition === "left" ? 20 : 80;
 
-  return `M ${fromX} 8 Q 50 36 ${toX} 64`;
+  return `M ${fromX} 0 C ${fromX} 32, ${toX} 48, ${toX} 80`;
 }

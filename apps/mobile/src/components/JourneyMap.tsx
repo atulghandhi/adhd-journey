@@ -49,15 +49,15 @@ export function JourneyMap({
               title={item.task.title}
             />
             {nextPosition ? (
-              <View className="h-16 w-full">
-                <Svg height="64" viewBox="0 0 100 72" width="100%">
+              <View className="h-20 w-full">
+                <Svg height="80" viewBox="0 0 100 80" width="100%">
                   <Path
                     d={getJourneyMapConnectorPath(position, nextPosition)}
                     fill="none"
-                    stroke={connectorUnlocked ? "#40916C" : "#B7E4C7"}
-                    strokeDasharray={connectorUnlocked ? undefined : "4,4"}
+                    stroke={connectorUnlocked ? "#52B788" : "#D8F3DC"}
+                    strokeDasharray={connectorUnlocked ? undefined : "6,6"}
                     strokeLinecap="round"
-                    strokeWidth="2"
+                    strokeWidth="3"
                   />
                 </Svg>
               </View>
