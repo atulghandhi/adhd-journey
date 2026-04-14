@@ -51,8 +51,9 @@ focuslab/
 │   │   ├── 00001_initial_schema.sql
 │   │   ├── 00002_pg_cron_notifications.sql
 │   │   ├── 00003_reward_resources.sql
-│   │   ├── 00004_task_interaction_type.sql  # Phase 1: adds interaction_type enum + interaction_config JSONB
-│   │   └── 00005_seed_interaction_types.sql # Phase 5: assigns types to all 30 tasks
+│   │   ├── 00004_task_interaction_type.sql  # adds interaction_type enum + interaction_config JSONB
+│   │   ├── 00005_seed_interaction_types.sql # assigns interaction types to all 30 tasks
+│   │   └── 00006_add_interaction_types.sql  # adds checklist, guided_steps, time_tracker enum values
 │   ├── functions/             # Edge Functions (Deno runtime)
 │   │   ├── _shared/           # Shared utilities (CORS headers, response helpers, domain.ts)
 │   │   │   ├── cors.ts
@@ -70,7 +71,10 @@ focuslab/
 │   ├── 30-tasks-draft.md      # The 30 task definitions — use this to populate seed data and CMS
 │   └── quiz-questions.json    # Placeholder quiz questions (30 items, one per task)
 ├── scripts/
-│   └── make-admin.ts          # CLI script to promote a user to admin role
+│   ├── make-admin.ts          # CLI script to promote a user to admin role
+│   ├── sync-mobile-env.mjs    # Sync .env.local to apps/mobile/.env.local for Expo
+│   ├── test-delete-account.ts # Smoke test for delete-account flow
+│   └── build-edge-runtime-with-local-ca.sh  # Rebuild Edge Runtime with corporate proxy CA
 ├── .claude/                   # Project spec files (prompt, plans, architecture, design, implementation rules)
 ├── .env.example               # Required environment variables (never real values)
 ├── turbo.json                 # Turborepo config
@@ -172,13 +176,13 @@ Key differences from a traditional API server setup:
 - Screens by feature: `src/screens/journey/`, `src/screens/community/`, `src/screens/progress/`, `src/screens/auth/`, `src/screens/onboarding/`, `src/screens/payment/`, `src/screens/completion/`, `src/screens/settings/`, `src/screens/account/`
 - Supabase client: `src/lib/supabase.ts`
 - Offline queue: `src/stores/offlineQueueStore.ts` (Zustand + persist)
-- Interactive task renderers: `src/components/tasks/` (Phase 2 — TaskRenderer + 6 type-specific components)
-- New Phase 0 components: `src/components/ReactionPill.tsx`, `src/components/ui/EmojiText.tsx`
+- Interactive task renderers: `src/components/tasks/` (TaskRenderer + 9 type-specific components: DragList, TimedChallenge, BreathingExercise, ReflectionPrompts, Journal, Markdown, Checklist, GuidedSteps, TimeTracker)
+- Community components: `src/components/ReactionPill.tsx`, `src/components/ui/EmojiText.tsx`
 
 ### Web dashboard (`apps/web/`)
 - Admin CMS: `src/app/admin/` (tasks, templates, moderation, analytics, SR config, rewards)
-  - Task editor includes: interaction_type dropdown, JSON config editor (Phase 1)
-  - Task list includes: type distribution summary, consecutive-type warning (Phase 5)
+  - Task editor includes: interaction_type dropdown, JSON config editor
+  - Task list includes: type distribution summary, consecutive-type warning
 - User dashboard: `src/app/dashboard/` (stats, history)
 - Auth pages: `src/app/auth/`
 - Supabase clients: `src/lib/supabase-server.ts` (server components) + `src/lib/supabase-client.ts` (client components)

@@ -171,8 +171,8 @@ Note: Supabase Auth handles email, password hash, OAuth providers, JWT tokens, a
 - `difficulty_rating` (integer, 1–5, used by spaced-repetition)
 - `default_duration_days` (integer, default 1 — 2–3 for complex tasks)
 - `tags` (text[] — for categorization and search)
-- `interaction_type` (enum: `'markdown'` | `'drag_list'` | `'timed_challenge'` | `'breathing_exercise'` | `'reflection_prompts'` | `'journal'` | `'community_prompt'`, default `'markdown'` — determines which interactive renderer the mobile app uses for this task)
-- `interaction_config` (jsonb, default `'{}'` — type-specific configuration; schema varies per `interaction_type`, see `.claude/change-phase2.md` for config schemas per type)
+- `interaction_type` (enum: `'markdown'` | `'drag_list'` | `'timed_challenge'` | `'breathing_exercise'` | `'reflection_prompts'` | `'journal'` | `'community_prompt'` | `'checklist'` | `'guided_steps'` | `'time_tracker'`, default `'markdown'` — determines which interactive renderer the mobile app uses for this task)
+- `interaction_config` (jsonb, default `'{}'` — type-specific configuration; schema varies per `interaction_type`)
 - `is_active` (boolean, default true — admin can draft/unpublish)
 - `created_at`, `updated_at`
 

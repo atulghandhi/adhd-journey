@@ -5,7 +5,6 @@ import { RefreshControl } from "react-native";
 import { AnimatedCardEntrance } from "../../animations/AnimatedCardEntrance";
 import { EmojiRating } from "../../components/EmojiRating";
 import { AppCard } from "../../components/ui/AppCard";
-import { MarkdownBlock } from "../../components/MarkdownBlock";
 import { ProgressRing } from "../../components/ProgressRing";
 import { TaskRenderer } from "../../components/TaskRenderer";
 import {
@@ -23,6 +22,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useProfile } from "../../hooks/useProfile";
 import { useToast } from "../../providers/ToastProvider";
+import { ScienceCard } from "../../components/ScienceCard";
 import { CheckInSheet } from "./CheckInSheet";
 import { StuckSheet } from "./StuckSheet";
 import type { CompletionCheckInInput, SkipReason } from "@focuslab/shared";
@@ -358,28 +358,6 @@ export function JourneyScreen() {
           </AnimatedCardEntrance>
         ) : null}
 
-        {state?.currentTask ? (
-          <AnimatedCardEntrance delay={150}>
-          <AppCard>
-            <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-              Why this matters
-            </Text>
-            <View className="mt-3">
-              <MarkdownBlock content={state.currentTask.task.explanation_body} />
-            </View>
-            {state.currentTask.task.deeper_reading ? (
-              <View className="mt-4">
-                <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                  Deeper reading
-                </Text>
-                <View className="mt-3">
-                  <MarkdownBlock content={state.currentTask.task.deeper_reading} />
-                </View>
-              </View>
-            ) : null}
-          </AppCard>
-          </AnimatedCardEntrance>
-        ) : null}
 
         {state?.reviewTask ? (
           <AnimatedCardEntrance delay={doneForTodayState ? 300 : 250}>
@@ -483,6 +461,10 @@ export function JourneyScreen() {
         onSkip={handleSkip}
         visible={stuckSheetVisible}
       />
+
+      {state?.currentTask ? (
+        <ScienceCard content={state.currentTask.task.explanation_body} />
+      ) : null}
     </SafeAreaView>
   );
 }

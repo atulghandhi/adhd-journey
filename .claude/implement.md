@@ -2,7 +2,7 @@ You are building FocusLab — a complete mobile-first ADHD journey app. Build th
 
 ## Your instructions
 
-1. Read every file in `.claude/` first: `prompt.md` (what to build), `plans.md` (how to build it — 23 milestones: M01–M17 core + M18–M23 UX phases), `architecture.md` (tech stack, data model, APIs, timezone rules, security), `design.md` (visual specs, colors, fonts, animations), `agents.md` (repo structure, commands, conventions), `documentation.md` (docs template to fill in as you go). Also read `content/30-tasks-draft.md` (the 30 task definitions — use as seed data source) and `content/quiz-questions.json` (placeholder quiz questions). For UX enhancement phases, also read `.claude/change-phase1.md` through `.claude/change-phase6.md`.
+1. Read every file in `.claude/` first: `prompt.md` (what to build), `plans.md` (how to build it — 23 milestones: M01–M17 core + M18–M23 UX phases), `architecture.md` (tech stack, data model, APIs, timezone rules, security), `design.md` (visual specs, colors, fonts, animations), `agents.md` (repo structure, commands, conventions), `documentation.md` (docs template to fill in as you go). Also read `content/30-tasks-draft.md` (the 30 task definitions — use as seed data source) and `content/quiz-questions.json` (placeholder quiz questions).
 2. Execute milestones 1–23 from `plans.md` in order. Do not skip milestones. Do not stop between milestones to ask questions.
 3. After each milestone: run `npx turbo lint && npx turbo typecheck && npx turbo test`, fix all failures, commit with `feat: milestone-XX <name>`.
 4. When you hit an ambiguity, make the best decision, record it in `plans.md` under "Implementation Notes", and keep going.

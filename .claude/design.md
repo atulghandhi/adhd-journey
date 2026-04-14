@@ -137,7 +137,7 @@ All animations use `react-native-reanimated` with spring physics. No `Animated.t
 ## Signature Elements
 
 ### Journey progress (in-app)
-Winding serpentine path (not a flat checklist) with nodes alternating left/right in a zig-zag pattern. Connected by curved SVG lines. See `.claude/change-phase3.md` for full implementation spec.
+Winding serpentine path (not a flat checklist) with nodes alternating left/right in a zig-zag pattern. Connected by curved SVG lines.
 - **Completed node**: filled circle in `green-500` (28px), checkmark icon inside, connected by solid `green-400` curved line. Subtle idle jiggle animation (2° rotation oscillation, `withRepeat` + `withSequence`).
 - **Active node**: larger (36px), pulsing `green-500` border (gentle scale pulse 1.0 → 1.05 → 1.0 on `gentle` spring, looping). "START" badge below the node. Connected by solid line above, dashed line below.
 - **Locked node**: dashed empty circle with `green-200` border. **No lock icon** — locked should feel like "not yet", not "forbidden". Connected by dashed `green-200` curved line.

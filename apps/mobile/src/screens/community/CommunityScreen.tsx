@@ -43,7 +43,7 @@ export function CommunityScreen() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const { data: thread, isLoading } = useCommunityThread(selectedTaskId);
+  const { data: thread, isLoading, error: threadError, refetch: refetchThread } = useCommunityThread(selectedTaskId);
   const actions = useCommunityActions(selectedTaskId);
 
   useEffect(() => {
@@ -126,7 +126,21 @@ export function CommunityScreen() {
         </AppCard>
       ) : null}
 
-        {!isLoading && (!thread || thread.length === 0) ? (
+        {threadError ? (
+          <AppCard>
+            <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
+              Couldn&apos;t load this thread
+            </Text>
+            <Text className="mt-2 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+              Something went wrong talking to the server. Your other data is safe.
+            </Text>
+            <View className="mt-4">
+              <PrimaryButton onPress={() => void refetchThread()}>Try again</PrimaryButton>
+            </View>
+          </AppCard>
+        ) : null}
+
+        {!isLoading && !threadError && (!thread || thread.length === 0) ? (
           <AppCard>
             <Text className="text-lg font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
               No posts yet

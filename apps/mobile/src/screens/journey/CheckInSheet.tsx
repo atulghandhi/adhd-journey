@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
+  Platform,
   Switch,
   Pressable as RNPressable,
   StyleSheet,
@@ -50,7 +52,6 @@ export function CheckInSheet({
   const [triedIt, setTriedIt] = useState(true);
   const [whatHappened, setWhatHappened] = useState("");
   const [whatWasHard, setWhatWasHard] = useState("");
-  const [whatSurprised, setWhatSurprised] = useState("");
   const [isClosing, setIsClosing] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backdropOpacity = useSharedValue(0);
@@ -190,7 +191,6 @@ export function CheckInSheet({
       checkedInAt: new Date().toISOString(),
       promptResponses: {
         what_happened: whatHappened,
-        what_surprised: whatSurprised,
         what_was_hard: whatWasHard,
       },
       quickRating,
@@ -202,7 +202,6 @@ export function CheckInSheet({
     setTriedIt(true);
     setWhatHappened("");
     setWhatWasHard("");
-    setWhatSurprised("");
   };
 
   if (!shouldRender) {
@@ -221,9 +220,13 @@ export function CheckInSheet({
           onPress={() => requestClose()}
           style={StyleSheet.absoluteFill}
         />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ maxHeight: "80%" }}
+        >
         <Animated.View
-          className="max-h-[80%] rounded-t-[30px] bg-white px-6 pb-6 dark:bg-dark-surface"
-          style={sheetAnimatedStyle}
+          className="rounded-t-[30px] bg-white px-6 pb-6 dark:bg-dark-surface"
+          style={[sheetAnimatedStyle, { maxHeight: "100%" }]}
         >
           <View
             className="items-center pb-3 pt-3"
@@ -231,7 +234,7 @@ export function CheckInSheet({
           >
             <View className="h-1.5 w-12 rounded-full bg-focuslab-border dark:bg-dark-border" />
           </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text className="text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
               Quick check-in
             </Text>
@@ -278,14 +281,6 @@ export function CheckInSheet({
                 textAlignVertical="top"
                 value={whatWasHard}
               />
-              <TextInput
-                className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
-                multiline
-                onChangeText={setWhatSurprised}
-                placeholder="What surprised you?"
-                textAlignVertical="top"
-                value={whatSurprised}
-              />
             </View>
 
             <View className="mt-8">
@@ -301,6 +296,7 @@ export function CheckInSheet({
             </View>
           </ScrollView>
         </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

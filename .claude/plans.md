@@ -506,13 +506,12 @@ Acceptance criteria:
 - Report button is muted text, not a green button. **[MANUAL]**
 - Author names display in natural case. **[LOCAL]**
 
-### Milestone 19 — Phase 1: Data model (interaction_type + interaction_config) [ ]
+### Milestone 19 — Phase 1: Data model (interaction_type + interaction_config) [x]
 Scope:
 - Add `interaction_type` enum and `interaction_config` JSONB column to `tasks` table via SQL migration.
 - Regenerate TypeScript types from schema.
 - Update shared domain types (`TaskRow`, `JourneyTaskState`).
 - Update admin CMS task editor with interaction_type dropdown and JSON config editor.
-- See `.claude/change-phase1.md` for full spec.
 
 Key files/modules:
 - `supabase/migrations/00004_task_interaction_type.sql` (new)
@@ -527,13 +526,12 @@ Acceptance criteria:
 - Admin CMS shows interaction_type dropdown and config editor. **[LOCAL]**
 - `turbo typecheck` passes after type regeneration. **[AUTO]**
 
-### Milestone 20 — Phase 2: Interactive task renderers [ ]
+### Milestone 20 — Phase 2: Interactive task renderers [x]
 Scope:
 - Create `TaskRenderer` component that switches on `interaction_type`.
-- Implement 6 interactive task type components (DragListTask, TimedChallengeTask, BreathingExerciseTask, ReflectionPromptsTask, JournalTask, CommunityPromptTask).
+- Implement 9 interactive task type components (DragListTask, TimedChallengeTask, BreathingExerciseTask, ReflectionPromptsTask, JournalTask, CommunityPromptTask, ChecklistTask, GuidedStepsTask, TimeTrackerTask).
 - Gate "I did it" button until interactive component signals completion.
 - Pass interaction data through to check-in.
-- See `.claude/change-phase2.md` for full spec.
 
 Key files/modules:
 - `apps/mobile/src/components/tasks/TaskRenderer.tsx` (new)
@@ -543,6 +541,11 @@ Key files/modules:
 - `apps/mobile/src/components/tasks/ReflectionPromptsTask.tsx` (new)
 - `apps/mobile/src/components/tasks/JournalTask.tsx` (new)
 - `apps/mobile/src/components/tasks/CommunityPromptTask.tsx` (new)
+- `apps/mobile/src/components/tasks/ChecklistTask.tsx` (new)
+- `apps/mobile/src/components/tasks/GuidedStepsTask.tsx` (new)
+- `apps/mobile/src/components/tasks/TimeTrackerTask.tsx` (new)
+- `apps/mobile/src/components/tasks/MarkdownTask.tsx` (new)
+- `apps/mobile/src/components/tasks/types.ts` (new)
 - `apps/mobile/src/screens/journey/JourneyScreen.tsx` (updated)
 
 Acceptance criteria:
@@ -551,14 +554,13 @@ Acceptance criteria:
 - Interaction data is passed to check-in `prompt_responses.interaction_data`. **[LOCAL]**
 - `turbo typecheck` passes. **[AUTO]**
 
-### Milestone 21 — Phase 3: Journey map overhaul + micro-feedback [ ]
+### Milestone 21 — Phase 3: Journey map overhaul + micro-feedback [x]
 Scope:
 - Redesign `JourneyMap` to serpentine winding path with alternating node positions.
 - Animated active node (pulsing border, START badge), completed node jiggle, dashed locked nodes.
 - Day-unlock reveal animation with haptics.
 - Streak badge overhaul: always visible, dimmed at 0, animated increment.
 - Comprehensive haptics audit across all screens.
-- See `.claude/change-phase3.md` for full spec.
 
 Key files/modules:
 - `apps/mobile/src/components/JourneyMap.tsx` (rewritten)
@@ -571,13 +573,12 @@ Acceptance criteria:
 - Streak badge visible at count 0 with dimmed styling. **[LOCAL]**
 - Haptics fire on all key interactions (see design.md table). **[MANUAL]**
 
-### Milestone 22 — Phase 4: Done-for-today improvements [ ]
+### Milestone 22 — Phase 4: Done-for-today improvements [x]
 Scope:
 - Add progress ring (animated SVG circle, N/30) to done-for-today state.
 - Add rotating motivational quote (deterministic per local date).
 - Upgrade review card presentation (use EmojiRating, not number buttons).
 - Dynamic heading based on streak count.
-- See `.claude/change-phase4.md` for full spec.
 
 Key files/modules:
 - `apps/mobile/src/components/ProgressRing.tsx` (new)
@@ -590,16 +591,16 @@ Acceptance criteria:
 - Review card uses EmojiRating component. **[LOCAL]**
 - Heading changes with streak: "Done for today" / "Building momentum" / "On fire". **[LOCAL]**
 
-### Milestone 23 — Phase 5+6: Content format + account polish [ ]
+### Milestone 23 — Phase 5+6: Content format + account polish [x]
 Scope:
 - Assign interaction_type to all 30 tasks (no two consecutive same type).
 - Add interaction-type hint icons on journey map for unlocked nodes.
 - Admin CMS type distribution summary + consecutive-type warning.
 - Account screen: segmented control for theme, Switch toggles for notifications, sign-out, delete account, dark mode card border fix.
-- See `.claude/change-phase5.md` and `.claude/change-phase6.md` for full specs.
 
 Key files/modules:
 - `supabase/migrations/00005_seed_interaction_types.sql` (new)
+- `supabase/migrations/00006_add_interaction_types.sql` (new — adds checklist, guided_steps, time_tracker enum values)
 - `apps/mobile/src/components/ui/SegmentedControl.tsx` (new)
 - `apps/mobile/src/screens/account/AccountScreen.tsx` (updated)
 - `apps/mobile/src/components/ui/AppCard.tsx` (updated)

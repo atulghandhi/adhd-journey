@@ -30,18 +30,14 @@ This document is updated continuously as milestones land so it reflects reality.
 - Milestone 16 — Admin analytics + moderation: complete
 - Milestone 17 — Testing hardening + final sweep: complete (13 mobile unit tests, 29 EF equivalence tests, final dark mode sweep)
 - **Phase 0 — UX bug fixes**: complete (ReactionPill for community reactions, ghost report button, username casing, reaction toggle bug fix)
-- **Phases 1–6 — UX enhancement phases**: documented in `.claude/change-phase1.md` through `.claude/change-phase6.md`, pending implementation
+- **Phase 1 — Data model**: complete (`interaction_type` enum + `interaction_config` JSONB on tasks table, admin CMS task editor with type dropdown + JSON config editor)
+- **Phase 2 — Interactive task renderers**: complete (TaskRenderer switch component, 9 interactive task types including 3 extras: checklist, guided_steps, time_tracker)
+- **Phase 3 — Journey map overhaul**: complete (serpentine layout with SVG curves, JourneyMapNode, animated active/completed/locked nodes, StreakBadge always-visible with animated increment)
+- **Phase 4 — Done-for-today improvements**: complete (ProgressRing SVG, rotating motivational quotes, review card with EmojiRating, streak-adaptive heading)
+- **Phase 5 — Variable content format**: complete (all 30 tasks assigned interaction_type with no consecutive duplicates, format hint icons on journey map, admin CMS type distribution + consecutive-type warnings)
+- **Phase 6 — Account screen polish**: complete (SegmentedControl for theme, Switch toggles for notifications, sign-out, delete account, dark mode card border visibility)
 
 Note: Home screen widget is deferred to V2.
-
-UX enhancement phases (post-milestone, documented in `.claude/change-phase*.md`):
-- Phase 0: Bug fixes — COMPLETE. Community emoji rendering (ReactionPill + EmojiText), report button de-emphasis, username casing, reaction toggle per-user fix.
-- Phase 1: Data model — add `interaction_type` enum + `interaction_config` JSONB to tasks table.
-- Phase 2: Interactive task renderers — TaskRenderer switch component, 6 interactive task types.
-- Phase 3: Journey map overhaul — serpentine layout, animated nodes, streak badge always-visible.
-- Phase 4: Done-for-today improvements — progress ring, motivational quotes, review card upgrade.
-- Phase 5: Variable content format — assign interaction types to all 30 tasks, format hint icons.
-- Phase 6: Account screen polish — segmented control, Switch toggles, delete account, dark mode borders.
 
 Bootstrap note:
 - 2026-03-17: Implementation started from an almost-empty repository containing only spec files, content drafts, and Supabase local config.
@@ -198,7 +194,10 @@ focuslab/
 ├── packages/
 │   └── shared/                # Shared TS types (auto-generated from DB) + spaced-repetition algorithm
 ├── scripts/
-│   └── make-admin.ts          # Promote a signed-up user to admin role
+│   ├── make-admin.ts          # Promote a signed-up user to admin role
+│   ├── sync-mobile-env.mjs    # Sync .env.local to apps/mobile/.env.local for Expo
+│   ├── test-delete-account.ts # Smoke test for delete-account flow
+│   └── build-edge-runtime-with-local-ca.sh  # Rebuild Edge Runtime with corporate proxy CA
 ├── supabase/
 │   ├── migrations/            # SQL schema migrations
 │   ├── functions/             # Edge Functions (Deno) — business logic
@@ -246,7 +245,7 @@ For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 ## Data model overview (high level)
 
 - **profiles**: extends `auth.users` — display name, role, payment status, notification preferences, onboarding state, theme preference (light/dark/system), current_journey_id
-- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags, journey_id, **interaction_type** (enum: markdown/drag_list/timed_challenge/breathing_exercise/reflection_prompts/journal/community_prompt), **interaction_config** (JSONB, type-specific parameters)
+- **tasks**: admin-authored content — title, task body (markdown), explanation, deeper reading, difficulty, order, tags, journey_id, **interaction_type** (enum: markdown/drag_list/timed_challenge/breathing_exercise/reflection_prompts/journal/community_prompt/checklist/guided_steps/time_tracker), **interaction_config** (JSONB, type-specific parameters)
 - **user_progress**: per-user per-task state (locked → active → completed), timestamps, multi-day tracking, journey_id
 - **check_ins**: quick rating + optional deeper reflections, tied to task + user + journey_id, includes `checked_in_at` (client timestamp for offline support), `prompt_responses.interaction_data` for interactive task output
 - **spaced_repetition_state**: per-user per-task algorithm state (ease factor, interval, review count, next review date), journey_id
@@ -260,11 +259,48 @@ For local development, only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 All tables have Row Level Security (RLS) policies. See `architecture.md` for the complete schema.
 
-## New components (Phase 0)
+## Key components by phase
 
+### Phase 0 — UX bug fixes
 - **`ReactionPill`** (`apps/mobile/src/components/ReactionPill.tsx`): Pill-shaped community reaction button using `AnimatedPressable`. Props: `emoji`, `count`, `active`, `onPress`. Active state tracks per-user (`user_id`) not just count > 0.
 - **`EmojiText`** (`apps/mobile/src/components/ui/EmojiText.tsx`): Forces `Apple Color Emoji` font on iOS to prevent NativeWind font-weight stripping color from emoji. Props: `children`, `size`.
 - **`PrimaryButton` update**: Now supports non-string children (type-checks `children` — wraps strings in `<Text>`, passes JSX through directly).
+
+### Phase 1 — Data model
+- **Migration `00004_task_interaction_type.sql`**: Adds `interaction_type` enum (markdown, drag_list, timed_challenge, breathing_exercise, reflection_prompts, journal, community_prompt) and `interaction_config` JSONB columns to `tasks` table.
+- **Migration `00006_add_interaction_types.sql`**: Adds 3 extra enum values: `checklist`, `guided_steps`, `time_tracker`.
+- Admin CMS task editor (`apps/web/src/app/admin/tasks/[id]/page.tsx`): interaction_type dropdown + JSON config editor.
+
+### Phase 2 — Interactive task renderers
+- **`TaskRenderer`** (`apps/mobile/src/components/TaskRenderer.tsx`): Switches on `interaction_type` to render the appropriate interactive component.
+- 9 task type components in `apps/mobile/src/components/tasks/`:
+  - `DragListTask`, `TimedChallengeTask`, `BreathingExerciseTask`, `ReflectionPromptsTask`, `JournalTask`, `MarkdownTask` (original 6)
+  - `ChecklistTask`, `GuidedStepsTask`, `TimeTrackerTask` (3 extras beyond original spec)
+  - `CommunityPromptTask` falls through to `MarkdownTask` in the switch
+- Shared types: `apps/mobile/src/components/tasks/types.ts` — `TaskCompletionChange`, `InteractiveTaskProps`
+- "I did it" button is disabled until interactive component signals completion via `onCompletionChange`.
+
+### Phase 3 — Journey map overhaul
+- **`JourneyMap`** (`apps/mobile/src/components/JourneyMap.tsx`): Serpentine winding path with alternating node positions, SVG curved connectors.
+- **`JourneyMapNode`** (`apps/mobile/src/components/JourneyMapNode.tsx`): Individual map node with pulsing active state, jiggle on completed, dashed circles for locked.
+- **`StreakBadge`** (`apps/mobile/src/components/StreakBadge.tsx`): Always visible (dimmed at 0), animated scale pulse + flame wobble on increment.
+- Helper utilities: `journeyMapUtils.ts`, `streakBadgeUtils.ts`.
+
+### Phase 4 — Done-for-today improvements
+- **`ProgressRing`** (`apps/mobile/src/components/ProgressRing.tsx`): Animated SVG circle showing N/30 completion with spring physics.
+- **`motivation.ts`** (`apps/mobile/src/constants/motivation.ts`): 10 rotating motivational quotes, deterministic per local date via `getDailyMotivation()`.
+- Done-for-today state in `JourneyScreen.tsx`: progress ring, motivational quote, EmojiRating-based review card, streak-adaptive heading.
+
+### Phase 5 — Variable content format
+- **Migration `00005_seed_interaction_types.sql`**: Assigns interaction_type to all 30 tasks with no consecutive duplicates.
+- Journey map nodes show interaction-type hint icons for unlocked tasks.
+- Admin CMS task list (`apps/web/src/app/admin/tasks/page.tsx`): type distribution summary + consecutive-type warning.
+
+### Phase 6 — Account screen polish
+- **`SegmentedControl`** (`apps/mobile/src/components/ui/SegmentedControl.tsx`): Sliding indicator for theme selection (Light / Dark / System).
+- Account screen uses native `Switch` toggles for push/email notification preferences.
+- Sign-out button, delete-account muted link with confirmation Alert.
+- `AppCard` dark mode border improved (`dark:border-[#3A7D5C]`).
 
 ## Known temporary regressions
 

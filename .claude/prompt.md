@@ -123,7 +123,7 @@ H) Home screen widget — V2 (not in V1)
 
 I) Progress + stats
 
-* In-app: **Journey map** — a winding serpentine path (not a flat checklist). Nodes alternate left/right in a zig-zag pattern connected by curved SVG lines (solid for completed, dashed for locked). See `.claude/change-phase3.md` for full spec.
+* In-app: **Journey map** — a winding serpentine path (not a flat checklist). Nodes alternate left/right in a zig-zag pattern connected by curved SVG lines (solid for completed, dashed for locked).
     * Completed nodes: filled green circles with a subtle idle jiggle animation (2° rotation oscillation)
     * Active node: larger (36px), pulsing green border, "START" badge below
     * Locked nodes: dashed empty circles (no lock icon — locked should feel like "not yet", not "forbidden")
@@ -230,7 +230,6 @@ Q) Interactive task types
     * **community_prompt**: shows prompt + "Open community" button. Config: `{ prompt, navigateTo }`. Gate: immediate (honor system via check-in).
 * No two consecutive days should share the same `interaction_type` (novelty principle). Target distribution across 30 tasks: ~8 markdown, ~6 timed, ~6 reflection, ~5 journal, ~3 drag_list, ~2 community_prompt.
 * `onComplete(data?)` passes interaction output (list items, journal text, answers) into the check-in as `promptResponses.interaction_data`.
-* See `.claude/change-phase1.md` (data model), `.claude/change-phase2.md` (renderers), `.claude/change-phase5.md` (content assignment) for full implementation specs.
 
 R) Micro-feedback + haptics
 
