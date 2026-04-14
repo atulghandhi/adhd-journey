@@ -266,7 +266,7 @@ export function CheckInSheet({
                 Optional deeper reflection
               </Text>
               <TextInput
-                className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+                className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base leading-7 text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
                 multiline
                 onChangeText={setWhatHappened}
                 placeholder="What happened?"
@@ -274,7 +274,7 @@ export function CheckInSheet({
                 value={whatHappened}
               />
               <TextInput
-                className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+                className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base leading-7 text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
                 multiline
                 onChangeText={setWhatWasHard}
                 placeholder="What was hard?"

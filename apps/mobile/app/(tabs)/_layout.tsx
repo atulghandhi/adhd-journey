@@ -2,6 +2,8 @@ import { Tabs } from "expo-router";
 import { BarChart2, Compass, User } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
+import { TabBarButton } from "../../src/components/TabBarButton";
+
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -22,6 +24,7 @@ export default function TabsLayout() {
           paddingBottom: 10,
           paddingTop: 8,
         },
+        tabBarButton: (props) => <TabBarButton {...props} />,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "500",

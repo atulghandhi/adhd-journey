@@ -1,5 +1,6 @@
 import { GripVertical, ArrowDown, ArrowUp, Plus, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { TextInput as RNTextInput } from "react-native";
 
 import { AnimatedCardEntrance } from "../../animations/AnimatedCardEntrance";
 import { useHaptics } from "../../hooks/useHaptics";
@@ -16,6 +17,7 @@ export function DragListTask({
 }: InteractiveTaskProps) {
   const dragListConfig = normalizeDragListConfig(config);
   const { lightImpact, selectionChanged } = useHaptics();
+  const inputRef = useRef<RNTextInput>(null);
   const [items, setItems] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const complete = isDragListComplete(items, dragListConfig.minItems);
@@ -105,9 +107,14 @@ export function DragListTask({
 
       <View className="mt-4 flex-row gap-3">
         <TextInput
-          className="flex-1 min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+          blurOnSubmit={false}
+          className="flex-1 min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 pb-3.5 pt-2.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
           onChangeText={setDraft}
+          onSubmitEditing={handleAdd}
           placeholder={dragListConfig.placeholder}
+          ref={inputRef}
+          returnKeyType="done"
+          style={{ lineHeight: 22 }}
           value={draft}
         />
         <Pressable
@@ -117,7 +124,10 @@ export function DragListTask({
               : "bg-focuslab-primary"
           }`}
           disabled={items.length >= dragListConfig.maxItems}
-          onPress={handleAdd}
+          onPress={() => {
+            handleAdd();
+            inputRef.current?.focus();
+          }}
         >
           <Plus color="#FFFFFF" size={16} />
           <Text className="text-base font-semibold text-white">Add</Text>
