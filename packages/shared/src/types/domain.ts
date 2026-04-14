@@ -33,6 +33,7 @@ export type NotificationTone = (typeof NOTIFICATION_TONES)[number];
 export type CommunityReactionEmoji = (typeof COMMUNITY_REACTION_EMOJIS)[number];
 export type ThemePreference = "light" | "dark" | "system";
 export type PaymentStatus = "free" | "paid";
+export type ToolkitStatus = "keep" | "maybe_later" | "not_for_me";
 export type ProgressStatus = "locked" | "active" | "in_review" | "completed" | "skipped";
 export type CheckInType = "completion" | "reinforcement_review" | "skip";
 export type SkipReason = "too_hard" | "not_relevant" | "dont_understand" | "not_in_mood";
@@ -174,6 +175,16 @@ export interface ResourceLink {
   description: string;
   title: string;
   url: string;
+}
+
+export interface ToolkitItem {
+  created_at: string;
+  id: string;
+  journey_id: string;
+  status: ToolkitStatus;
+  task_id: string;
+  updated_at: string;
+  user_id: string;
 }
 
 export type JsonObject = Record<string, Json | undefined>;

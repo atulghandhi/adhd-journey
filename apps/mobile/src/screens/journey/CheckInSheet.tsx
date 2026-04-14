@@ -16,7 +16,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import type { CompletionCheckInInput } from "@focuslab/shared";
+import type { CompletionCheckInInput, ToolkitStatus } from "@focuslab/shared";
 
 import { REDUCED_MOTION_DURATION, SPRING_GENTLE } from "../../animations/springs";
 import { EmojiRating } from "../../components/EmojiRating";
@@ -38,13 +38,21 @@ interface CheckInSheetProps {
   loading?: boolean;
   onClose: () => void;
   onSubmit: (input: CompletionCheckInInput) => Promise<void>;
+  onToolkitChoice?: (status: ToolkitStatus) => void;
   visible: boolean;
 }
+
+const TOOLKIT_OPTIONS: { label: string; status: ToolkitStatus; emoji: string }[] = [
+  { emoji: "🧰", label: "Keep it", status: "keep" },
+  { emoji: "🕐", label: "Maybe later", status: "maybe_later" },
+  { emoji: "👋", label: "Not for me", status: "not_for_me" },
+];
 
 export function CheckInSheet({
   loading,
   onClose,
   onSubmit,
+  onToolkitChoice,
   visible,
 }: CheckInSheetProps) {
   const { reducedMotion } = useReducedMotion();
@@ -52,6 +60,7 @@ export function CheckInSheet({
   const [triedIt, setTriedIt] = useState(true);
   const [whatHappened, setWhatHappened] = useState("");
   const [whatWasHard, setWhatWasHard] = useState("");
+  const [toolkitChoice, setToolkitChoice] = useState<ToolkitStatus | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backdropOpacity = useSharedValue(0);
@@ -197,11 +206,15 @@ export function CheckInSheet({
       timeSpentSeconds: 0,
       triedIt,
     });
+    if (toolkitChoice) {
+      onToolkitChoice?.(toolkitChoice);
+    }
     requestClose();
     setQuickRating(null);
     setTriedIt(true);
     setWhatHappened("");
     setWhatWasHard("");
+    setToolkitChoice(null);
   };
 
   if (!shouldRender) {
@@ -281,6 +294,43 @@ export function CheckInSheet({
                 textAlignVertical="top"
                 value={whatWasHard}
               />
+            </View>
+
+            <View className="mt-6 gap-3">
+              <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
+                Add this strategy to your toolkit?
+              </Text>
+              <Text className="text-sm leading-5 text-focuslab-secondary dark:text-dark-text-secondary">
+                Strategies you keep will be saved for easy access later.
+              </Text>
+              <View className="flex-row gap-2">
+                {TOOLKIT_OPTIONS.map((opt) => (
+                  <RNPressable
+                    className={`flex-1 items-center rounded-2xl border px-2 py-3 ${
+                      toolkitChoice === opt.status
+                        ? "border-focuslab-primary bg-focuslab-primary/10 dark:border-focuslab-primary dark:bg-focuslab-primary/20"
+                        : "border-focuslab-border bg-focuslab-background dark:border-dark-border dark:bg-dark-bg"
+                    }`}
+                    key={opt.status}
+                    onPress={() =>
+                      setToolkitChoice((prev) =>
+                        prev === opt.status ? null : opt.status,
+                      )
+                    }
+                  >
+                    <Text className="text-lg">{opt.emoji}</Text>
+                    <Text
+                      className={`mt-1 text-xs font-medium ${
+                        toolkitChoice === opt.status
+                          ? "text-focuslab-primary"
+                          : "text-focuslab-secondary dark:text-dark-text-secondary"
+                      }`}
+                    >
+                      {opt.label}
+                    </Text>
+                  </RNPressable>
+                ))}
+              </View>
             </View>
 
             <View className="mt-8">

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BarChart2, Compass, User } from "lucide-react-native";
+import { Compass, User, Wrench } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
 import { TabBarButton } from "../../src/components/TabBarButton";
@@ -48,8 +48,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="progress"
         options={{
-          tabBarIcon: ({ color }) => <BarChart2 color={color} size={20} />,
-          title: "Progress",
+          tabBarIcon: ({ color }) => <Wrench color={color} size={20} />,
+          title: "Toolkit",
         }}
       />
       <Tabs.Screen

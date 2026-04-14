@@ -25,8 +25,9 @@ import { useToast } from "../../providers/ToastProvider";
 import { ScienceCard } from "../../components/ScienceCard";
 import { CheckInSheet } from "./CheckInSheet";
 import { StuckSheet } from "./StuckSheet";
-import type { CompletionCheckInInput, SkipReason } from "@focuslab/shared";
+import type { CompletionCheckInInput, SkipReason, ToolkitStatus } from "@focuslab/shared";
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
+import { useToolkit } from "../../hooks/useToolkit";
 
 function getWelcomeBackMessage(lastActiveAt: string | null | undefined) {
   if (!lastActiveAt) {
@@ -55,6 +56,7 @@ export function JourneyScreen() {
   const { submitCompletionCheckIn, submitReviewCheckIn, submitSkipCheckIn, submittingCompletion, submittingSkip } =
     useCheckIn();
   const { errorNotification, lightImpact, successNotification } = useHaptics();
+  const { upsert: upsertToolkit } = useToolkit();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [stuckSheetVisible, setStuckSheetVisible] = useState(false);
   const [selectedReviewRating, setSelectedReviewRating] = useState<number | null>(null);
@@ -97,6 +99,17 @@ export function JourneyScreen() {
   useEffect(() => {
     setSelectedReviewRating(null);
   }, [state?.reviewTask?.task.id]);
+
+  const handleToolkitChoice = (status: ToolkitStatus) => {
+    if (!state?.currentTask) {
+      return;
+    }
+
+    upsertToolkit.mutate(
+      { status, taskId: state.currentTask.task.id },
+      { onError: () => showToast("Couldn't save toolkit choice.", "error") },
+    );
+  };
 
   const handleCheckIn = async (input: CompletionCheckInInput) => {
     if (!state?.currentTask) {
@@ -452,6 +465,7 @@ export function JourneyScreen() {
         loading={submittingCompletion}
         onClose={() => setSheetVisible(false)}
         onSubmit={handleCheckIn}
+        onToolkitChoice={handleToolkitChoice}
         visible={sheetVisible}
       />
 
