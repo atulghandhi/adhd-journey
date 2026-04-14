@@ -282,9 +282,14 @@ export function isInFreeWindow(
   freeWindows: TimeWindow[],
   currentHHMM: string,
 ): boolean {
-  return freeWindows.some(
-    (w) => currentHHMM >= w.start && currentHHMM <= w.end,
-  );
+  return freeWindows.some((w) => {
+    if (w.start <= w.end) {
+      // Normal range e.g. 17:00–20:00
+      return currentHHMM >= w.start && currentHHMM <= w.end;
+    }
+    // Overnight range e.g. 22:00–08:00
+    return currentHHMM >= w.start || currentHHMM <= w.end;
+  });
 }
 
 /**

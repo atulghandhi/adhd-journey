@@ -22,6 +22,7 @@ import {
   presentAppPicker,
   requestFamilyControlsAuth,
   applyShields,
+  startDoomScrollMonitor,
 } from "../../../modules/family-controls-bridge";
 import { OpenLimitRow } from "./OpenLimitRow";
 
@@ -81,12 +82,13 @@ export function GatewayFirstRunFlow({ onComplete }: Props) {
                   const granted = await requestFamilyControlsAuth();
                   setFamilyControlsAuthorized(granted);
                   if (granted) {
-                    const picked = await presentAppPicker();
-                    if (picked) {
-                      // Move to step 2 — limits are set with defaults
-                      const defaultLimits: OpenLimitConfig[] = SUGGESTED_APPS.map(
-                        (app) => ({
-                          appId: app,
+                    const appCount = await presentAppPicker();
+                    if (appCount > 0) {
+                      // Create one generic limit entry per selected app
+                      const defaultLimits: OpenLimitConfig[] = Array.from(
+                        { length: appCount },
+                        (_, i) => ({
+                          appId: `app_${i + 1}`,
                           dailyLimit: 5,
                           enabled: true,
                         }),
@@ -246,13 +248,20 @@ export function GatewayFirstRunFlow({ onComplete }: Props) {
             <PrimaryButton
               onPress={async () => {
                 successNotification();
+                const doomScroll = DEFAULT_GATEWAY_CONFIG.doomScroll;
                 updateConfig({
                   enabled: true,
                   openLimits: limits,
                   escalation: DEFAULT_GATEWAY_CONFIG.escalation,
-                  doomScroll: DEFAULT_GATEWAY_CONFIG.doomScroll,
+                  doomScroll,
                 });
                 await applyShields();
+                if (doomScroll.enabled) {
+                  await startDoomScrollMonitor(
+                    doomScroll.firstThresholdMinutes,
+                    doomScroll.secondThresholdMinutes,
+                  );
+                }
                 onComplete();
               }}
             >

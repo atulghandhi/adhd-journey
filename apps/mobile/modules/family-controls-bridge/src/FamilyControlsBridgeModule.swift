@@ -49,7 +49,7 @@ public class FamilyControlsBridgeModule: Module {
         // Activity Picker — presents Apple's native FamilyActivityPicker
         // ------------------------------------------------------------------
 
-        AsyncFunction("presentActivityPicker") { () -> Bool in
+        AsyncFunction("presentActivityPicker") { () -> Int in
             // FamilyActivityPicker is a SwiftUI view. We present it via
             // a UIHostingController from the root view controller.
             if #available(iOS 16.0, *) {
@@ -60,25 +60,26 @@ public class FamilyControlsBridgeModule: Module {
                             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                             .first
                         else {
-                            continuation.resume(returning: false)
+                            continuation.resume(returning: 0)
                             return
                         }
 
                         let pickerVC = FamilyActivityPickerViewController { selection in
                             // Store the selection in App Group UserDefaults
                             let defaults = UserDefaults(suiteName: appGroupID)
+                            let tokenCount = selection.applicationTokens.count
                             if let data = try? JSONEncoder().encode(selection.applicationTokens) {
                                 defaults?.set(data, forKey: shieldedAppsKey)
                             }
                             rootVC.dismiss(animated: true) {
-                                continuation.resume(returning: true)
+                                continuation.resume(returning: tokenCount)
                             }
                         }
                         rootVC.present(pickerVC, animated: true)
                     }
                 }
             }
-            return false
+            return 0
         }
 
         // ------------------------------------------------------------------

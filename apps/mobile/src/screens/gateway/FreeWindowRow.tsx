@@ -6,6 +6,13 @@ import type { TimeWindow } from "@focuslab/shared";
 
 import { Text, View } from "../../components/primitives";
 
+const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function sanitizeHHMM(raw: string, fallback: string): string {
+  const trimmed = raw.trim();
+  return HHMM_REGEX.test(trimmed) ? trimmed : fallback;
+}
+
 interface Props {
   onRemove: () => void;
   onUpdate: (window: TimeWindow) => void;
@@ -21,7 +28,9 @@ export function FreeWindowRow({ onRemove, onUpdate, window }: Props) {
       <TextInput
         className="w-16 text-center text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary"
         defaultValue={window.start}
-        onEndEditing={(e) => onUpdate({ ...window, start: e.nativeEvent.text })}
+        onEndEditing={(e) =>
+          onUpdate({ ...window, start: sanitizeHHMM(e.nativeEvent.text, window.start) })
+        }
         placeholder="17:00"
         placeholderTextColor={dark ? "#6B8F7F" : "#999"}
       />
@@ -31,7 +40,9 @@ export function FreeWindowRow({ onRemove, onUpdate, window }: Props) {
       <TextInput
         className="w-16 text-center text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary"
         defaultValue={window.end}
-        onEndEditing={(e) => onUpdate({ ...window, end: e.nativeEvent.text })}
+        onEndEditing={(e) =>
+          onUpdate({ ...window, end: sanitizeHHMM(e.nativeEvent.text, window.end) })
+        }
         placeholder="20:00"
         placeholderTextColor={dark ? "#6B8F7F" : "#999"}
       />

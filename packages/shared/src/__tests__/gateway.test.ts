@@ -118,6 +118,18 @@ describe("isInFreeWindow", () => {
   it("returns false with no windows configured", () => {
     expect(isInFreeWindow([], "12:00")).toBe(false);
   });
+
+  it("handles overnight windows (start > end)", () => {
+    const overnight: TimeWindow[] = [{ start: "22:00", end: "08:00" }];
+    expect(isInFreeWindow(overnight, "23:00")).toBe(true);
+    expect(isInFreeWindow(overnight, "00:00")).toBe(true);
+    expect(isInFreeWindow(overnight, "07:30")).toBe(true);
+    expect(isInFreeWindow(overnight, "22:00")).toBe(true);
+    expect(isInFreeWindow(overnight, "08:00")).toBe(true);
+    expect(isInFreeWindow(overnight, "08:01")).toBe(false);
+    expect(isInFreeWindow(overnight, "12:00")).toBe(false);
+    expect(isInFreeWindow(overnight, "21:59")).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

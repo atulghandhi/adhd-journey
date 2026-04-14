@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 interface FamilyControlsModule {
   requestAuthorization(): Promise<boolean>;
   getAuthorizationStatus(): Promise<"authorized" | "denied" | "notDetermined">;
-  presentActivityPicker(): Promise<boolean>;
+  presentActivityPicker(): Promise<number>;
   applyShields(): Promise<boolean>;
   removeShields(): Promise<boolean>;
   removeShieldsTemporarily(durationSeconds: number): Promise<boolean>;
@@ -58,9 +58,9 @@ export async function getFamilyControlsStatus(): Promise<
   return mod.getAuthorizationStatus();
 }
 
-export async function presentAppPicker(): Promise<boolean> {
+export async function presentAppPicker(): Promise<number> {
   const mod = getModule();
-  if (!mod) return false;
+  if (!mod) return 0;
   return mod.presentActivityPicker();
 }
 

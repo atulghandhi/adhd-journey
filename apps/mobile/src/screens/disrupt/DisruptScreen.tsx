@@ -1,5 +1,6 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Linking } from "react-native";
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
@@ -19,7 +20,18 @@ import { SafeAreaView, Text, View } from "../../components/primitives";
 import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { useToolkit } from "../../hooks/useToolkit";
 import { useGatewayStore } from "../../stores/gatewayStore";
+
+const APP_URL_SCHEMES: Record<string, string> = {
+  facebook: "fb://",
+  instagram: "instagram://",
+  reddit: "reddit://",
+  snapchat: "snapchat://",
+  tiktok: "snssdk1233://",
+  twitter: "twitter://",
+  youtube: "youtube://",
+};
 
 const INHALE_MS = 4000;
 const HOLD_MS = 2000;
@@ -47,11 +59,29 @@ export function DisruptScreen() {
   const { lightImpact, mediumImpact } = useHaptics();
   const { reducedMotion } = useReducedMotion();
 
+  const { keepItems } = useToolkit();
+
   const config = useGatewayStore((s) => s.config);
   const incrementOpen = useGatewayStore((s) => s.incrementOpen);
   const getOpenCount = useGatewayStore((s) => s.getOpenCount);
   const strategySnapshot = useGatewayStore((s) => s.strategySnapshot);
+  const updateStrategySnapshot = useGatewayStore((s) => s.updateStrategySnapshot);
   const resetIfNewDay = useGatewayStore((s) => s.resetIfNewDay);
+
+  // Write a toolkit strategy snapshot for display during the breathing pause
+  useEffect(() => {
+    if (!state?.tasks || keepItems.length === 0) return;
+    const randomKeep = keepItems[Math.floor(Math.random() * keepItems.length)];
+    const matchedTask = state.tasks.find((t) => t.task.id === randomKeep.task_id);
+    if (matchedTask) {
+      updateStrategySnapshot({
+        strategyText: matchedTask.task.title,
+        taskOrder: matchedTask.task.order,
+        taskTitle: matchedTask.task.title,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Check free window
   const nowHHMM = formatHHMM(new Date());
@@ -238,8 +268,16 @@ export function DisruptScreen() {
             </AnimatedPressable>
 
             <AnimatedPressable
-              onPress={() => {
+              onPress={async () => {
                 lightImpact();
+                const scheme = app ? APP_URL_SCHEMES[app.toLowerCase()] : undefined;
+                if (scheme) {
+                  const canOpen = await Linking.canOpenURL(scheme);
+                  if (canOpen) {
+                    await Linking.openURL(scheme);
+                    return;
+                  }
+                }
                 router.back();
               }}
             >

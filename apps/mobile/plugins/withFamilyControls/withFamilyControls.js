@@ -18,6 +18,15 @@ const EXTENSIONS = [
     },
   },
   {
+    name: "ShieldActionExtension",
+    bundleId: `${BUNDLE_ID}.ShieldAction`,
+    frameworks: ["ManagedSettings", "ManagedSettingsUI"],
+    entitlements: {
+      "com.apple.developer.family-controls": true,
+      "com.apple.security.application-groups": [APP_GROUP_ID],
+    },
+  },
+  {
     name: "DeviceActivityMonitorExtension",
     bundleId: `${BUNDLE_ID}.DeviceActivityMonitor`,
     frameworks: ["DeviceActivity", "ManagedSettings"],

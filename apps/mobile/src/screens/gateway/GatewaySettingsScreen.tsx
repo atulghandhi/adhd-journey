@@ -86,8 +86,16 @@ export function GatewaySettingsScreen() {
 
   const handleChooseApps = async () => {
     lightImpact();
-    const picked = await presentAppPicker();
-    if (picked) {
+    const appCount = await presentAppPicker();
+    if (appCount > 0) {
+      // Rebuild openLimits to match the new selection count
+      const newLimits = Array.from({ length: appCount }, (_, i) => {
+        const existing = config.openLimits[i];
+        return existing
+          ? { ...existing, appId: `app_${i + 1}` }
+          : { appId: `app_${i + 1}`, dailyLimit: 5, enabled: true };
+      });
+      updateConfig({ openLimits: newLimits });
       await applyShields();
     }
   };
@@ -337,11 +345,19 @@ export function GatewaySettingsScreen() {
                       Doom scroll brake
                     </Text>
                     <Switch
-                      onValueChange={(val) => {
+                      onValueChange={async (val) => {
                         selectionChanged();
                         updateConfig({
                           doomScroll: { ...config.doomScroll, enabled: val },
                         });
+                        if (val) {
+                          await startDoomScrollMonitor(
+                            config.doomScroll.firstThresholdMinutes,
+                            config.doomScroll.secondThresholdMinutes,
+                          );
+                        } else {
+                          await stopDoomScrollMonitor();
+                        }
                       }}
                       trackColor={{ false: "#ccc", true: "#40916C" }}
                       value={config.doomScroll.enabled}
@@ -362,7 +378,7 @@ export function GatewaySettingsScreen() {
                           Second check-in
                         </Text>
                         <Text className="text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                          {config.doomScroll.secondThresholdMinutes} min
+                          {config.doomScroll.firstThresholdMinutes + config.doomScroll.secondThresholdMinutes} min
                         </Text>
                       </View>
                     </View>
