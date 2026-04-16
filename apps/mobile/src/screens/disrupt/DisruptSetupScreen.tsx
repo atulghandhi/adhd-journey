@@ -76,16 +76,26 @@ export function DisruptSetupScreen() {
       <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ padding: 24, gap: 20 }}
+          contentContainerStyle={{ padding: 28, gap: 28 }}
         >
-          <View className="items-center pt-8">
-            <NextThingLogo size={48} />
+          <View className="items-center pt-10">
+            <View className="rounded-[28px] bg-focuslab-primary/10 p-5">
+              <NextThingLogo size={88} />
+            </View>
           </View>
 
-          <Text className="mt-4 text-center text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+          <View className="items-center">
+            <View className="rounded-full bg-focuslab-primary/15 px-3 py-1">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-focuslab-primary">
+                Coming soon · Android
+              </Text>
+            </View>
+          </View>
+
+          <Text className="text-center text-4xl font-bold leading-[1.1] text-focuslab-primaryDark dark:text-dark-text-primary">
             App Disrupt
           </Text>
-          <Text className="text-center text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+          <Text className="mx-auto max-w-[36ch] text-center text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
             App Disrupt uses iOS Shortcuts Automations to add a mindful pause before
             opening distracting apps. Android support is coming in a future update.
           </Text>
@@ -104,7 +114,7 @@ export function DisruptSetupScreen() {
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 24, gap: 20 }}
+        contentContainerStyle={{ padding: 28, gap: 28 }}
       >
         {/* Header */}
         <View className="flex-row items-center justify-between">
@@ -127,21 +137,35 @@ export function DisruptSetupScreen() {
             exiting={reducedMotion ? undefined : FadeOutLeft.duration(200)}
             key="intro"
           >
-            <View className="items-center pt-6">
-              <NextThingLogo size={56} />
+            {/* Hero */}
+            <View className="items-center pt-4">
+              <View className="rounded-[28px] bg-focuslab-primary/10 p-5">
+                <NextThingLogo size={88} />
+              </View>
             </View>
 
-            <Text className="mt-6 text-center text-3xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+            <View className="mt-6 items-center">
+              <View className="rounded-full bg-focuslab-primary/15 px-3 py-1">
+                <Text className="text-xs font-semibold uppercase tracking-[2px] text-focuslab-primary">
+                  iOS Shortcuts · 2 min setup
+                </Text>
+              </View>
+            </View>
+
+            <Text className="mt-4 text-center text-4xl font-bold leading-[1.1] text-focuslab-primaryDark dark:text-dark-text-primary">
               App Disrupt
             </Text>
-            <Text className="mt-3 text-center text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+            <Text className="mx-auto mt-4 max-w-[34ch] text-center text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
               Add a 5-second breathing pause before opening apps that steal your focus.
               Research shows this simple friction reduces impulsive app usage by up to 50%.
             </Text>
 
-            <View className="mt-8 gap-4">
-              <View className="flex-row items-start gap-4 rounded-2xl bg-white px-4 py-4 dark:bg-dark-surface">
-                <Zap color="#40916C" size={22} />
+            {/* Feature cards */}
+            <View className="mt-10 gap-3">
+              <View className="flex-row items-start gap-4 rounded-2xl border border-focuslab-border/60 bg-white px-5 py-5 shadow-[0_2px_8px_rgba(27,67,50,0.04)] dark:border-dark-border dark:bg-dark-surface">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-focuslab-primary/10">
+                  <Zap color="#40916C" size={20} />
+                </View>
                 <View className="flex-1">
                   <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
                     Instant awareness
@@ -153,8 +177,10 @@ export function DisruptSetupScreen() {
                 </View>
               </View>
 
-              <View className="flex-row items-start gap-4 rounded-2xl bg-white px-4 py-4 dark:bg-dark-surface">
-                <Smartphone color="#40916C" size={22} />
+              <View className="flex-row items-start gap-4 rounded-2xl border border-focuslab-border/60 bg-white px-5 py-5 shadow-[0_2px_8px_rgba(27,67,50,0.04)] dark:border-dark-border dark:bg-dark-surface">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-focuslab-primary/10">
+                  <Smartphone color="#40916C" size={20} />
+                </View>
                 <View className="flex-1">
                   <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
                     iOS Shortcuts fallback
@@ -166,8 +192,10 @@ export function DisruptSetupScreen() {
                 </View>
               </View>
 
-              <View className="flex-row items-start gap-4 rounded-2xl bg-white px-4 py-4 dark:bg-dark-surface">
-                <Shield color="#40916C" size={22} />
+              <View className="flex-row items-start gap-4 rounded-2xl border border-focuslab-border/60 bg-white px-5 py-5 shadow-[0_2px_8px_rgba(27,67,50,0.04)] dark:border-dark-border dark:bg-dark-surface">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-focuslab-primary/10">
+                  <Shield color="#40916C" size={20} />
+                </View>
                 <View className="flex-1">
                   <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
                     Your data stays private
@@ -179,14 +207,15 @@ export function DisruptSetupScreen() {
               </View>
             </View>
 
-            <Text className="mt-6 text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+            {/* Chips */}
+            <Text className="mb-3 mt-10 text-[11px] font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
               Common apps to pause
             </Text>
-            <View className="mt-3 flex-row flex-wrap gap-2">
+            <View className="flex-row flex-wrap gap-2">
               {DISTRACTING_APPS.map((appName) => (
                 <View
                   key={appName}
-                  className="rounded-full border border-focuslab-border bg-white px-3 py-1.5 dark:border-dark-border dark:bg-dark-surface"
+                  className="rounded-full bg-focuslab-primary/10 px-3.5 py-2 dark:border dark:border-dark-border dark:bg-dark-surface"
                 >
                   <Text className="text-sm font-medium text-focuslab-primaryDark dark:text-dark-text-primary">
                     {appName}
@@ -195,10 +224,13 @@ export function DisruptSetupScreen() {
               ))}
             </View>
 
-            <View className="mt-8">
+            <View className="mt-10">
               <PrimaryButton onPress={() => setCurrentStep(1)}>
                 Set it up now
               </PrimaryButton>
+              <Text className="mt-3 text-center text-xs text-focuslab-secondary dark:text-dark-text-secondary">
+                Takes about 2 minutes
+              </Text>
             </View>
           </Animated.View>
         ) : (
@@ -208,14 +240,14 @@ export function DisruptSetupScreen() {
             exiting={reducedMotion ? undefined : FadeOutLeft.duration(200)}
             key={`step-${currentStep}`}
           >
-            <View className="rounded-2xl bg-white px-5 py-6 dark:bg-dark-surface">
-              <View className="mb-4 h-10 w-10 items-center justify-center rounded-full bg-focuslab-primary">
+            <View className="rounded-2xl border border-focuslab-border/60 bg-white px-5 py-6 shadow-[0_2px_8px_rgba(27,67,50,0.04)] dark:border-dark-border dark:bg-dark-surface">
+              <View className="mb-4 h-11 w-11 items-center justify-center rounded-full bg-focuslab-primary">
                 <Text className="text-lg font-bold text-white">
                   {currentStep}
                 </Text>
               </View>
 
-              <Text className="text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
+              <Text className="mb-1 text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
                 {SETUP_STEPS[currentStep - 1].title}
               </Text>
 
