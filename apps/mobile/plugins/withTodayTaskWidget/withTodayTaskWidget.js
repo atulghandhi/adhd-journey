@@ -27,6 +27,9 @@ const withTodayTaskWidget = (config) => {
     const bundleId =
       (config.ios && config.ios.bundleIdentifier) || "app.nextthing.mobile";
     const widgetBundleId = bundleId + WIDGET_BUNDLE_ID_SUFFIX;
+    const marketingVersion = config.version || "1.0.0";
+    const currentProjectVersion =
+      (config.ios && config.ios.buildNumber) || "1";
 
     // --- Copy widget Swift files into ios/<WidgetTarget>/ ---
     const projectRoot = mod.modRequest.projectRoot;
@@ -137,33 +140,45 @@ const withTodayTaskWidget = (config) => {
       widgetBundleId
     );
 
-    // Configure build settings for the widget target
+    // Configure build settings for the widget target.
+    //
+    // IMPORTANT: we locate the widget target's XCBuildConfiguration entries via
+    // the target's own `buildConfigurationList` rather than scanning
+    // `pbxXCBuildConfigurationSection()` and filtering by
+    // `PRODUCT_BUNDLE_IDENTIFIER`. `node-xcode` stores that value quoted in
+    // memory (e.g. `"app.nextthing.mobile.TodayTaskWidget"`), so a string
+    // equality check against the unquoted bundle id silently fails and none
+    // of these settings get applied. That in turn leaves
+    // `GENERATE_INFOPLIST_FILE` at its default ("YES") and
+    // `CURRENT_PROJECT_VERSION` unset, producing a widget .appex with an
+    // empty `CFBundleVersion` that iOS refuses to install.
     if (target && target.uuid) {
-      const configurations = xcodeProject.pbxXCBuildConfigurationSection();
-      for (const key in configurations) {
-        const config = configurations[key];
-        if (
-          config.buildSettings &&
-          config.name &&
-          config.baseConfigurationReference === undefined
-        ) {
-          // Check if this config belongs to the widget target by checking for our bundle ID
-          if (
-            config.buildSettings.PRODUCT_BUNDLE_IDENTIFIER === widgetBundleId
-          ) {
-            config.buildSettings.SWIFT_VERSION = "5.0";
-            config.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "17.0";
-            config.buildSettings.CODE_SIGN_ENTITLEMENTS = `${WIDGET_TARGET_NAME}/${WIDGET_TARGET_NAME}.entitlements`;
-            config.buildSettings.INFOPLIST_FILE = `${WIDGET_TARGET_NAME}/Info.plist`;
-            config.buildSettings.TARGETED_DEVICE_FAMILY = '"1,2"';
-            config.buildSettings.MARKETING_VERSION = "1.0.0";
-            config.buildSettings.CURRENT_PROJECT_VERSION = "1";
-            config.buildSettings.GENERATE_INFOPLIST_FILE = "NO";
-            config.buildSettings.ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME =
-              "WidgetBackground";
-            config.buildSettings.LD_RUNPATH_SEARCH_PATHS =
-              '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"';
-          }
+      const nativeTarget = xcodeProject.pbxNativeTargetSection()[target.uuid];
+      const configurationListUuid =
+        nativeTarget && nativeTarget.buildConfigurationList;
+      const configurationLists = xcodeProject.pbxXCConfigurationList();
+      const configurationList =
+        configurationListUuid && configurationLists[configurationListUuid];
+      const buildConfigurations = xcodeProject.pbxXCBuildConfigurationSection();
+
+      if (configurationList && configurationList.buildConfigurations) {
+        for (const configRef of configurationList.buildConfigurations) {
+          const buildConfig = buildConfigurations[configRef.value];
+          if (!buildConfig || !buildConfig.buildSettings) continue;
+
+          buildConfig.buildSettings.SWIFT_VERSION = "5.0";
+          buildConfig.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+          buildConfig.buildSettings.CODE_SIGN_ENTITLEMENTS = `${WIDGET_TARGET_NAME}/${WIDGET_TARGET_NAME}.entitlements`;
+          buildConfig.buildSettings.INFOPLIST_FILE = `${WIDGET_TARGET_NAME}/Info.plist`;
+          buildConfig.buildSettings.TARGETED_DEVICE_FAMILY = '"1,2"';
+          buildConfig.buildSettings.MARKETING_VERSION = marketingVersion;
+          buildConfig.buildSettings.CURRENT_PROJECT_VERSION =
+            currentProjectVersion;
+          buildConfig.buildSettings.GENERATE_INFOPLIST_FILE = "NO";
+          buildConfig.buildSettings.ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME =
+            "WidgetBackground";
+          buildConfig.buildSettings.LD_RUNPATH_SEARCH_PATHS =
+            '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"';
         }
       }
     }
