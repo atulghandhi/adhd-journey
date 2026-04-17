@@ -1,8 +1,14 @@
+import Foundation
 import ManagedSettings
 import ManagedSettingsUI
-import UIKit
 
 class ShieldActionExtension: ShieldActionDelegate {
+    private func recordPendingDeepLink() {
+        let defaults = UserDefaults(suiteName: "group.app.nextthing")
+        defaults?.set("disrupt", forKey: "pendingDeepLink")
+        defaults?.set(Date().timeIntervalSince1970, forKey: "pendingDeepLinkAt")
+    }
+
     override func handle(
         action: ShieldAction,
         for application: ApplicationToken,
@@ -10,12 +16,8 @@ class ShieldActionExtension: ShieldActionDelegate {
     ) {
         switch action {
         case .primaryButtonPressed:
-            // Open the app's breathing screen via deep link
-            if let url = URL(string: "nextthing://disrupt") {
-                DispatchQueue.main.async {
-                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                }
-            }
+            // Record the deep link target; main app reads this on foreground.
+            recordPendingDeepLink()
             completionHandler(.close)
         case .secondaryButtonPressed:
             // "Go back" — just dismiss the shield
@@ -32,11 +34,7 @@ class ShieldActionExtension: ShieldActionDelegate {
     ) {
         switch action {
         case .primaryButtonPressed:
-            if let url = URL(string: "nextthing://disrupt") {
-                DispatchQueue.main.async {
-                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                }
-            }
+            recordPendingDeepLink()
             completionHandler(.close)
         case .secondaryButtonPressed:
             completionHandler(.close)

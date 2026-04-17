@@ -9,6 +9,7 @@ import {
   Pressable as RNPressable,
   StyleSheet,
 } from "react-native";
+import type { ScrollView as RNScrollView } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -62,6 +63,7 @@ export function CheckInSheet({
   const [whatWasHard, setWhatWasHard] = useState("");
   const [toolkitChoice, setToolkitChoice] = useState<ToolkitStatus | null>(null);
   const [isClosing, setIsClosing] = useState(false);
+  const scrollRef = useRef<RNScrollView>(null);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backdropOpacity = useSharedValue(0);
   const translateY = useSharedValue(SHEET_HIDDEN_OFFSET);
@@ -191,6 +193,13 @@ export function CheckInSheet({
     transform: [{ translateY: translateY.value }],
   }));
 
+  const scrollToInput = useCallback((yOffset: number) => {
+    // Small delay lets the keyboard finish animating so the scroll lands correctly
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ animated: true, y: yOffset });
+    }, 300);
+  }, []);
+
   const handleSubmit = async () => {
     if (!quickRating) {
       return;
@@ -247,7 +256,7 @@ export function CheckInSheet({
           >
             <View className="h-1.5 w-12 rounded-full bg-focuslab-border dark:bg-dark-border" />
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text className="text-2xl font-bold text-focuslab-primaryDark dark:text-dark-text-primary">
               Quick check-in
             </Text>
@@ -282,6 +291,7 @@ export function CheckInSheet({
                 className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base leading-7 text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
                 multiline
                 onChangeText={setWhatHappened}
+                onFocus={() => scrollToInput(320)}
                 placeholder="What happened?"
                 textAlignVertical="top"
                 value={whatHappened}
@@ -290,6 +300,7 @@ export function CheckInSheet({
                 className="min-h-24 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base leading-7 text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
                 multiline
                 onChangeText={setWhatWasHard}
+                onFocus={() => scrollToInput(440)}
                 placeholder="What was hard?"
                 textAlignVertical="top"
                 value={whatWasHard}

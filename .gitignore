@@ -53,3 +53,4 @@ yarn-error.log*
 /supabase/.local/edge-runtime.env
 /supabase/.local/netskope-ca.pem
 /supabase/functions/.local/netskope-ca.pem
+.vercel

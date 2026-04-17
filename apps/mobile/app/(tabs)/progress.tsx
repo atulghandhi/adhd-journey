@@ -1,5 +1,10 @@
+import { ErrorBoundary } from "../../src/components/ErrorBoundary";
 import { ProgressScreen } from "../../src/screens/progress/ProgressScreen";
 
 export default function ProgressRoute() {
-  return <ProgressScreen />;
+  return (
+    <ErrorBoundary>
+      <ProgressScreen />
+    </ErrorBoundary>
+  );
 }
