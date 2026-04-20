@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { useAuth } from "../hooks/useAuth";
+import { useShieldDeepLink } from "../hooks/useShieldDeepLink";
 import { useWidgetSync } from "../hooks/useWidgetSync";
 import { submitCompletionCheckIn } from "../lib/journey-api";
 import { queryClient } from "../lib/queryClient";
@@ -69,6 +70,11 @@ function WidgetSync() {
   return null;
 }
 
+function ShieldDeepLinkHandler() {
+  useShieldDeepLink();
+  return null;
+}
+
 export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -77,6 +83,7 @@ export function AppProviders({ children }: PropsWithChildren) {
           <ToastProvider>
             <OfflineQueueSync />
             <WidgetSync />
+            <ShieldDeepLinkHandler />
             {children}
           </ToastProvider>
         </ThemeProvider>

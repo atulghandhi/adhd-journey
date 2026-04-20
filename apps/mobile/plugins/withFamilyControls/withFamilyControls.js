@@ -152,6 +152,11 @@ function addExtensionTarget(project, rootObject, ext, projectRoot) {
         config.buildSettings.SWIFT_VERSION = "5.0";
         config.buildSettings.CODE_SIGN_ENTITLEMENTS = `${targetName}/${targetName}.entitlements`;
         config.buildSettings.TARGETED_DEVICE_FAMILY = '"1,2"';
+        // Without these, the extension's Info.plist expands
+        // CFBundleVersion/CFBundleShortVersionString to empty strings and iOS
+        // refuses to install the .appex (MIInstallerError 33 / MissingBundleVersion).
+        config.buildSettings.CURRENT_PROJECT_VERSION = "1";
+        config.buildSettings.MARKETING_VERSION = "1.0";
       }
     }
   }

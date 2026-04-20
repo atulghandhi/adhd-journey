@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { RefreshControl } from "react-native";
 
@@ -102,6 +102,14 @@ export function JourneyScreen() {
   useEffect(() => {
     setSelectedReviewRating(null);
   }, [state?.reviewTask?.task.id]);
+
+  const handleTaskCompletionChange = useCallback(
+    (complete: boolean, data?: Record<string, unknown>) => {
+      setTaskInteractionComplete(complete);
+      setTaskInteractionData(data);
+    },
+    [],
+  );
 
   const handleToolkitChoice = (status: ToolkitStatus) => {
     if (!state?.currentTask) {
@@ -323,10 +331,7 @@ export function JourneyScreen() {
             </Text>
             <View className="mt-4">
               <TaskRenderer
-                onCompletionChange={(complete, data) => {
-                  setTaskInteractionComplete(complete);
-                  setTaskInteractionData(data);
-                }}
+                onCompletionChange={handleTaskCompletionChange}
                 task={state.currentTask.task}
               />
             </View>

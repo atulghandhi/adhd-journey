@@ -5,11 +5,13 @@ import {
   DEFAULT_JOURNEY_ID,
   processCompletionCheckIn,
   processSkipCheckIn,
+  type CheckInInsert,
   type CheckInRow,
   type CompletionCheckInInput,
   type JourneyState,
   type ProfileRow,
   type SkipCheckInInput,
+  type SpacedRepetitionStateInsert,
   type SpacedRepetitionStateRow,
   type TaskRow,
   type UserProgressRow,
@@ -17,6 +19,25 @@ import {
 
 import { fetchProfile } from "./profile";
 import { supabase } from "./supabase";
+
+const EDGE_FN_TIMEOUT_MS = 12_000;
+// Absolute ceiling for the whole submit/fetch flow (edge fn + fallback).
+// The mutation button is tied to this; if anything stalls longer we'd
+// rather surface an error than let the UI hang forever.
+const TOTAL_FLOW_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`[journey-api] ${label} timed out after ${ms}ms`)),
+      ms,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  }) as Promise<T>;
+}
 
 function hasProgressChanges(
   originalRows: UserProgressRow[],
@@ -48,6 +69,71 @@ function hasProgressChanges(
 
     return originalMap.get(row.id) !== nextValue;
   });
+}
+
+function buildJourneyStateFromLocalTransition(args: {
+  checkIn: CheckInInsert;
+  checkIns: CheckInRow[];
+  profile: ProfileRow;
+  progressRows: UserProgressRow[];
+  reviewStates: SpacedRepetitionStateRow[];
+  spacedRepetition: SpacedRepetitionStateInsert | null;
+  tasks: TaskRow[];
+}) {
+  const nextCheckIn: CheckInRow = {
+    checked_in_at: args.checkIn.checked_in_at ?? new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    id: crypto.randomUUID(),
+    journey_id: args.checkIn.journey_id ?? args.profile.current_journey_id,
+    prompt_responses: args.checkIn.prompt_responses ?? null,
+    quick_rating: args.checkIn.quick_rating,
+    task_id: args.checkIn.task_id,
+    time_spent_seconds: args.checkIn.time_spent_seconds ?? 0,
+    tried_it: args.checkIn.tried_it,
+    type: args.checkIn.type,
+    user_id: args.checkIn.user_id,
+  };
+  const existingReviewState = args.spacedRepetition
+    ? args.reviewStates.find((state) => state.task_id === args.spacedRepetition?.task_id) ?? null
+    : null;
+  const nextReviewStates = args.spacedRepetition
+    ? [
+        ...args.reviewStates.filter(
+          (state) => state.task_id !== args.spacedRepetition?.task_id,
+        ),
+        {
+          ease_factor: args.spacedRepetition.ease_factor ?? existingReviewState?.ease_factor ?? 2.5,
+          id: args.spacedRepetition.id ?? existingReviewState?.id ?? crypto.randomUUID(),
+          interval_days:
+            args.spacedRepetition.interval_days ?? existingReviewState?.interval_days ?? 1,
+          journey_id:
+            args.spacedRepetition.journey_id ??
+            existingReviewState?.journey_id ??
+            args.profile.current_journey_id,
+          last_review_rating:
+            args.spacedRepetition.last_review_rating ??
+            existingReviewState?.last_review_rating ??
+            null,
+          next_review_date:
+            args.spacedRepetition.next_review_date ??
+            existingReviewState?.next_review_date ??
+            null,
+          review_count:
+            args.spacedRepetition.review_count ?? existingReviewState?.review_count ?? 0,
+          task_id: args.spacedRepetition.task_id,
+          user_id: args.spacedRepetition.user_id,
+        },
+      ]
+    : args.reviewStates;
+
+  return buildJourneyState({
+    checkIns: [nextCheckIn, ...args.checkIns],
+    paymentStatus: args.profile.payment_status === "paid" ? "paid" : "free",
+    profile: args.profile,
+    progressRows: args.progressRows,
+    reviewStates: nextReviewStates,
+    tasks: args.tasks,
+  }).state;
 }
 
 async function getCurrentUserId() {
@@ -172,32 +258,56 @@ async function fallbackFetchJourneyState() {
   return state;
 }
 
-export async function fetchJourneyState() {
+async function fetchJourneyStateInner() {
   try {
-    const { data, error } = await supabase.functions.invoke("get-journey-state");
+    const { data, error } = await withTimeout(
+      supabase.functions.invoke("get-journey-state"),
+      EDGE_FN_TIMEOUT_MS,
+      "get-journey-state invoke",
+    );
 
     if (error || !data?.state) {
       throw error ?? new Error("Journey function response was empty.");
     }
 
     return data.state as JourneyState;
-  } catch {
-    return fallbackFetchJourneyState();
+  } catch (edgeError) {
+    console.warn("[journey-api] get-journey-state failed, using fallback:", edgeError);
+    try {
+      return await fallbackFetchJourneyState();
+    } catch (fallbackError) {
+      console.error("[journey-api] fallbackFetchJourneyState failed:", fallbackError);
+      throw fallbackError;
+    }
   }
+}
+
+export async function fetchJourneyState() {
+  return withTimeout(
+    fetchJourneyStateInner(),
+    TOTAL_FLOW_TIMEOUT_MS,
+    "fetchJourneyState total flow",
+  );
 }
 
 async function fallbackSubmitCompletionCheckIn(
   taskId: string,
   input: CompletionCheckInInput,
 ) {
+  console.log("[journey-api] fallback.submit: start", { taskId });
   const userId = await getCurrentUserId();
+  console.log("[journey-api] fallback.submit: got userId", userId);
   const profile = await fetchProfile(userId);
+  console.log("[journey-api] fallback.submit: got profile", profile.id);
   const tasks = await fetchTasks();
+  console.log("[journey-api] fallback.submit: got tasks", tasks.length);
   const progressRows = await ensureJourneyProgress(profile, tasks);
+  console.log("[journey-api] fallback.submit: got progress", progressRows.length);
   const [checkIns, reviewStates] = await Promise.all([
     fetchCheckIns(profile.id),
     fetchReviewStates(profile),
   ]);
+  console.log("[journey-api] fallback.submit: got checkIns+reviewStates", checkIns.length, reviewStates.length);
   const task = tasks.find((candidate) => candidate.id === taskId);
 
   if (!task) {
@@ -206,23 +316,40 @@ async function fallbackSubmitCompletionCheckIn(
 
   const reviewState =
     reviewStates.find((state) => state.task_id === taskId) ?? null;
-  const transition = processCompletionCheckIn({
-    checkIns,
-    input,
-    paymentStatus: profile.payment_status === "paid" ? "paid" : "free",
-    profile,
-    progressRows,
-    reviewState,
-    task,
-    tasks,
-  });
+  let transition;
+  try {
+    transition = processCompletionCheckIn({
+      checkIns,
+      input,
+      paymentStatus: profile.payment_status === "paid" ? "paid" : "free",
+      profile,
+      progressRows,
+      reviewState,
+      task,
+      tasks,
+    });
+    console.log("[journey-api] fallback.submit: transition built", {
+      checkInKeys: Object.keys(transition.checkIn ?? {}),
+      progressCount: transition.progress?.length,
+      srCount: transition.spacedRepetition ? 1 : 0,
+    });
+  } catch (transitionError) {
+    console.error("[journey-api] fallback.submit: processCompletionCheckIn threw", transitionError);
+    throw transitionError;
+  }
 
+  console.log("[journey-api] fallback.submit: writing inserts/upserts");
   const [{ error: checkInError }, { error: progressError }, { error: reviewError }] =
     await Promise.all([
       supabase.from("check_ins").insert(transition.checkIn),
       supabase.from("user_progress").upsert(transition.progress),
       supabase.from("spaced_repetition_state").upsert(transition.spacedRepetition),
     ]);
+  console.log("[journey-api] fallback.submit: write results", {
+    checkInError: checkInError?.message,
+    progressError: progressError?.message,
+    reviewError: reviewError?.message,
+  });
 
   if (checkInError) {
     throw checkInError;
@@ -236,33 +363,62 @@ async function fallbackSubmitCompletionCheckIn(
     throw reviewError;
   }
 
-  return fetchJourneyState();
+  return buildJourneyStateFromLocalTransition({
+    checkIn: transition.checkIn,
+    checkIns,
+    profile,
+    progressRows: transition.progress,
+    reviewStates,
+    spacedRepetition: transition.spacedRepetition,
+    tasks,
+  });
 }
 
-export async function submitCompletionCheckIn(
+async function submitCompletionCheckInInner(
   taskId: string,
   input: CompletionCheckInInput,
 ) {
   try {
-    const { data, error } = await supabase.functions.invoke("complete-check-in", {
-      body: {
-        checkedInAt: input.checkedInAt,
-        promptResponses: input.promptResponses,
-        quickRating: input.quickRating,
-        taskId,
-        timeSpentSeconds: input.timeSpentSeconds,
-        triedIt: input.triedIt,
-      },
-    });
+    const { data, error } = await withTimeout(
+      supabase.functions.invoke("complete-check-in", {
+        body: {
+          checkedInAt: input.checkedInAt,
+          promptResponses: input.promptResponses,
+          quickRating: input.quickRating,
+          taskId,
+          timeSpentSeconds: input.timeSpentSeconds,
+          triedIt: input.triedIt,
+        },
+      }),
+      EDGE_FN_TIMEOUT_MS,
+      "complete-check-in invoke",
+    );
 
     if (error || !data?.state) {
       throw error ?? new Error("Check-in function response was empty.");
     }
 
     return data.state as JourneyState;
-  } catch {
-    return fallbackSubmitCompletionCheckIn(taskId, input);
+  } catch (edgeError) {
+    console.warn("[journey-api] complete-check-in failed, using fallback:", edgeError);
+    try {
+      return await fallbackSubmitCompletionCheckIn(taskId, input);
+    } catch (fallbackError) {
+      console.error("[journey-api] fallbackSubmitCompletionCheckIn failed:", fallbackError);
+      throw fallbackError;
+    }
   }
+}
+
+export async function submitCompletionCheckIn(
+  taskId: string,
+  input: CompletionCheckInInput,
+) {
+  return withTimeout(
+    submitCompletionCheckInInner(taskId, input),
+    TOTAL_FLOW_TIMEOUT_MS,
+    "submitCompletionCheckIn total flow",
+  );
 }
 
 export async function submitReviewCheckIn(args: {
@@ -336,33 +492,62 @@ export async function submitReviewCheckIn(args: {
   }
 }
 
-export async function submitSkipCheckIn(
+async function submitSkipCheckInInner(
   taskId: string,
   input: SkipCheckInInput,
 ) {
+  console.log("[journey-api] skip.submit: start", { taskId });
   const userId = await getCurrentUserId();
+  console.log("[journey-api] skip.submit: got userId", userId);
   const profile = await fetchProfile(userId);
+  console.log("[journey-api] skip.submit: got profile", profile.id);
   const tasks = await fetchTasks();
-  const progressRows = await ensureJourneyProgress(profile, tasks);
+  console.log("[journey-api] skip.submit: got tasks", tasks.length);
+  const [progressRows, checkIns, reviewStates] = await Promise.all([
+    ensureJourneyProgress(profile, tasks),
+    fetchCheckIns(profile.id),
+    fetchReviewStates(profile),
+  ]);
+  console.log("[journey-api] skip.submit: got state inputs", {
+    checkIns: checkIns.length,
+    progress: progressRows.length,
+    reviewStates: reviewStates.length,
+  });
   const task = tasks.find((candidate) => candidate.id === taskId);
 
   if (!task) {
     throw new Error("Task not found.");
   }
 
-  const transition = processSkipCheckIn({
-    input,
-    paymentStatus: profile.payment_status === "paid" ? "paid" : "free",
-    profile,
-    progressRows,
-    task,
-    tasks,
-  });
+  let transition;
+  try {
+    transition = processSkipCheckIn({
+      input,
+      paymentStatus: profile.payment_status === "paid" ? "paid" : "free",
+      profile,
+      progressRows,
+      task,
+      tasks,
+    });
+    console.log("[journey-api] skip.submit: transition built", {
+      checkInType: transition.checkIn.type,
+      progressCount: transition.progress.length,
+      reason: transition.reason,
+    });
+  } catch (transitionError) {
+    console.error("[journey-api] skip.submit: processSkipCheckIn threw", transitionError);
+    throw transitionError;
+  }
 
+  console.log("[journey-api] skip.submit: writing inserts/upserts");
   const [{ error: checkInError }, { error: progressError }] = await Promise.all([
     supabase.from("check_ins").insert(transition.checkIn).select(),
     supabase.from("user_progress").upsert(transition.progress).select(),
   ]);
+  console.log("[journey-api] skip.submit: write results", {
+    checkInError: checkInError?.message,
+    progressError: progressError?.message,
+  });
 
   if (checkInError) {
     throw checkInError;
@@ -372,5 +557,24 @@ export async function submitSkipCheckIn(
     throw progressError;
   }
 
-  return fetchJourneyState();
+  return buildJourneyStateFromLocalTransition({
+    checkIn: transition.checkIn,
+    checkIns,
+    profile,
+    progressRows: transition.progress,
+    reviewStates,
+    spacedRepetition: transition.spacedRepetition,
+    tasks,
+  });
+}
+
+export async function submitSkipCheckIn(
+  taskId: string,
+  input: SkipCheckInInput,
+) {
+  return withTimeout(
+    submitSkipCheckInInner(taskId, input),
+    TOTAL_FLOW_TIMEOUT_MS,
+    "submitSkipCheckIn total flow",
+  );
 }
