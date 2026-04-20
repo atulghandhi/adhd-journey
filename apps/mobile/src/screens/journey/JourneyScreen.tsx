@@ -216,6 +216,8 @@ export function JourneyScreen() {
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ gap: 20, padding: 24 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             onRefresh={() => {

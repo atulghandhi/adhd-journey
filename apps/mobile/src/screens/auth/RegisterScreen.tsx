@@ -47,21 +47,24 @@ export function RegisterScreen() {
       subtitle="We only need a few details to sync Next Thing across your devices."
     >
       <TextInput
-        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        style={{ height: 52, lineHeight: 20 }}
         onChangeText={setName}
         placeholder="Name"
         value={name}
       />
       <TextInput
         autoCapitalize="none"
-        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        style={{ height: 52, lineHeight: 20 }}
         keyboardType="email-address"
         onChangeText={setEmail}
         placeholder="Email"
         value={email}
       />
       <TextInput
-        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        style={{ height: 52, lineHeight: 20 }}
         onChangeText={setPassword}
         placeholder="Password"
         secureTextEntry

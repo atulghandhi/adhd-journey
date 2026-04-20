@@ -19,7 +19,7 @@ export function useCheckIn() {
 
       if (isNetworkError) {
         enqueueCheckIn({
-          id: crypto.randomUUID(),
+          id: `offline-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
           input: variables.input,
           retryCount: 0,
           taskId: variables.taskId,

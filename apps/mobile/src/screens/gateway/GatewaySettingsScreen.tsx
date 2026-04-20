@@ -1,14 +1,13 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, Switch } from "react-native";
-import { ChevronLeft, ChevronDown, ChevronUp, Minus, Plus } from "lucide-react-native";
+import { Alert, Switch } from "react-native";
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-
-import type { OpenLimitConfig, TimeWindow } from "@focuslab/shared";
 
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
 import { AppCard } from "../../components/ui/AppCard";
 import {
+  Pressable,
   SafeAreaView,
   ScrollView,
   Text,
@@ -22,13 +21,12 @@ import {
   presentAppPicker,
   requestFamilyControlsAuth,
   applyShields,
-  removeShields,
   startDoomScrollMonitor,
   stopDoomScrollMonitor,
 } from "../../../modules/family-controls-bridge";
 import { GatewayFirstRunFlow } from "./GatewayFirstRunFlow";
-import { OpenLimitRow } from "./OpenLimitRow";
-import { FreeWindowRow } from "./FreeWindowRow";
+
+const PAUSE_OPTIONS = [3, 4, 5] as const;
 
 export function GatewaySettingsScreen() {
   const router = useRouter();
@@ -46,7 +44,7 @@ export function GatewaySettingsScreen() {
     (s) => s.setFamilyControlsAuthorized,
   );
 
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [customizationOpen, setCustomizationOpen] = useState(false);
 
   // Sync persisted auth state with live native status on mount
   useEffect(() => {
@@ -68,372 +66,256 @@ export function GatewaySettingsScreen() {
     );
   }
 
-  const handleToggleEnabled = async (value: boolean) => {
-    selectionChanged();
+  // ── Derived config values ────────────────────────────────────────────────
+  const pauseSeconds = ([3, 4, 5].includes(config.breathDurationSeconds)
+    ? config.breathDurationSeconds
+    : 5) as 3 | 4 | 5;
+  const progressiveFriction = config.escalation.incrementPerOpenSeconds > 0;
+  const checkIn10 = config.doomScroll.enabled;
+  const checkIn30 = config.doomScroll.secondThresholdMinutes > 0;
 
-    if (value && isFamilyControlsAvailable() && !familyControlsAuthorized) {
-      const granted = await requestFamilyControlsAuth();
-      setFamilyControlsAuthorized(granted);
-      if (!granted) return;
+  // ── Handlers ────────────────────────────────────────────────────────────
+  const handleSelectApps = async () => {
+    lightImpact();
+
+    if (!isFamilyControlsAvailable()) {
+      // Fallback: route to the Shortcuts setup guide
+      router.push("/disrupt-setup" as never);
+      return;
     }
 
-    updateConfig({ enabled: value });
-
-    if (value) {
-      await applyShields();
-      if (config.doomScroll.enabled) {
-        await startDoomScrollMonitor(
-          config.doomScroll.firstThresholdMinutes,
-          config.doomScroll.secondThresholdMinutes,
+    // Request auth if not yet granted
+    if (!familyControlsAuthorized) {
+      const granted = await requestFamilyControlsAuth();
+      setFamilyControlsAuthorized(granted);
+      if (!granted) {
+        Alert.alert(
+          "Screen Time permission needed",
+          "Open Settings → Screen Time → enable Next Thing to let App Disrupt shield your apps.",
+          [{ text: "OK" }],
         );
+        return;
       }
+    }
+
+    try {
+      const appCount = await presentAppPicker();
+      if (appCount > 0) {
+        const existing = config.openLimits.find((l) => l.appId === "shielded_apps");
+        updateConfig({
+          enabled: true,
+          openLimits: [
+            {
+              appId: "shielded_apps",
+              dailyLimit: existing?.dailyLimit ?? appCount * 5,
+              enabled: true,
+            },
+          ],
+        });
+        await applyShields();
+      }
+    } catch {
+      Alert.alert(
+        "Couldn't open app selector",
+        "The native app picker isn't available here. Use the Shortcuts setup instead.",
+        [{ text: "OK" }],
+      );
+    }
+  };
+
+  const handlePauseDuration = (seconds: 3 | 4 | 5) => {
+    selectionChanged();
+    updateConfig({ breathDurationSeconds: seconds });
+  };
+
+  const handleProgressiveFriction = (value: boolean) => {
+    selectionChanged();
+    updateConfig({
+      escalation: {
+        ...config.escalation,
+        incrementPerOpenSeconds: value ? 1 : 0,
+      },
+    });
+  };
+
+  const handleCheckIn10 = async (value: boolean) => {
+    selectionChanged();
+    updateConfig({
+      doomScroll: { ...config.doomScroll, enabled: value },
+    });
+    if (value) {
+      await startDoomScrollMonitor(
+        config.doomScroll.firstThresholdMinutes || 10,
+        config.doomScroll.secondThresholdMinutes || 30,
+      );
     } else {
-      await removeShields();
       await stopDoomScrollMonitor();
     }
   };
 
-  const handleChooseApps = async () => {
-    lightImpact();
-    const appCount = await presentAppPicker();
-    if (appCount > 0) {
-      // Preserve existing aggregate limit if present, update count
-      const existing = config.openLimits.find((l) => l.appId === "shielded_apps");
-      const newLimits: OpenLimitConfig[] = [
-        {
-          appId: "shielded_apps",
-          dailyLimit: existing?.dailyLimit ?? appCount * 5,
-          enabled: true,
-        },
-      ];
-      updateConfig({ openLimits: newLimits });
-      await applyShields();
-    }
-  };
-
-  const handleUpdateLimit = (appId: string, dailyLimit: number) => {
+  const handleCheckIn30 = async (value: boolean) => {
     selectionChanged();
-    const existing = config.openLimits.find((l) => l.appId === appId);
-    if (existing) {
-      updateConfig({
-        openLimits: config.openLimits.map((l) =>
-          l.appId === appId ? { ...l, dailyLimit } : l,
-        ),
-      });
-    } else {
-      updateConfig({
-        openLimits: [
-          ...config.openLimits,
-          { appId, dailyLimit, enabled: true },
-        ],
-      });
-    }
-  };
-
-  const handleAddFreeWindow = () => {
-    lightImpact();
+    const nextSeconds = value ? 30 : 0;
     updateConfig({
-      freeWindows: [...config.freeWindows, { start: "17:00", end: "20:00" }],
+      doomScroll: { ...config.doomScroll, secondThresholdMinutes: nextSeconds },
     });
-  };
-
-  const handleUpdateFreeWindow = (index: number, window: TimeWindow) => {
-    const updated = [...config.freeWindows];
-    updated[index] = window;
-    updateConfig({ freeWindows: updated });
-  };
-
-  const handleRemoveFreeWindow = (index: number) => {
-    lightImpact();
-    const updated = config.freeWindows.filter((_, i) => i !== index);
-    updateConfig({ freeWindows: updated });
-  };
-
-  const todayOpenCounts = useGatewayStore((s) => {
-    const counts: Record<string, number> = {};
-    for (const limit of config.openLimits) {
-      counts[limit.appId] = s.getOpenCount(limit.appId);
+    if (config.doomScroll.enabled) {
+      await startDoomScrollMonitor(
+        config.doomScroll.firstThresholdMinutes || 10,
+        nextSeconds || 30,
+      );
     }
-    return counts;
-  });
+  };
+
+  const iconColor = dark ? "#C9E4D6" : "#52796F";
 
   return (
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
       <ScrollView
-        contentContainerStyle={{ gap: 16, padding: 24, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View className="flex-row items-center gap-3">
+        {/* Nav header */}
+        <View className="mb-6 flex-row items-center gap-3">
           <AnimatedPressable onPress={() => router.back()}>
-            <ChevronLeft color={dark ? "#C9E4D6" : "#52796F"} size={24} />
+            <ChevronLeft color={iconColor} size={24} />
           </AnimatedPressable>
-          <View className="flex-1">
-            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-              App Disrupt
-            </Text>
-            <Text className="mt-1 text-base text-focuslab-secondary dark:text-dark-text-secondary">
-              Control how distracting apps behave
-            </Text>
-          </View>
+          <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
+            Mindful Gateway
+          </Text>
         </View>
 
-        {/* Enable toggle */}
-        <AppCard>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                Enable App Disrupt
-              </Text>
-              <Text className="mt-1 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
-                Adds a breathing pause before you open selected apps.
-              </Text>
-            </View>
-            <Switch
-              onValueChange={handleToggleEnabled}
-              trackColor={{ false: "#ccc", true: "#40916C" }}
-              value={config.enabled}
-            />
-          </View>
-        </AppCard>
+        {/* Page title + description */}
+        <Text className="text-[34px] font-bold leading-tight text-focuslab-primaryDark dark:text-dark-text-primary">
+          Mindful Gateway
+        </Text>
+        <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
+          Mindful gateway adds a short pause before you open selected apps —
+          giving you a second to make sure the action is intentional and what
+          you want.
+        </Text>
 
-        {/* Shielded apps */}
-        {config.enabled ? (
-          <>
-            <AppCard>
-              <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                Shielded apps
-              </Text>
-              {isFamilyControlsAvailable() ? (
+        {/* Select Shielded Apps button */}
+        <Pressable
+          className="mt-8 flex-row items-center justify-between rounded-2xl bg-focuslab-primaryDark px-6 py-5 dark:bg-dark-surface"
+          onPress={handleSelectApps}
+        >
+          <Text className="text-lg font-bold text-white">
+            Select Shielded Apps
+          </Text>
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-white/15">
+            <ChevronRight color="#FFFFFF" size={20} />
+          </View>
+        </Pressable>
+
+        {/* Customization collapsible */}
+        <Pressable
+          className="mt-6 flex-row items-center justify-between py-2"
+          onPress={() => {
+            selectionChanged();
+            setCustomizationOpen((prev) => !prev);
+          }}
+        >
+          <View className="flex-row items-center gap-2">
+            <SlidersHorizontal color={iconColor} size={16} />
+            <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+              Customization
+            </Text>
+          </View>
+          <ChevronLeft
+            color={iconColor}
+            size={18}
+            style={{
+              transform: [{ rotate: customizationOpen ? "-90deg" : "0deg" }],
+            }}
+          />
+        </Pressable>
+
+        {customizationOpen ? (
+          <AppCard>
+            {/* Pause Duration */}
+            <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
+              Pause Duration
+            </Text>
+            <Text className="mt-1 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
+              Select the length of your gateway breath.
+            </Text>
+            <View className="mt-4 flex-row gap-2">
+              {PAUSE_OPTIONS.map((s) => (
                 <Pressable
-                  className="mt-4 rounded-xl bg-focuslab-primary/10 px-4 py-3 dark:bg-focuslab-primary/20"
-                  onPress={handleChooseApps}
+                  key={s}
+                  className={`flex-1 items-center rounded-xl py-3 ${
+                    pauseSeconds === s
+                      ? "bg-focuslab-primaryDark dark:bg-focuslab-primary"
+                      : "bg-focuslab-background dark:bg-dark-bg"
+                  }`}
+                  onPress={() => handlePauseDuration(s)}
                 >
-                  <Text className="text-center text-sm font-semibold text-focuslab-primary">
-                    Choose apps…
+                  <Text
+                    className={`text-sm font-semibold ${
+                      pauseSeconds === s
+                        ? "text-white"
+                        : "text-focuslab-secondary dark:text-dark-text-secondary"
+                    }`}
+                  >
+                    {s}s
                   </Text>
                 </Pressable>
-              ) : (
-                <Text className="mt-3 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
-                  FamilyControls requires iOS 16+. Use the Shortcuts setup
-                  instead.
-                </Text>
-              )}
-            </AppCard>
+              ))}
+            </View>
 
-            {/* Open limits */}
-            {config.openLimits.length > 0 ? (
-              <AppCard>
-                <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                  Open limits
-                </Text>
-                <View className="mt-3 gap-3">
-                  {config.openLimits.map((limit) => (
-                    <OpenLimitRow
-                      key={limit.appId}
-                      limit={limit}
-                      onUpdate={(dailyLimit) =>
-                        handleUpdateLimit(limit.appId, dailyLimit)
-                      }
-                    />
-                  ))}
-                </View>
-                <Text className="mt-3 text-xs text-focuslab-secondary dark:text-dark-text-secondary">
-                  After reaching your limit, pauses get longer each time.
-                </Text>
-              </AppCard>
-            ) : null}
+            {/* Divider */}
+            <View className="my-4 h-px bg-focuslab-border/50 dark:bg-dark-border/50" />
 
-            {/* Free windows */}
-            <AppCard>
-              <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                Free windows
-              </Text>
-              <Text className="mt-2 text-sm text-focuslab-secondary dark:text-dark-text-secondary">
-                Apps open without a pause during these times.
-              </Text>
-              <View className="mt-3 gap-3">
-                {config.freeWindows.map((w, i) => (
-                  <FreeWindowRow
-                    key={i}
-                    onRemove={() => handleRemoveFreeWindow(i)}
-                    onUpdate={(window) => handleUpdateFreeWindow(i, window)}
-                    window={w}
-                  />
-                ))}
+            {/* Progressive Friction */}
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
+                  Progressive Friction
+                </Text>
+                <Text className="mt-1 text-sm leading-5 text-focuslab-secondary dark:text-dark-text-secondary">
+                  Add 1 second to the gateway pause every time a selected app
+                  is opened during the day.
+                </Text>
               </View>
-              <Pressable
-                className="mt-3 rounded-xl bg-focuslab-primary/10 px-4 py-2.5 dark:bg-focuslab-primary/20"
-                onPress={handleAddFreeWindow}
-              >
-                <Text className="text-center text-sm font-semibold text-focuslab-primary">
-                  + Add window
+              <Switch
+                onValueChange={handleProgressiveFriction}
+                trackColor={{ false: "#ccc", true: "#1B4332" }}
+                value={progressiveFriction}
+              />
+            </View>
+
+            {/* Divider */}
+            <View className="my-4 h-px bg-focuslab-border/50 dark:bg-dark-border/50" />
+
+            {/* Usage Interventions */}
+            <Text className="mb-3 text-[11px] font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+              Usage Interventions
+            </Text>
+
+            <View className="gap-3">
+              <View className="flex-row items-center justify-between rounded-xl bg-focuslab-background px-4 py-4 dark:bg-dark-bg">
+                <Text className="text-base font-medium text-focuslab-primaryDark dark:text-dark-text-primary">
+                  10-minute Check-in
                 </Text>
-              </Pressable>
-            </AppCard>
-
-            {/* Advanced section */}
-            <Pressable
-              className="flex-row items-center justify-between"
-              onPress={() => setAdvancedOpen(!advancedOpen)}
-            >
-              <Text className="text-sm font-semibold text-focuslab-secondary dark:text-dark-text-secondary">
-                Advanced
-              </Text>
-              {advancedOpen ? (
-                <ChevronUp color={dark ? "#C9E4D6" : "#52796F"} size={18} />
-              ) : (
-                <ChevronDown color={dark ? "#C9E4D6" : "#52796F"} size={18} />
-              )}
-            </Pressable>
-
-            {advancedOpen ? (
-              <AppCard>
-                {/* Breathing duration */}
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-sm text-focuslab-primaryDark dark:text-dark-text-primary">
-                    Breathing pause
-                  </Text>
-                  <View className="flex-row items-center gap-3">
-                    <Pressable
-                      onPress={() => {
-                        selectionChanged();
-                        updateConfig({
-                          breathDurationSeconds: Math.max(
-                            3,
-                            config.breathDurationSeconds - 1,
-                          ),
-                        });
-                      }}
-                    >
-                      <Minus color={dark ? "#C9E4D6" : "#52796F"} size={18} />
-                    </Pressable>
-                    <Text className="w-10 text-center text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                      {config.breathDurationSeconds}s
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        selectionChanged();
-                        updateConfig({
-                          breathDurationSeconds: Math.min(
-                            30,
-                            config.breathDurationSeconds + 1,
-                          ),
-                        });
-                      }}
-                    >
-                      <Plus color={dark ? "#C9E4D6" : "#52796F"} size={18} />
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* Escalation */}
-                <View className="mt-4">
-                  <Text className="text-xs font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                    Escalation (after limit)
-                  </Text>
-                  <View className="mt-3 flex-row items-center justify-between">
-                    <Text className="text-sm text-focuslab-primaryDark dark:text-dark-text-primary">
-                      Extra per open
-                    </Text>
-                    <Text className="text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                      +{config.escalation.incrementPerOpenSeconds}s
-                    </Text>
-                  </View>
-                  <View className="mt-2 flex-row items-center justify-between">
-                    <Text className="text-sm text-focuslab-primaryDark dark:text-dark-text-primary">
-                      Maximum
-                    </Text>
-                    <Text className="text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                      {config.escalation.capSeconds}s
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Doom scroll brake */}
-                <View className="mt-4">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                      Doom scroll brake
-                    </Text>
-                    <Switch
-                      onValueChange={async (val) => {
-                        selectionChanged();
-                        updateConfig({
-                          doomScroll: { ...config.doomScroll, enabled: val },
-                        });
-                        if (val) {
-                          await startDoomScrollMonitor(
-                            config.doomScroll.firstThresholdMinutes,
-                            config.doomScroll.secondThresholdMinutes,
-                          );
-                        } else {
-                          await stopDoomScrollMonitor();
-                        }
-                      }}
-                      trackColor={{ false: "#ccc", true: "#40916C" }}
-                      value={config.doomScroll.enabled}
-                    />
-                  </View>
-                  {config.doomScroll.enabled ? (
-                    <View className="mt-3 gap-2">
-                      <View className="flex-row items-center justify-between">
-                        <Text className="text-sm text-focuslab-primaryDark dark:text-dark-text-primary">
-                          First check-in
-                        </Text>
-                        <Text className="text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                          {config.doomScroll.firstThresholdMinutes} min
-                        </Text>
-                      </View>
-                      <View className="flex-row items-center justify-between">
-                        <Text className="text-sm text-focuslab-primaryDark dark:text-dark-text-primary">
-                          Second check-in
-                        </Text>
-                        <Text className="text-sm font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-                          {config.doomScroll.firstThresholdMinutes + config.doomScroll.secondThresholdMinutes} min
-                        </Text>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              </AppCard>
-            ) : null}
-
-            {/* Today's stats */}
-            {Object.keys(todayOpenCounts).length > 0 ? (
-              <AppCard>
-                <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
-                  Today&apos;s stats
+                <Switch
+                  onValueChange={(v) => { void handleCheckIn10(v); }}
+                  trackColor={{ false: "#ccc", true: "#1B4332" }}
+                  value={checkIn10}
+                />
+              </View>
+              <View className="flex-row items-center justify-between rounded-xl bg-focuslab-background px-4 py-4 dark:bg-dark-bg">
+                <Text className="text-base font-medium text-focuslab-primaryDark dark:text-dark-text-primary">
+                  30-minute Check-in
                 </Text>
-                <View className="mt-3 gap-2">
-                  {config.openLimits.map((limit) => {
-                    const count = todayOpenCounts[limit.appId] ?? 0;
-                    const pct = Math.min(
-                      (count / Math.max(limit.dailyLimit, 1)) * 100,
-                      100,
-                    );
-                    return (
-                      <View key={limit.appId}>
-                        <View className="flex-row items-center justify-between">
-                          <Text className="text-sm capitalize text-focuslab-primaryDark dark:text-dark-text-primary">
-                            {limit.appId === "shielded_apps" ? "Shielded apps" : limit.appId}
-                          </Text>
-                          <Text className="text-xs font-semibold text-focuslab-secondary dark:text-dark-text-secondary">
-                            {count}/{limit.dailyLimit}
-                          </Text>
-                        </View>
-                        <View className="mt-1 h-2 overflow-hidden rounded-full bg-focuslab-border dark:bg-dark-border">
-                          <View
-                            className="h-full rounded-full bg-focuslab-primary"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </AppCard>
-            ) : null}
-          </>
+                <Switch
+                  onValueChange={(v) => { void handleCheckIn30(v); }}
+                  trackColor={{ false: "#ccc", true: "#1B4332" }}
+                  value={checkIn30}
+                />
+              </View>
+            </View>
+          </AppCard>
         ) : null}
       </ScrollView>
     </SafeAreaView>

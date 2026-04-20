@@ -145,7 +145,7 @@ export function AccountScreen() {
     });
   };
 
-  const handleRestart = async () => {
+  const doRestart = async () => {
     if (!user?.id || !profile) {
       return;
     }
@@ -160,8 +160,18 @@ export function AccountScreen() {
         throw error ?? new Error("Tasks could not be loaded.");
       }
 
+      // Avoid crypto.randomUUID() — Hermes doesn’t expose it. Generate a
+      // standards-compliant UUID v4 using Math.random() instead.
+      const newJourneyId = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+        /[xy]/g,
+        (c) => {
+          const r = (Math.random() * 16) | 0;
+          return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+        },
+      );
       const payload = buildRestartJourneyPayload({
         currentJourneyId: profile.current_journey_id,
+        newJourneyId,
         tasks,
         userId: user.id,
       });
@@ -181,10 +191,25 @@ export function AccountScreen() {
 
       await refetchProfile();
       await refetchJourney();
-      showToast("Journey restarted.");
+      showToast("Journey restarted. Starting from Day 1.");
     } catch {
       showToast("Couldn’t restart your journey.", "error");
     }
+  };
+
+  const handleRestart = () => {
+    Alert.alert(
+      "Restart journey?",
+      "This starts a fresh 30-day journey from Day 1. Your previous progress is kept but a new journey is created.",
+      [
+        { style: "cancel", text: "Cancel" },
+        {
+          onPress: () => { void doRestart(); },
+          style: "destructive",
+          text: "Restart",
+        },
+      ],
+    );
   };
 
   const handleSyncPending = async () => {
@@ -257,7 +282,11 @@ export function AccountScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
-      <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
+      <ScrollView
+        contentContainerStyle={{ gap: 20, padding: 24 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
         <View>
           <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Account
@@ -335,15 +364,17 @@ export function AccountScreen() {
           </View>
           <View className="mt-4 gap-3">
             <TextInput
-              className="min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+              className="rounded-2xl border border-focuslab-border bg-focuslab-background px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
               onChangeText={setQuietStart}
               placeholder="Quiet start (21:00)"
+              style={{ height: 52, lineHeight: 20 }}
               value={quietStart}
             />
             <TextInput
-              className="min-h-12 rounded-2xl border border-focuslab-border bg-focuslab-background px-4 py-3 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+              className="rounded-2xl border border-focuslab-border bg-focuslab-background px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
               onChangeText={setQuietEnd}
               placeholder="Quiet end (08:00)"
+              style={{ height: 52, lineHeight: 20 }}
               value={quietEnd}
             />
             <PrimaryButton

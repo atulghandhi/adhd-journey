@@ -70,7 +70,11 @@ export function CommunityScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-focuslab-background dark:bg-dark-bg">
-      <ScrollView contentContainerStyle={{ gap: 20, padding: 24 }}>
+      <ScrollView
+        contentContainerStyle={{ gap: 20, padding: 24 }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
         <View>
           <Text className="text-sm font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
             Community

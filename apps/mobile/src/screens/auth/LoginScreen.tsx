@@ -39,17 +39,19 @@ export function LoginScreen() {
     >
       <TextInput
         autoCapitalize="none"
-        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
         keyboardType="email-address"
         onChangeText={setEmail}
         placeholder="Email"
+        style={{ height: 52, lineHeight: 20 }}
         value={email}
       />
       <TextInput
-        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 py-3.5 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
+        className="rounded-[14px] border border-focuslab-border bg-[#F8FFFA] px-4 text-base text-focuslab-primaryDark dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-primary"
         onChangeText={setPassword}
         placeholder="Password"
         secureTextEntry
+        style={{ height: 52, lineHeight: 20 }}
         value={password}
       />
       {errorMessage ? (

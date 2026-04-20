@@ -21,6 +21,15 @@ import { fetchProfile } from "./profile";
 import { supabase } from "./supabase";
 
 const EDGE_FN_TIMEOUT_MS = 12_000;
+
+// Hermes (React Native's JS engine) does not expose a global `crypto`.
+// We only need a unique-ish id for local optimistic state (the DB auto-
+// generates real UUIDs via `gen_random_uuid()` defaults). This avoids a
+// `ReferenceError: Property 'crypto' doesn't exist` crash in the fallback
+// path.
+function localId() {
+  return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 // Absolute ceiling for the whole submit/fetch flow (edge fn + fallback).
 // The mutation button is tied to this; if anything stalls longer we'd
 // rather surface an error than let the UI hang forever.
@@ -83,7 +92,7 @@ function buildJourneyStateFromLocalTransition(args: {
   const nextCheckIn: CheckInRow = {
     checked_in_at: args.checkIn.checked_in_at ?? new Date().toISOString(),
     created_at: new Date().toISOString(),
-    id: crypto.randomUUID(),
+    id: localId(),
     journey_id: args.checkIn.journey_id ?? args.profile.current_journey_id,
     prompt_responses: args.checkIn.prompt_responses ?? null,
     quick_rating: args.checkIn.quick_rating,
@@ -103,7 +112,7 @@ function buildJourneyStateFromLocalTransition(args: {
         ),
         {
           ease_factor: args.spacedRepetition.ease_factor ?? existingReviewState?.ease_factor ?? 2.5,
-          id: args.spacedRepetition.id ?? existingReviewState?.id ?? crypto.randomUUID(),
+          id: args.spacedRepetition.id ?? existingReviewState?.id ?? localId(),
           interval_days:
             args.spacedRepetition.interval_days ?? existingReviewState?.interval_days ?? 1,
           journey_id:
