@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Switch } from "react-native";
-import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react-native";
+import { Alert, Linking, Switch } from "react-native";
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
@@ -23,8 +23,9 @@ import {
   applyShields,
   startDoomScrollMonitor,
   stopDoomScrollMonitor,
+  getShieldedAppCount,
+  removeShieldedAppAt,
 } from "../../../modules/family-controls-bridge";
-import { GatewayFirstRunFlow } from "./GatewayFirstRunFlow";
 
 const PAUSE_OPTIONS = [3, 4, 5] as const;
 
@@ -45,26 +46,54 @@ export function GatewaySettingsScreen() {
   );
 
   const [customizationOpen, setCustomizationOpen] = useState(false);
+  const [shieldedCount, setShieldedCount] = useState(0);
 
-  // Sync persisted auth state with live native status on mount
+  const refreshShieldedCount = async () => {
+    if (!isFamilyControlsAvailable()) return;
+    const count = await getShieldedAppCount();
+    setShieldedCount(count);
+  };
+
+  // Sync persisted auth state + shielded count with live native state on mount.
+  // Also re-apply shields so the selection persists across app restarts.
   useEffect(() => {
     if (!isFamilyControlsAvailable()) return;
     void getFamilyControlsStatus().then((status) => {
       setFamilyControlsAuthorized(status === "authorized");
+      if (status === "authorized") {
+        void applyShields();
+      }
     });
+    void refreshShieldedCount();
   }, [setFamilyControlsAuthorized]);
 
-  // Show first-run flow if not yet completed and requested
-  const showFirstRun = firstRun === "true" && !completedFirstRun;
-  if (showFirstRun) {
-    return (
-      <GatewayFirstRunFlow
-        onComplete={() => {
-          markFirstRunComplete();
-        }}
-      />
+  const handleRemoveShieldedApp = (index: number) => {
+    Alert.alert(
+      "Remove this app?",
+      "It will no longer be shielded by the Mindful Gateway.",
+      [
+        { style: "cancel", text: "Cancel" },
+        {
+          style: "destructive",
+          text: "Remove",
+          onPress: () => {
+            void removeShieldedAppAt(index).then(() => {
+              void refreshShieldedCount();
+            });
+          },
+        },
+      ],
     );
-  }
+  };
+
+  // First-run flow removed — the redesigned settings screen handles
+  // "Select Shielded Apps" + customization in one place. Mark first-run as
+  // complete on mount so nothing else short-circuits to the old flow.
+  useEffect(() => {
+    if (!completedFirstRun && firstRun === "true") {
+      markFirstRunComplete();
+    }
+  }, [completedFirstRun, firstRun, markFirstRunComplete]);
 
   // ── Derived config values ────────────────────────────────────────────────
   const pauseSeconds = ([3, 4, 5].includes(config.breathDurationSeconds)
@@ -87,12 +116,24 @@ export function GatewaySettingsScreen() {
     // Request auth if not yet granted
     if (!familyControlsAuthorized) {
       const granted = await requestFamilyControlsAuth();
-      setFamilyControlsAuthorized(granted);
-      if (!granted) {
+      const status = await getFamilyControlsStatus();
+      const isAuthorized = granted || status === "authorized";
+      setFamilyControlsAuthorized(isAuthorized);
+      if (!isAuthorized) {
         Alert.alert(
           "Screen Time permission needed",
-          "Open Settings → Screen Time → enable Next Thing to let App Disrupt shield your apps.",
-          [{ text: "OK" }],
+          "Next Thing needs Screen Time access to shield apps. Tap Open Settings, then enable Screen Time for Next Thing.",
+          [
+            { style: "cancel", text: "Cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => {
+                void Linking.openURL("App-prefs:SCREEN_TIME").catch(() => {
+                  void Linking.openSettings();
+                });
+              },
+            },
+          ],
         );
         return;
       }
@@ -113,6 +154,7 @@ export function GatewaySettingsScreen() {
           ],
         });
         await applyShields();
+        await refreshShieldedCount();
       }
     } catch {
       Alert.alert(
@@ -207,6 +249,40 @@ export function GatewaySettingsScreen() {
             <ChevronRight color="#FFFFFF" size={20} />
           </View>
         </Pressable>
+
+        {shieldedCount > 0 ? (
+          <View className="mt-4">
+            <Text className="mb-2 text-xs font-semibold uppercase tracking-[2px] text-focuslab-secondary dark:text-dark-text-secondary">
+              {shieldedCount} app{shieldedCount === 1 ? "" : "s"} shielded
+            </Text>
+            <View className="flex-row flex-wrap gap-2">
+              {Array.from({ length: shieldedCount }).map((_, index) => (
+                <View
+                  key={index}
+                  className="flex-row items-center gap-2 rounded-full bg-focuslab-primary/15 py-2 pl-3 pr-2 dark:bg-dark-surface"
+                >
+                  <Text className="text-sm font-medium text-focuslab-primaryDark dark:text-dark-text-primary">
+                    App #{index + 1}
+                  </Text>
+                  <Pressable
+                    onPress={() => handleRemoveShieldedApp(index)}
+                    hitSlop={8}
+                    className="h-6 w-6 items-center justify-center rounded-full bg-focuslab-primary/25 dark:bg-dark-bg"
+                  >
+                    <X
+                      color={dark ? "#C9E4D6" : "#52796F"}
+                      size={14}
+                    />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+            <Text className="mt-2 text-xs text-focuslab-secondary dark:text-dark-text-secondary">
+              Tap “Select Shielded Apps” above to see which apps these are or
+              add more — iOS keeps app names private to us.
+            </Text>
+          </View>
+        ) : null}
 
         {/* Customization collapsible */}
         <Pressable

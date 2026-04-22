@@ -16,6 +16,8 @@
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",
     "@focuslab/shared": "file:../../packages/shared",
+    "family-controls-bridge": "file:./modules/family-controls-bridge",
+    "widget-data-bridge": "file:./modules/widget-data-bridge",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.90.0",
     "@tanstack/react-query": "^5.90.5",
@@ -45,6 +47,12 @@
     "@testing-library/react-native": "^13.3.3",
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
+  },
+  "expo": {
+    "autolinking": {
+      "searchPaths": ["./modules"],
+      "nativeModulesDir": "./modules"
+    }
   },
   "private": true
 }

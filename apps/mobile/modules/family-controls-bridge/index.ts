@@ -1,3 +1,4 @@
+import { requireNativeModule } from "expo-modules-core";
 import { Platform } from "react-native";
 
 // ---------------------------------------------------------------------------
@@ -12,6 +13,9 @@ interface FamilyControlsModule {
   applyShields(): Promise<boolean>;
   removeShields(): Promise<boolean>;
   removeShieldsTemporarily(durationSeconds: number): Promise<boolean>;
+  getShieldedAppCount(): Promise<number>;
+  removeShieldedAppAt(index: number): Promise<boolean>;
+  clearShieldedApps(): Promise<boolean>;
   startDoomScrollMonitor(
     firstThresholdMinutes: number,
     secondThresholdMinutes: number,
@@ -31,11 +35,13 @@ function getModule(): FamilyControlsModule | null {
   if (nativeModule) return nativeModule;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("./src/FamilyControlsBridgeModule");
-    nativeModule = mod.default ?? mod;
+    // The native module is registered by its `Name(...)` in the Swift
+    // `ModuleDefinition` — see FamilyControlsBridgeModule.swift.
+    nativeModule = requireNativeModule<FamilyControlsModule>("FamilyControlsBridge");
     return nativeModule;
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[FamilyControlsBridge] native module not available:", err);
     return null;
   }
 }
@@ -82,6 +88,24 @@ export async function removeShieldsTemporarily(
   const mod = getModule();
   if (!mod) return false;
   return mod.removeShieldsTemporarily(durationSeconds);
+}
+
+export async function getShieldedAppCount(): Promise<number> {
+  const mod = getModule();
+  if (!mod) return 0;
+  return mod.getShieldedAppCount();
+}
+
+export async function removeShieldedAppAt(index: number): Promise<boolean> {
+  const mod = getModule();
+  if (!mod) return false;
+  return mod.removeShieldedAppAt(index);
+}
+
+export async function clearShieldedApps(): Promise<boolean> {
+  const mod = getModule();
+  if (!mod) return false;
+  return mod.clearShieldedApps();
 }
 
 export async function startDoomScrollMonitor(

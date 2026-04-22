@@ -1,6 +1,7 @@
 {
-  "platforms": ["ios"],
-  "ios": {
-    "modules": ["WidgetDataBridgeModule"]
+  "platforms": ["apple"],
+  "apple": {
+    "modules": ["WidgetDataBridgeModule"],
+    "podspecPath": "WidgetDataBridge.podspec"
   }
 }

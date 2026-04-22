@@ -16,6 +16,25 @@ export function useWidgetSync(): void {
   const { data: state } = useJourneyState();
   const lastJson = useRef<string>("");
 
+  // Heartbeat: write a diagnostic payload on mount so we can tell the
+  // difference between "bridge broken" and "journey state not loaded yet".
+  // If the widget shows this task title after first launch, we know the
+  // native bridge + App Group are working.
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    const heartbeat = JSON.stringify({
+      streakCount: 0,
+      completedCount: 0,
+      totalTasks: 30,
+      currentTaskTitle: "Loading your task…",
+      currentTaskDay: 0,
+      currentTaskDescription: `Widget bridge OK @ ${new Date().toLocaleTimeString()}`,
+      todayTaskCompleted: false,
+      lastUpdated: new Date().toISOString(),
+    });
+    setWidgetData(heartbeat);
+  }, []);
+
   useEffect(() => {
     if (Platform.OS !== "ios" || !state) return;
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Switch } from "react-native";
+import { Alert, Linking, Switch } from "react-native";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
@@ -27,6 +27,7 @@ import {
 const PAUSE_OPTIONS = [3, 4, 5] as const;
 
 export function MindfulGatewayTutorial() {
+  console.log("MindfulGatewayTutorial component rendered at: " + new Date().toLocaleTimeString());
   const { colorScheme } = useColorScheme();
   const { lightImpact, selectionChanged } = useHaptics();
   const dark = colorScheme === "dark";
@@ -72,12 +73,28 @@ export function MindfulGatewayTutorial() {
     // Request auth if not yet granted
     if (!familyControlsAuthorized) {
       const granted = await requestFamilyControlsAuth();
-      setFamilyControlsAuthorized(granted);
-      if (!granted) {
+      // Some iOS versions return false from requestAuthorization even when the
+      // user approved; confirm by re-reading the live status before falling
+      // back to the Settings alert.
+      const status = await getFamilyControlsStatus();
+      const isAuthorized = granted || status === "authorized";
+      setFamilyControlsAuthorized(isAuthorized);
+      if (!isAuthorized) {
         Alert.alert(
           "Screen Time permission needed",
-          "Open Settings → Screen Time → enable Next Thing to let App Disrupt shield your apps.",
-          [{ text: "OK" }],
+          "Next Thing needs Screen Time access to shield apps. Tap Open Settings, then enable Screen Time for Next Thing.",
+          [
+            { style: "cancel", text: "Cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => {
+                // Deep-link to Screen Time settings; fall back to app settings.
+                void Linking.openURL("App-prefs:SCREEN_TIME").catch(() => {
+                  void Linking.openSettings();
+                });
+              },
+            },
+          ],
         );
         return;
       }

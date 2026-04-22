@@ -1,11 +1,7 @@
 {
-  "platforms": ["ios"],
-  "ios": {
+  "platforms": ["apple"],
+  "apple": {
     "modules": ["FamilyControlsBridgeModule"],
-    "frameworks": [
-      "FamilyControls",
-      "ManagedSettings",
-      "DeviceActivity"
-    ]
+    "podspecPath": "FamilyControlsBridge.podspec"
   }
 }

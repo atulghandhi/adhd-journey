@@ -1,0 +1,7 @@
+{
+  "name": "family-controls-bridge",
+  "version": "1.0.0",
+  "description": "Bridge to Apple FamilyControls, ManagedSettings, and DeviceActivity.",
+  "main": "index.ts",
+  "private": true
+}

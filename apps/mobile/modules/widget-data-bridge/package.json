@@ -1,0 +1,7 @@
+{
+  "name": "widget-data-bridge",
+  "version": "1.0.0",
+  "description": "Writes shared widget data to App Group UserDefaults and reloads WidgetKit timelines.",
+  "main": "index.ts",
+  "private": true
+}
