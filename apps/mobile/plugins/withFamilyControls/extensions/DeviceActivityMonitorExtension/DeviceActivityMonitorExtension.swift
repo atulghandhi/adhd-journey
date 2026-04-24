@@ -16,10 +16,17 @@ class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
     ) {
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
 
+        // Clear any system restrictions first
+        store.application.blockedApplications = nil
+
         // Re-apply shields to force user through breathing pause
         if let data = sharedDefaults?.data(forKey: shieldedAppsKey),
-           let tokens = try? JSONDecoder().decode(Set<ApplicationToken>.self, from: data) {
-            store.shield.applications = tokens
+           let tokens = try? JSONDecoder().decode([ApplicationToken].self, from: data) {
+            store.shield.applications = Set(tokens)
+        }
+        if let catData = sharedDefaults?.data(forKey: "shielded_category_tokens"),
+           let catTokens = try? JSONDecoder().decode([ActivityCategoryToken].self, from: catData) {
+            store.shield.applicationCategories = .specific(Set(catTokens))
         }
 
         // Increment doom-scroll counter for escalating messages
@@ -32,10 +39,17 @@ class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
         sharedDefaults?.set(0, forKey: doomScrollCountKey)
 
+        // Clear any system restrictions first
+        store.application.blockedApplications = nil
+
         // Reapply shields at start of new day so protection carries over
         if let data = sharedDefaults?.data(forKey: shieldedAppsKey),
-           let tokens = try? JSONDecoder().decode(Set<ApplicationToken>.self, from: data) {
-            store.shield.applications = tokens
+           let tokens = try? JSONDecoder().decode([ApplicationToken].self, from: data) {
+            store.shield.applications = Set(tokens)
+        }
+        if let catData = sharedDefaults?.data(forKey: "shielded_category_tokens"),
+           let catTokens = try? JSONDecoder().decode([ActivityCategoryToken].self, from: catData) {
+            store.shield.applicationCategories = .specific(Set(catTokens))
         }
     }
 

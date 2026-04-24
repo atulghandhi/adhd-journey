@@ -1,5 +1,5 @@
-import { requireNativeModule } from "expo-modules-core";
-import { Platform } from "react-native";
+import { requireNativeModule, requireNativeViewManager } from "expo-modules-core";
+import { Platform, ViewProps } from "react-native";
 
 // ---------------------------------------------------------------------------
 // FamilyControls bridge — wraps native Swift module.
@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 // ---------------------------------------------------------------------------
 
 interface FamilyControlsModule {
+// ... rest of interface
   requestAuthorization(): Promise<boolean>;
   getAuthorizationStatus(): Promise<"authorized" | "denied" | "notDetermined">;
   presentActivityPicker(): Promise<number>;
@@ -14,6 +15,7 @@ interface FamilyControlsModule {
   removeShields(): Promise<boolean>;
   removeShieldsTemporarily(durationSeconds: number): Promise<boolean>;
   getShieldedAppCount(): Promise<number>;
+  getShieldedAppTokens(): Promise<string[]>;
   removeShieldedAppAt(index: number): Promise<boolean>;
   clearShieldedApps(): Promise<boolean>;
   startDoomScrollMonitor(
@@ -96,6 +98,12 @@ export async function getShieldedAppCount(): Promise<number> {
   return mod.getShieldedAppCount();
 }
 
+export async function getShieldedAppTokens(): Promise<string[]> {
+  const mod = getModule();
+  if (!mod) return [];
+  return mod.getShieldedAppTokens();
+}
+
 export async function removeShieldedAppAt(index: number): Promise<boolean> {
   const mod = getModule();
   if (!mod) return false;
@@ -133,5 +141,14 @@ export async function writeSharedGatewayData(
   if (!mod) return false;
   return mod.writeSharedData(jsonString);
 }
+
+export interface ShieldedAppViewProps extends ViewProps {
+  token: string;
+}
+
+export const ShieldedAppView: React.ComponentType<ShieldedAppViewProps> =
+  isAvailable()
+    ? requireNativeViewManager("FamilyControlsBridge")
+    : () => null;
 
 export { isAvailable as isFamilyControlsAvailable };

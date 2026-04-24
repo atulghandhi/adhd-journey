@@ -69,8 +69,11 @@ public class FamilyControlsBridgeModule: Module {
                         // Preload the picker with the currently-selected tokens so
                         // the user can see/deselect what they already shielded.
                         var initialSelection = FamilyActivitySelection()
-                        if let existing = self.loadShieldedTokenArray() {
-                            initialSelection.applicationTokens = Set(existing)
+                        if let existingApps = self.loadShieldedTokenArray() {
+                            initialSelection.applicationTokens = Set(existingApps)
+                        }
+                        if let existingCategories = self.loadShieldedCategoryArray() {
+                            initialSelection.categoryTokens = Set(existingCategories)
                         }
                         let pickerVC = FamilyActivityPickerViewController(
                             initialSelection: initialSelection
@@ -78,11 +81,17 @@ public class FamilyControlsBridgeModule: Module {
                             // Persist selection as an ordered array so the JS
                             // side can show per-index chips + remove by index.
                             let defaults = UserDefaults(suiteName: appGroupID)
-                            let tokenArray = Array(selection.applicationTokens)
-                            let tokenCount = tokenArray.count
-                            if let data = try? JSONEncoder().encode(tokenArray) {
-                                defaults?.set(data, forKey: shieldedAppsKey)
+                            let appTokens = Array(selection.applicationTokens)
+                            let categoryTokens = Array(selection.categoryTokens)
+                            let tokenCount = appTokens.count + categoryTokens.count
+                            
+                            if let appData = try? JSONEncoder().encode(appTokens) {
+                                defaults?.set(appData, forKey: shieldedAppsKey)
                             }
+                            if let catData = try? JSONEncoder().encode(categoryTokens) {
+                                defaults?.set(catData, forKey: "shielded_category_tokens")
+                            }
+                            
                             rootVC.dismiss(animated: true) {
                                 continuation.resume(returning: tokenCount)
                             }
@@ -99,58 +108,156 @@ public class FamilyControlsBridgeModule: Module {
         // ------------------------------------------------------------------
 
         AsyncFunction("applyShields") { () -> Bool in
-            guard let tokens = self.loadShieldedTokens() else { return false }
-            self.store.shield.applications = tokens
-            return true
+            if #available(iOS 16.0, *) {
+                let appTokens = self.loadShieldedTokens()
+                let catTokens = self.loadShieldedCategoryTokens()
+                
+                if appTokens == nil && catTokens == nil { return false }
+                
+                // Clear any system restrictions first to ensure our custom shield takes priority
+                self.store.application.blockedApplications = nil
+                
+                self.store.shield.applications = appTokens
+                // Only set the category shield when there are categories to shield;
+                // passing `.specific([])` is still a restriction with an empty set,
+                // which can confuse iOS and sometimes lands on the generic
+                // "app is restricted" fallback UI.
+                if let cats = catTokens, !cats.isEmpty {
+                    self.store.shield.applicationCategories = .specific(cats)
+                } else {
+                    self.store.shield.applicationCategories = nil
+                }
+                return true
+            }
+            return false
         }
 
         AsyncFunction("removeShields") { () -> Bool in
-            self.store.shield.applications = nil
-            return true
+            if #available(iOS 16.0, *) {
+                self.store.application.blockedApplications = nil
+                self.store.shield.applications = nil
+                self.store.shield.applicationCategories = nil
+                return true
+            }
+            return false
         }
 
         // Number of apps currently persisted for shielding.
         AsyncFunction("getShieldedAppCount") { () -> Int in
-            return self.loadShieldedTokenArray()?.count ?? 0
+            if #available(iOS 16.0, *) {
+                return self.loadShieldedTokenArray()?.count ?? 0
+            }
+            return 0
+        }
+
+        // Return tokens as base64 strings for the JS side to pass into the native label view.
+        AsyncFunction("getShieldedAppTokens") { () -> [String] in
+            if #available(iOS 16.0, *) {
+                var allTokens: [String] = []
+                
+                if let apps = self.loadShieldedTokenArray() {
+                    allTokens.append(contentsOf: apps.compactMap { token in
+                        if let data = try? JSONEncoder().encode(token) {
+                            return "app:" + data.base64EncodedString()
+                        }
+                        return nil
+                    })
+                }
+                
+                if let cats = self.loadShieldedCategoryArray() {
+                    allTokens.append(contentsOf: cats.compactMap { token in
+                        if let data = try? JSONEncoder().encode(token) {
+                            return "category:" + data.base64EncodedString()
+                        }
+                        return nil
+                    })
+                }
+                
+                return allTokens
+            }
+            return []
         }
 
         // Remove a single shielded app by its index in the stored array, then
         // re-apply the shield with the updated set so the change takes effect
         // immediately.
         AsyncFunction("removeShieldedAppAt") { (index: Int) -> Bool in
-            guard var tokens = self.loadShieldedTokenArray(),
-                  index >= 0, index < tokens.count else { return false }
-            tokens.remove(at: index)
-            let defaults = UserDefaults(suiteName: appGroupID)
-            if let data = try? JSONEncoder().encode(tokens) {
-                defaults?.set(data, forKey: shieldedAppsKey)
+            if #available(iOS 16.0, *) {
+                var apps = self.loadShieldedTokenArray() ?? []
+                var cats = self.loadShieldedCategoryArray() ?? []
+                
+                if index < 0 || index >= (apps.count + cats.count) {
+                    return false
+                }
+                
+                if index < apps.count {
+                    apps.remove(at: index)
+                    let defaults = UserDefaults(suiteName: appGroupID)
+                    if let data = try? JSONEncoder().encode(apps) {
+                        defaults?.set(data, forKey: shieldedAppsKey)
+                    }
+                } else {
+                    cats.remove(at: index - apps.count)
+                    let defaults = UserDefaults(suiteName: appGroupID)
+                    if let data = try? JSONEncoder().encode(cats) {
+                        defaults?.set(data, forKey: "shielded_category_tokens")
+                    }
+                }
+                
+                self.store.application.blockedApplications = nil
+                self.store.shield.applications = apps.isEmpty ? nil : Set(apps)
+                if cats.isEmpty {
+                    self.store.shield.applicationCategories = nil
+                } else {
+                    self.store.shield.applicationCategories = .specific(Set(cats))
+                }
+                return true
             }
-            if tokens.isEmpty {
-                self.store.shield.applications = nil
-            } else {
-                self.store.shield.applications = Set(tokens)
-            }
-            return true
+            return false
         }
 
         // Clear every shielded app.
         AsyncFunction("clearShieldedApps") { () -> Bool in
-            let defaults = UserDefaults(suiteName: appGroupID)
-            defaults?.removeObject(forKey: shieldedAppsKey)
-            self.store.shield.applications = nil
-            return true
+            if #available(iOS 16.0, *) {
+                let defaults = UserDefaults(suiteName: appGroupID)
+                defaults?.removeObject(forKey: shieldedAppsKey)
+                defaults?.removeObject(forKey: "shielded_category_tokens")
+                self.store.application.blockedApplications = nil
+                self.store.shield.applications = nil
+                self.store.shield.applicationCategories = nil
+                return true
+            }
+            return false
         }
 
         AsyncFunction("removeShieldsTemporarily") { (durationSeconds: Double) -> Bool in
-            self.store.shield.applications = nil
+            if #available(iOS 16.0, *) {
+                self.store.application.blockedApplications = nil
+                self.store.shield.applications = nil
+                self.store.shield.applicationCategories = nil
 
-            // Re-apply after duration
-            DispatchQueue.main.asyncAfter(deadline: .now() + durationSeconds) { [weak self] in
-                if let tokens = self?.loadShieldedTokens() {
-                    self?.store.shield.applications = tokens
+                // Re-apply after duration
+                DispatchQueue.main.asyncAfter(deadline: .now() + durationSeconds) { [weak self] in
+                    if let tokens = self?.loadShieldedTokens() {
+                        self?.store.shield.applications = tokens
+                    }
+                    if let cats = self?.loadShieldedCategoryTokens() {
+                        self?.store.shield.applicationCategories = .specific(cats)
+                    }
                 }
+                return true
             }
-            return true
+            return false
+        }
+
+        // ------------------------------------------------------------------
+        // Native Views
+        // ------------------------------------------------------------------
+
+        View(ShieldedAppView.self) {
+            Prop("token") { (view: ShieldedAppView, token: String) in
+                view.setToken(token)
+            }
         }
 
         // ------------------------------------------------------------------
@@ -211,8 +318,17 @@ public class FamilyControlsBridgeModule: Module {
 
     // MARK: - Helpers
 
+    @available(iOS 16.0, *)
     private func loadShieldedTokens() -> Set<ApplicationToken>? {
         if let array = loadShieldedTokenArray() {
+            return Set(array)
+        }
+        return nil
+    }
+
+    @available(iOS 16.0, *)
+    private func loadShieldedCategoryTokens() -> Set<ActivityCategoryToken>? {
+        if let array = loadShieldedCategoryArray() {
             return Set(array)
         }
         return nil
@@ -221,6 +337,7 @@ public class FamilyControlsBridgeModule: Module {
     // The stored selection may have been written as either an ordered Array
     // (new format) or a Set (legacy format). Try both so older installs keep
     // working after upgrade.
+    @available(iOS 16.0, *)
     private func loadShieldedTokenArray() -> [ApplicationToken]? {
         let defaults = UserDefaults(suiteName: appGroupID)
         guard let data = defaults?.data(forKey: shieldedAppsKey) else { return nil }
@@ -228,6 +345,19 @@ public class FamilyControlsBridgeModule: Module {
             return array
         }
         if let set = try? JSONDecoder().decode(Set<ApplicationToken>.self, from: data) {
+            return Array(set)
+        }
+        return nil
+    }
+
+    @available(iOS 16.0, *)
+    private func loadShieldedCategoryArray() -> [ActivityCategoryToken]? {
+        let defaults = UserDefaults(suiteName: appGroupID)
+        guard let data = defaults?.data(forKey: "shielded_category_tokens") else { return nil }
+        if let array = try? JSONDecoder().decode([ActivityCategoryToken].self, from: data) {
+            return array
+        }
+        if let set = try? JSONDecoder().decode(Set<ActivityCategoryToken>.self, from: data) {
             return Array(set)
         }
         return nil
@@ -287,6 +417,67 @@ private struct FamilyActivityPickerView: View {
                         Button("Done") { onDone() }
                     }
                 }
+        }
+    }
+}
+
+// MARK: - Native Views
+
+public class ShieldedAppView: ExpoView {
+    private let hostingController = UIHostingController(rootView: AnyView(Text("Loading...")))
+
+    public required init(appContext: AppContext? = nil) {
+        super.init(appContext: appContext)
+        hostingController.view.backgroundColor = .clear
+        addSubview(hostingController.view)
+    }
+
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        hostingController.view.frame = bounds
+    }
+
+    func setToken(_ tokenData: String) {
+        if #available(iOS 16.0, *) {
+            if tokenData.hasPrefix("app:") {
+                let base64 = String(tokenData.dropFirst(4))
+                guard let data = Data(base64Encoded: base64),
+                      let token = try? JSONDecoder().decode(ApplicationToken.self, from: data) else {
+                    hostingController.rootView = AnyView(Text("Unknown App"))
+                    return
+                }
+                hostingController.rootView = AnyView(
+                    Label(token)
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 14, weight: .medium))
+                )
+            } else if tokenData.hasPrefix("category:") {
+                let base64 = String(tokenData.dropFirst(9))
+                guard let data = Data(base64Encoded: base64),
+                      let token = try? JSONDecoder().decode(ActivityCategoryToken.self, from: data) else {
+                    hostingController.rootView = AnyView(Text("Unknown Category"))
+                    return
+                }
+                hostingController.rootView = AnyView(
+                    Label(token)
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 14, weight: .medium))
+                )
+            } else {
+                // Fallback for old unprefixed tokens (assume app)
+                guard let data = Data(base64Encoded: tokenData),
+                      let token = try? JSONDecoder().decode(ApplicationToken.self, from: data) else {
+                    hostingController.rootView = AnyView(Text("Unknown"))
+                    return
+                }
+                hostingController.rootView = AnyView(
+                    Label(token)
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 14, weight: .medium))
+                )
+            }
+        } else {
+            hostingController.rootView = AnyView(Text("iOS 16+ Required"))
         }
     }
 }

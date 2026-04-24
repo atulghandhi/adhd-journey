@@ -24,7 +24,9 @@ import {
   startDoomScrollMonitor,
   stopDoomScrollMonitor,
   getShieldedAppCount,
+  getShieldedAppTokens,
   removeShieldedAppAt,
+  ShieldedAppView,
 } from "../../../modules/family-controls-bridge";
 
 const PAUSE_OPTIONS = [3, 4, 5] as const;
@@ -47,11 +49,14 @@ export function GatewaySettingsScreen() {
 
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const [shieldedCount, setShieldedCount] = useState(0);
+  const [shieldedTokens, setShieldedTokens] = useState<string[]>([]);
 
   const refreshShieldedCount = async () => {
     if (!isFamilyControlsAvailable()) return;
     const count = await getShieldedAppCount();
+    const tokens = await getShieldedAppTokens();
     setShieldedCount(count);
+    setShieldedTokens(tokens);
   };
 
   // Sync persisted auth state + shielded count with live native state on mount.
@@ -140,15 +145,15 @@ export function GatewaySettingsScreen() {
     }
 
     try {
-      const appCount = await presentAppPicker();
-      if (appCount > 0) {
+      const tokenCount = await presentAppPicker();
+      if (tokenCount > 0) {
         const existing = config.openLimits.find((l) => l.appId === "shielded_apps");
         updateConfig({
           enabled: true,
           openLimits: [
             {
               appId: "shielded_apps",
-              dailyLimit: existing?.dailyLimit ?? appCount * 5,
+              dailyLimit: existing?.dailyLimit ?? tokenCount * 5,
               enabled: true,
             },
           ],
@@ -256,14 +261,15 @@ export function GatewaySettingsScreen() {
               {shieldedCount} app{shieldedCount === 1 ? "" : "s"} shielded
             </Text>
             <View className="flex-row flex-wrap gap-2">
-              {Array.from({ length: shieldedCount }).map((_, index) => (
+              {shieldedTokens.map((token, index) => (
                 <View
-                  key={index}
-                  className="flex-row items-center gap-2 rounded-full bg-focuslab-primary/15 py-2 pl-3 pr-2 dark:bg-dark-surface"
+                  key={token}
+                  className="flex-row items-center gap-2 rounded-full bg-focuslab-primary/15 py-1.5 pl-3 pr-1.5 dark:bg-dark-surface"
                 >
-                  <Text className="text-sm font-medium text-focuslab-primaryDark dark:text-dark-text-primary">
-                    App #{index + 1}
-                  </Text>
+                  <ShieldedAppView
+                    style={{ height: 24, width: 120 }}
+                    token={token}
+                  />
                   <Pressable
                     onPress={() => handleRemoveShieldedApp(index)}
                     hitSlop={8}
@@ -278,8 +284,8 @@ export function GatewaySettingsScreen() {
               ))}
             </View>
             <Text className="mt-2 text-xs text-focuslab-secondary dark:text-dark-text-secondary">
-              Tap “Select Shielded Apps” above to see which apps these are or
-              add more — iOS keeps app names private to us.
+              Tap “Select Shielded Apps” above to add more or change your
+              selection.
             </Text>
           </View>
         ) : null}
