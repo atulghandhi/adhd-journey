@@ -1,6 +1,7 @@
 import Foundation
 import ManagedSettings
 import ManagedSettingsUI
+import os.log
 
 class ShieldActionExtension: ShieldActionDelegate {
     private let store = ManagedSettingsStore()
@@ -16,8 +17,10 @@ class ShieldActionExtension: ShieldActionDelegate {
         for application: ApplicationToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
+        os_log("[ShieldActionExtension] handle(action:for application:) called", log: OSLog.default, type: .default)
         switch action {
         case .primaryButtonPressed:
+            os_log("[ShieldActionExtension] primaryButtonPressed for application", log: OSLog.default, type: .default)
             recordPendingDeepLink()
 
             // Temporarily remove all shields so the user can switch to Next Thing.
@@ -36,10 +39,13 @@ class ShieldActionExtension: ShieldActionDelegate {
                 }
             }
 
+            os_log("[ShieldActionExtension] closing after primary button", log: OSLog.default, type: .default)
             completionHandler(.close)
         case .secondaryButtonPressed:
+            os_log("[ShieldActionExtension] secondaryButtonPressed for application", log: OSLog.default, type: .default)
             completionHandler(.close)
         @unknown default:
+            os_log("[ShieldActionExtension] unknown action for application", log: OSLog.default, type: .default)
             completionHandler(.close)
         }
     }
@@ -49,8 +55,10 @@ class ShieldActionExtension: ShieldActionDelegate {
         for webDomain: WebDomainToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
+        os_log("[ShieldActionExtension] handle(action:for webDomain:) called", log: OSLog.default, type: .default)
         switch action {
         case .primaryButtonPressed:
+            os_log("[ShieldActionExtension] primaryButtonPressed for webDomain", log: OSLog.default, type: .default)
             recordPendingDeepLink()
             store.clearAllSettings()
 
@@ -65,10 +73,13 @@ class ShieldActionExtension: ShieldActionDelegate {
                     self?.store.shield.applicationCategories = .specific(Set(catTokens))
                 }
             }
+            os_log("[ShieldActionExtension] closing after primary button for webDomain", log: OSLog.default, type: .default)
             completionHandler(.close)
         case .secondaryButtonPressed:
+            os_log("[ShieldActionExtension] secondaryButtonPressed for webDomain", log: OSLog.default, type: .default)
             completionHandler(.close)
         @unknown default:
+            os_log("[ShieldActionExtension] unknown action for webDomain", log: OSLog.default, type: .default)
             completionHandler(.close)
         }
     }

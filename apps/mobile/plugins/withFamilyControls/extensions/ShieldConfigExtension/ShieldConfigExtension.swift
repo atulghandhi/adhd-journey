@@ -1,9 +1,11 @@
 import ManagedSettings
 import ManagedSettingsUI
 import UIKit
+import os.log
 
 class ShieldConfigExtension: ShieldConfigurationDataSource {
     override func configuration(shielding application: Application) -> ShieldConfiguration {
+        os_log("[ShieldConfigExtension] configuration(shielding application:) called", log: OSLog.default, type: .default)
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterial,
             backgroundColor: UIColor(red: 0.94, green: 1.0, blue: 0.96, alpha: 1.0),
@@ -32,12 +34,14 @@ class ShieldConfigExtension: ShieldConfigurationDataSource {
         shielding application: Application,
         in category: ActivityCategory
     ) -> ShieldConfiguration {
+        os_log("[ShieldConfigExtension] configuration(shielding application:in category:) called", log: OSLog.default, type: .default)
         return configuration(shielding: application)
     }
 
     override func configuration(
         shielding category: ActivityCategory
     ) -> ShieldConfiguration {
+        os_log("[ShieldConfigExtension] configuration(shielding category:) called", log: OSLog.default, type: .default)
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterial,
             backgroundColor: UIColor(red: 0.94, green: 1.0, blue: 0.96, alpha: 1.0),
@@ -64,6 +68,7 @@ class ShieldConfigExtension: ShieldConfigurationDataSource {
     override func configuration(
         shielding webDomain: WebDomain
     ) -> ShieldConfiguration {
+        os_log("[ShieldConfigExtension] configuration(shielding webDomain:) called", log: OSLog.default, type: .default)
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterial,
             backgroundColor: UIColor(red: 0.94, green: 1.0, blue: 0.96, alpha: 1.0),

@@ -162,10 +162,12 @@ public class FamilyControlsBridgeModule: Module {
         }
 
         AsyncFunction("removeShields") { () -> Bool in
+            NSLog("[FamilyControlsBridge] removeShields called")
             if #available(iOS 16.0, *) {
                 self.store.application.blockedApplications = nil
                 self.store.shield.applications = nil
                 self.store.shield.applicationCategories = nil
+                NSLog("[FamilyControlsBridge] removeShields: shields cleared from store")
                 return true
             }
             return false
@@ -247,6 +249,7 @@ public class FamilyControlsBridgeModule: Module {
 
         // Clear every shielded app.
         AsyncFunction("clearShieldedApps") { () -> Bool in
+            NSLog("[FamilyControlsBridge] clearShieldedApps called")
             if #available(iOS 16.0, *) {
                 let defaults = UserDefaults(suiteName: appGroupID)
                 defaults?.removeObject(forKey: shieldedAppsKey)
@@ -260,18 +263,22 @@ public class FamilyControlsBridgeModule: Module {
         }
 
         AsyncFunction("removeShieldsTemporarily") { (durationSeconds: Double) -> Bool in
+            NSLog("[FamilyControlsBridge] removeShieldsTemporarily called for %f seconds", durationSeconds)
             if #available(iOS 16.0, *) {
                 self.store.application.blockedApplications = nil
                 self.store.shield.applications = nil
                 self.store.shield.applicationCategories = nil
+                NSLog("[FamilyControlsBridge] removeShieldsTemporarily: shields cleared, scheduling re-apply")
 
                 // Re-apply after duration
                 DispatchQueue.main.asyncAfter(deadline: .now() + durationSeconds) { [weak self] in
                     if let tokens = self?.loadShieldedTokens() {
                         self?.store.shield.applications = tokens
+                        NSLog("[FamilyControlsBridge] removeShieldsTemporarily: apps shielded again")
                     }
                     if let cats = self?.loadShieldedCategoryTokens() {
                         self?.store.shield.applicationCategories = .specific(cats)
+                        NSLog("[FamilyControlsBridge] removeShieldsTemporarily: categories shielded again")
                     }
                 }
                 return true
@@ -294,6 +301,7 @@ public class FamilyControlsBridgeModule: Module {
         // ------------------------------------------------------------------
 
         AsyncFunction("startDoomScrollMonitor") { (firstMinutes: Int, secondMinutes: Int) -> Bool in
+            NSLog("[FamilyControlsBridge] startDoomScrollMonitor called (%d m, %d m)", firstMinutes, secondMinutes)
             if #available(iOS 16.0, *) {
                 let center = DeviceActivityCenter()
                 let schedule = DeviceActivitySchedule(

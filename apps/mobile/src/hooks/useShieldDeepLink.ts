@@ -21,16 +21,28 @@ export function useShieldDeepLink(): void {
     if (Platform.OS !== "ios") return;
 
     const consume = () => {
+      console.log("[useShieldDeepLink] consume called");
       try {
         const pending = readPendingDeepLink({ clear: true });
-        if (!pending?.link) return;
+        console.log("[useShieldDeepLink] pending deep link data:", pending);
+        if (!pending?.link) {
+          console.log("[useShieldDeepLink] no pending link found.");
+          return;
+        }
         // Only act on links written within the last 10 minutes so we don't
         // hijack navigation from stale values.
         const ageSeconds = Date.now() / 1000 - (pending.at ?? 0);
-        if (ageSeconds > 600) return;
+        console.log(`[useShieldDeepLink] link age: ${ageSeconds} seconds`);
+        if (ageSeconds > 600) {
+          console.log("[useShieldDeepLink] link is stale, ignoring.");
+          return;
+        }
 
         if (pending.link === "disrupt") {
+          console.log("[useShieldDeepLink] routing to /disrupt");
           router.push("/disrupt");
+        } else {
+          console.log(`[useShieldDeepLink] unknown link type: ${pending.link}`);
         }
       } catch (err) {
         // Swallow — surface in logs for debugging but never crash.
