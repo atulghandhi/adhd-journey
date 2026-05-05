@@ -24,6 +24,7 @@ interface FamilyControlsModule {
   ): Promise<boolean>;
   stopDoomScrollMonitor(): Promise<boolean>;
   writeSharedData(jsonString: string): Promise<boolean>;
+  debugState(): Promise<string>;
 }
 
 let nativeModule: FamilyControlsModule | null = null;
@@ -140,6 +141,12 @@ export async function writeSharedGatewayData(
   const mod = getModule();
   if (!mod) return false;
   return mod.writeSharedData(jsonString);
+}
+
+export async function debugFamilyControlsState(): Promise<string> {
+  const mod = getModule();
+  if (!mod) return "unavailable";
+  return mod.debugState();
 }
 
 export interface ShieldedAppViewProps extends ViewProps {

@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Linking, Switch } from "react-native";
+import { Alert, Switch } from "react-native";
 import { ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
@@ -26,6 +26,7 @@ import {
   getShieldedAppCount,
   getShieldedAppTokens,
   removeShieldedAppAt,
+  debugFamilyControlsState,
   ShieldedAppView,
 } from "../../../modules/family-controls-bridge";
 
@@ -63,10 +64,13 @@ export function GatewaySettingsScreen() {
   // Also re-apply shields so the selection persists across app restarts.
   useEffect(() => {
     if (!isFamilyControlsAvailable()) return;
+    void debugFamilyControlsState().then((s) => console.log("[Gateway] mount:", s));
     void getFamilyControlsStatus().then((status) => {
       setFamilyControlsAuthorized(status === "authorized");
       if (status === "authorized") {
-        void applyShields();
+        void applyShields().then(() => {
+          void debugFamilyControlsState().then((s) => console.log("[Gateway] post-shield:", s));
+        });
       }
     });
     void refreshShieldedCount();
@@ -121,26 +125,22 @@ export function GatewaySettingsScreen() {
     // Request auth if not yet granted
     if (!familyControlsAuthorized) {
       const granted = await requestFamilyControlsAuth();
-      const status = await getFamilyControlsStatus();
-      const isAuthorized = granted || status === "authorized";
-      setFamilyControlsAuthorized(isAuthorized);
-      if (!isAuthorized) {
-        Alert.alert(
-          "Screen Time permission needed",
-          "Next Thing needs Screen Time access to shield apps. Tap Open Settings, then enable Screen Time for Next Thing.",
-          [
-            { style: "cancel", text: "Cancel" },
-            {
-              text: "Open Settings",
-              onPress: () => {
-                void Linking.openURL("App-prefs:SCREEN_TIME").catch(() => {
-                  void Linking.openSettings();
-                });
-              },
-            },
-          ],
-        );
-        return;
+      if (granted) {
+        setFamilyControlsAuthorized(true);
+      } else {
+        // Double-check: the native side already retries after a transient
+        // throw, but verify one more time before giving up.
+        const status = await getFamilyControlsStatus();
+        if (status === "authorized") {
+          setFamilyControlsAuthorized(true);
+        } else {
+          Alert.alert(
+            "Permission needed",
+            "Next Thing needs Family Controls access to shield apps. Please try again — if the prompt doesn't appear, check Settings → Screen Time.",
+            [{ text: "OK" }],
+          );
+          return;
+        }
       }
     }
 

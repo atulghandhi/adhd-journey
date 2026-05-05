@@ -26,12 +26,32 @@ public class FamilyControlsBridgeModule: Module {
 
         AsyncFunction("requestAuthorization") { () -> Bool in
             if #available(iOS 16.0, *) {
+                // Already authorized — skip the system dialog entirely.
+                if AuthorizationCenter.shared.authorizationStatus == .approved {
+                    NSLog("[FamilyControlsBridge] already authorized")
+                    return true
+                }
+
                 do {
                     try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
-                    return true
+                    NSLog("[FamilyControlsBridge] requestAuthorization succeeded")
                 } catch {
-                    return false
+                    NSLog("[FamilyControlsBridge] requestAuthorization threw: %@", "\(error)")
                 }
+
+                // The status may lag behind the dialog dismissal on some iOS
+                // versions. Poll for up to 2 seconds before giving up.
+                for i in 1...4 {
+                    if AuthorizationCenter.shared.authorizationStatus == .approved {
+                        NSLog("[FamilyControlsBridge] status approved after %d checks", i)
+                        return true
+                    }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                }
+
+                let finalStatus = AuthorizationCenter.shared.authorizationStatus
+                NSLog("[FamilyControlsBridge] final status: %@", "\(finalStatus)")
+                return finalStatus == .approved
             }
             return false
         }
@@ -109,25 +129,34 @@ public class FamilyControlsBridgeModule: Module {
 
         AsyncFunction("applyShields") { () -> Bool in
             if #available(iOS 16.0, *) {
+                guard AuthorizationCenter.shared.authorizationStatus == .approved else {
+                    NSLog("[FamilyControlsBridge] applyShields: not authorized, skipping")
+                    return false
+                }
+
                 let appTokens = self.loadShieldedTokens()
                 let catTokens = self.loadShieldedCategoryTokens()
-                
+
+                let appCount = appTokens?.count ?? 0
+                let catCount = catTokens?.count ?? 0
+                NSLog("[FamilyControlsBridge] applyShields: %d apps, %d categories", appCount, catCount)
+
                 if appTokens == nil && catTokens == nil { return false }
-                
-                // Clear any system restrictions first to ensure our custom shield takes priority
-                self.store.application.blockedApplications = nil
-                
-                self.store.shield.applications = appTokens
-                // Only set the category shield when there are categories to shield;
-                // passing `.specific([])` is still a restriction with an empty set,
-                // which can confuse iOS and sometimes lands on the generic
-                // "app is restricted" fallback UI.
-                if let cats = catTokens, !cats.isEmpty {
-                    self.store.shield.applicationCategories = .specific(cats)
-                } else {
-                    self.store.shield.applicationCategories = nil
+
+                // Run store mutations on main thread — ManagedSettingsStore
+                // can behave unpredictably from background threads.
+                return await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async {
+                        self.store.clearAllSettings()
+
+                        self.store.shield.applications = appTokens
+                        if let cats = catTokens, !cats.isEmpty {
+                            self.store.shield.applicationCategories = .specific(cats)
+                        }
+                        NSLog("[FamilyControlsBridge] applyShields: shields applied on main thread")
+                        continuation.resume(returning: true)
+                    }
                 }
-                return true
             }
             return false
         }
@@ -303,6 +332,25 @@ public class FamilyControlsBridgeModule: Module {
                 return true
             }
             return false
+        }
+
+        // ------------------------------------------------------------------
+        // Diagnostics
+        // ------------------------------------------------------------------
+
+        AsyncFunction("debugState") { () -> String in
+            if #available(iOS 16.0, *) {
+                let authStatus = "\(AuthorizationCenter.shared.authorizationStatus)"
+                let defaults = UserDefaults(suiteName: appGroupID)
+                let appCount = self.loadShieldedTokenArray()?.count ?? -1
+                let catCount = self.loadShieldedCategoryArray()?.count ?? -1
+                let hasShieldApps = self.store.shield.applications != nil
+                let hasBlockedApps = self.store.application.blockedApplications != nil
+                let msg = "auth=\(authStatus) storedApps=\(appCount) storedCats=\(catCount) shieldActive=\(hasShieldApps) blockedActive=\(hasBlockedApps) appGroupOK=\(defaults != nil)"
+                NSLog("[FamilyControlsBridge] debugState: %@", msg)
+                return msg
+            }
+            return "unavailable"
         }
 
         // ------------------------------------------------------------------

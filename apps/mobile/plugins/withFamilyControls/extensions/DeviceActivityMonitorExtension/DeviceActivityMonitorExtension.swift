@@ -16,8 +16,9 @@ class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
     ) {
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
 
-        // Clear any system restrictions first
-        store.application.blockedApplications = nil
+        // Clear everything first — prevents leftover blockedApplications
+        // from causing the generic "Restricted" UI instead of our shield.
+        store.clearAllSettings()
 
         // Re-apply shields to force user through breathing pause
         if let data = sharedDefaults?.data(forKey: shieldedAppsKey),
@@ -39,8 +40,9 @@ class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
         sharedDefaults?.set(0, forKey: doomScrollCountKey)
 
-        // Clear any system restrictions first
-        store.application.blockedApplications = nil
+        // Clear everything first — prevents leftover blockedApplications
+        // from causing the generic "Restricted" UI instead of our shield.
+        store.clearAllSettings()
 
         // Reapply shields at start of new day so protection carries over
         if let data = sharedDefaults?.data(forKey: shieldedAppsKey),

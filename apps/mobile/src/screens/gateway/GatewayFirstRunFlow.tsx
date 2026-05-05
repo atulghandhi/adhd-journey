@@ -19,6 +19,7 @@ import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { useGatewayStore } from "../../stores/gatewayStore";
 import {
   isFamilyControlsAvailable,
+  getFamilyControlsStatus,
   presentAppPicker,
   requestFamilyControlsAuth,
   applyShields,
@@ -79,9 +80,13 @@ export function GatewayFirstRunFlow({ onComplete }: Props) {
               <PrimaryButton
                 onPress={async () => {
                   mediumImpact();
-                  const granted = await requestFamilyControlsAuth();
-                  setFamilyControlsAuthorized(granted);
-                  if (granted) {
+                  let authorized = await requestFamilyControlsAuth();
+                  if (!authorized) {
+                    const status = await getFamilyControlsStatus();
+                    authorized = status === "authorized";
+                  }
+                  setFamilyControlsAuthorized(authorized);
+                  if (authorized) {
                     const appCount = await presentAppPicker();
                     if (appCount > 0) {
                       // FamilyControls uses opaque tokens — track as one aggregate limit
