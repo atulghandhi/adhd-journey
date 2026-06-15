@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@uiw/react-md-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
 import "./globals.css";
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-focuslab-background font-sans text-focuslab-primaryDark antialiased">
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
