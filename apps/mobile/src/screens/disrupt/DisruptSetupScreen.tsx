@@ -5,7 +5,7 @@ import Animated, {
   FadeInRight,
   FadeOutLeft,
 } from "react-native-reanimated";
-import { ChevronRight, Smartphone, Zap, Shield } from "lucide-react-native";
+import { Smartphone, Zap, Shield } from "lucide-react-native";
 
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
 import { NextThingLogo } from "../../components/NextThingLogo";

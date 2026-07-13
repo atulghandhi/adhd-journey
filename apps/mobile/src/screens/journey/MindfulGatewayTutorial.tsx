@@ -3,7 +3,6 @@ import { Alert, Linking, Switch } from "react-native";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
-import { AnimatedPressable } from "../../animations/AnimatedPressable";
 import { AppCard } from "../../components/ui/AppCard";
 import {
   Pressable,
@@ -27,7 +26,6 @@ import {
 const PAUSE_OPTIONS = [3, 4, 5] as const;
 
 export function MindfulGatewayTutorial() {
-  console.log("MindfulGatewayTutorial component rendered at: " + new Date().toLocaleTimeString());
   const { colorScheme } = useColorScheme();
   const { lightImpact, selectionChanged } = useHaptics();
   const dark = colorScheme === "dark";
@@ -148,7 +146,7 @@ export function MindfulGatewayTutorial() {
     if (value) {
       await startDoomScrollMonitor(
         config.doomScroll.firstThresholdMinutes || 10,
-        config.doomScroll.secondThresholdMinutes || 30,
+        config.doomScroll.secondThresholdMinutes,
       );
     } else {
       await stopDoomScrollMonitor();
@@ -157,14 +155,16 @@ export function MindfulGatewayTutorial() {
 
   const handleCheckIn30 = async (value: boolean) => {
     selectionChanged();
-    const nextSeconds = value ? 30 : 0;
+    const nextMinutes = value ? 30 : 0;
     updateConfig({
-      doomScroll: { ...config.doomScroll, secondThresholdMinutes: nextSeconds },
+      doomScroll: { ...config.doomScroll, secondThresholdMinutes: nextMinutes },
     });
     if (config.doomScroll.enabled) {
+      // Passing 0 drops the second check-in; the monitor restarts with just
+      // the first threshold.
       await startDoomScrollMonitor(
         config.doomScroll.firstThresholdMinutes || 10,
-        nextSeconds || 30,
+        nextMinutes,
       );
     }
   };
@@ -179,10 +179,10 @@ export function MindfulGatewayTutorial() {
       >
         {/* Page title + description */}
         <Text className="text-[34px] font-bold leading-tight text-focuslab-primaryDark dark:text-dark-text-primary">
-          Mindful Gateway
+          App Disrupt
         </Text>
         <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-          Mindful gateway adds a short pause before you open selected apps —
+          App Disrupt adds a short pause before you open selected apps —
           giving you a second to make sure the action is intentional and what
           you want.
         </Text>

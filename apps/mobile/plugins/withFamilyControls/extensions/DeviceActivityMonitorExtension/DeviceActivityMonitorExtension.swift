@@ -6,6 +6,10 @@ import os.log
 private let appGroupID = "group.app.nextthing"
 private let shieldedAppsKey = "shielded_app_tokens"
 private let doomScrollCountKey = "doom_scroll_count"
+// Keys shared with the Shield extensions — reset when force-re-shielding so
+// the shield comes back in its idle "Take a breath first" state.
+private let breathUntilKey = "gateway_breath_until"
+private let reapplyAtKey = "gateway_shield_reapply_at"
 
 class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
     private let store = ManagedSettingsStore()
@@ -35,6 +39,10 @@ class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
             os_log("[DeviceActivityMonitor] Re-applied %d category shields", log: OSLog.default, type: .default, catTokens.count)
         }
 
+        // Reset breathing/unlock-window state so the shield shows fresh.
+        sharedDefaults?.removeObject(forKey: breathUntilKey)
+        sharedDefaults?.removeObject(forKey: reapplyAtKey)
+
         // Increment doom-scroll counter for escalating messages
         let sessionCount = (sharedDefaults?.integer(forKey: doomScrollCountKey) ?? 0) + 1
         sharedDefaults?.set(sessionCount, forKey: doomScrollCountKey)
@@ -44,6 +52,8 @@ class AppDisruptDeviceActivityMonitor: DeviceActivityMonitor {
         os_log("[DeviceActivityMonitor] intervalDidStart for activity %{public}s", log: OSLog.default, type: .default, activity.rawValue)
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
         sharedDefaults?.set(0, forKey: doomScrollCountKey)
+        sharedDefaults?.removeObject(forKey: breathUntilKey)
+        sharedDefaults?.removeObject(forKey: reapplyAtKey)
 
         // Clear everything first — prevents leftover blockedApplications
         // from causing the generic "Restricted" UI instead of our shield.

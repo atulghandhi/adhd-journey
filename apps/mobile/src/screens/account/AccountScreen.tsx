@@ -22,7 +22,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import { useJourneyState } from "../../hooks/useJourneyState";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useProfile } from "../../hooks/useProfile";
-import { fetchJourneyState, submitCompletionCheckIn } from "../../lib/journey-api";
+import { submitCompletionCheckIn } from "../../lib/journey-api";
 import { updateProfile } from "../../lib/profile";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../providers/ToastProvider";

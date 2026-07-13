@@ -11,11 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { AnimatedCardEntrance } from "../../animations/AnimatedCardEntrance";
-import {
-  REDUCED_MOTION_DURATION,
-  SPRING_BOUNCE,
-  SPRING_MAGNETIC,
-} from "../../animations/springs";
+import { SPRING_BOUNCE, SPRING_MAGNETIC } from "../../animations/springs";
 import { useHaptics } from "../../hooks/useHaptics";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { Pressable, Text, View } from "../primitives";

@@ -12,6 +12,8 @@ interface FamilyControlsModule {
   getAuthorizationStatus(): Promise<"authorized" | "denied" | "notDetermined">;
   presentActivityPicker(): Promise<number>;
   applyShields(): Promise<boolean>;
+  enforceShields(): Promise<"applied" | "deferred" | "none">;
+  setGatewayPauseSeconds(seconds: number): Promise<boolean>;
   removeShields(): Promise<boolean>;
   removeShieldsTemporarily(durationSeconds: number): Promise<boolean>;
   getShieldedAppCount(): Promise<number>;
@@ -101,6 +103,26 @@ export async function applyShields(): Promise<boolean> {
   const result = await mod.applyShields();
   console.log(`[FamilyControlsBridge] JS: applyShields result: ${result}`);
   return result;
+}
+
+/**
+ * Re-apply shields unless the user is inside an earned unlock window.
+ * Safe to call on launch/foreground — unlike applyShields, it will not
+ * cancel a temporary unlock granted by the shield's breathing flow.
+ */
+export async function enforceShields(): Promise<"applied" | "deferred" | "none"> {
+  const mod = getModule();
+  if (!mod) return "none";
+  const result = await mod.enforceShields();
+  console.log(`[FamilyControlsBridge] JS: enforceShields result: ${result}`);
+  return result;
+}
+
+/** Persist the configured breathing pause for the Shield extensions. */
+export async function setGatewayPauseSeconds(seconds: number): Promise<boolean> {
+  const mod = getModule();
+  if (!mod) return false;
+  return mod.setGatewayPauseSeconds(seconds);
 }
 
 export async function removeShields(): Promise<boolean> {
