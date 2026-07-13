@@ -76,6 +76,26 @@ The native bridge already exposes functions for:
 - applying and removing shields
 - starting and stopping doom-scroll monitoring
 
+## Shield Unlock Flow (two-tap breathing dwell)
+
+The shield itself now runs the mindful pause — no app switch required:
+
+1. User taps a shielded app → shield shows "Take a breath first" / "Start breathing".
+2. Tap 1 writes `gateway_breath_until = now + pause` (user's configured 3–5s,
+   synced to the App Group as `gateway_pause_seconds`) and responds `.defer`,
+   which re-invokes ShieldConfigExtension → breathing state with a "Continue" button.
+3. Tap 2 after the pause elapses clears all shields, writes
+   `gateway_shield_reapply_at = now + 60`, and responds `.defer` — the shield
+   dismisses and the user lands in the app they tapped. Early taps refresh the
+   remaining-seconds label.
+4. Re-shielding: best-effort timer in the extension, plus the main app enforces
+   the persisted deadline via `enforceShields()` on launch/foreground.
+   `applyShields()` remains the explicit apply (ends any unlock window);
+   `enforceShields()` respects an active window.
+
+Category-shielded apps route through the `ActivityCategoryToken` handler
+(previously missing — the shield buttons did nothing for category selections).
+
 ## FamilyControls Status
 
 The `withFamilyControls` plugin is registered in `apps/mobile/app.config.ts` and fully wired.

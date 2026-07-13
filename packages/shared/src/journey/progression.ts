@@ -554,9 +554,6 @@ export function processSkipCheckIn(args: {
 }) {
   const skippedAt = args.input.skippedAt ?? args.now ?? new Date().toISOString();
   const now = args.now ?? new Date().toISOString();
-  const preferences = normalizeNotificationPreferences(
-    args.profile.notification_preferences,
-  );
   const clonedProgress = cloneProgress(args.progressRows);
   const currentProgress = clonedProgress.find((row) => row.task_id === args.task.id);
 

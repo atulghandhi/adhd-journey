@@ -76,6 +76,8 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 jest.mock("./modules/widget-data-bridge", () => ({
   setWidgetData: jest.fn(() => true),
   clearWidgetData: jest.fn(() => true),
+  readPendingDeepLink: jest.fn(() => null),
+  clearPendingDeepLink: jest.fn(() => true),
 }));
 
 jest.mock("./modules/family-controls-bridge", () => ({
@@ -84,10 +86,18 @@ jest.mock("./modules/family-controls-bridge", () => ({
   getFamilyControlsStatus: jest.fn(() => Promise.resolve("notDetermined")),
   presentAppPicker: jest.fn(() => Promise.resolve(0)),
   applyShields: jest.fn(() => Promise.resolve(false)),
+  enforceShields: jest.fn(() => Promise.resolve("none")),
+  setGatewayPauseSeconds: jest.fn(() => Promise.resolve(false)),
   removeShields: jest.fn(() => Promise.resolve(false)),
   removeShieldsTemporarily: jest.fn(() => Promise.resolve(false)),
+  getShieldedAppCount: jest.fn(() => Promise.resolve(0)),
+  getShieldedAppTokens: jest.fn(() => Promise.resolve([])),
+  removeShieldedAppAt: jest.fn(() => Promise.resolve(false)),
+  clearShieldedApps: jest.fn(() => Promise.resolve(false)),
   startDoomScrollMonitor: jest.fn(() => Promise.resolve(false)),
   stopDoomScrollMonitor: jest.fn(() => Promise.resolve(false)),
   writeSharedGatewayData: jest.fn(() => Promise.resolve(false)),
+  debugFamilyControlsState: jest.fn(() => Promise.resolve("unavailable")),
+  ShieldedAppView: () => null,
 }));
 

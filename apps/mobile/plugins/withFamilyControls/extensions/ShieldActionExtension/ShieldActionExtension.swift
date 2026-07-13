@@ -3,51 +3,48 @@ import ManagedSettings
 import ManagedSettingsUI
 import os.log
 
+// Keys shared with the main app + other extensions via the App Group.
+private let appGroupID = "group.app.nextthing"
+private let shieldedAppsKey = "shielded_app_tokens"
+private let shieldedCategoriesKey = "shielded_category_tokens"
+private let pauseSecondsKey = "gateway_pause_seconds"
+private let breathUntilKey = "gateway_breath_until"
+private let reapplyAtKey = "gateway_shield_reapply_at"
+
+// How long the user may use the unlocked app before shields come back.
+private let unlockWindowSeconds: TimeInterval = 60
+// After the breathing pause completes, how long the "ready" state stays valid.
+private let readyGraceSeconds: TimeInterval = 120
+
+/// Two-tap mindful unlock:
+///  1. "Start breathing" — records when the pause will complete and responds
+///     `.defer`, which re-invokes the ShieldConfiguration data source so the
+///     shield switches to its breathing state.
+///  2. "Continue" — once the user-set pause has elapsed, shields are cleared
+///     and `.defer` lets the system dismiss the shield in place, dropping the
+///     user straight into the app they tapped. A re-apply deadline is
+///     persisted so the main app (and a best-effort timer here) restores the
+///     shields after the unlock window.
 class ShieldActionExtension: ShieldActionDelegate {
     private let store = ManagedSettingsStore()
-
-    private func recordPendingDeepLink() {
-        let defaults = UserDefaults(suiteName: "group.app.nextthing")
-        defaults?.set("disrupt", forKey: "pendingDeepLink")
-        defaults?.set(Date().timeIntervalSince1970, forKey: "pendingDeepLinkAt")
-    }
 
     override func handle(
         action: ShieldAction,
         for application: ApplicationToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        os_log("[ShieldActionExtension] handle(action:for application:) called", log: OSLog.default, type: .default)
-        switch action {
-        case .primaryButtonPressed:
-            os_log("[ShieldActionExtension] primaryButtonPressed for application", log: OSLog.default, type: .default)
-            recordPendingDeepLink()
+        handleShieldAction(action, context: "application", completionHandler: completionHandler)
+    }
 
-            // Temporarily remove all shields so the user can switch to Next Thing.
-            store.clearAllSettings()
-
-            // Re-apply shields after a short delay (resistance, not permanent removal).
-            let sharedDefaults = UserDefaults(suiteName: "group.app.nextthing")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
-                if let appData = sharedDefaults?.data(forKey: "shielded_app_tokens"),
-                   let appTokens = try? JSONDecoder().decode([ApplicationToken].self, from: appData) {
-                    self?.store.shield.applications = Set(appTokens)
-                }
-                if let catData = sharedDefaults?.data(forKey: "shielded_category_tokens"),
-                   let catTokens = try? JSONDecoder().decode([ActivityCategoryToken].self, from: catData) {
-                    self?.store.shield.applicationCategories = .specific(Set(catTokens))
-                }
-            }
-
-            os_log("[ShieldActionExtension] closing after primary button", log: OSLog.default, type: .default)
-            completionHandler(.close)
-        case .secondaryButtonPressed:
-            os_log("[ShieldActionExtension] secondaryButtonPressed for application", log: OSLog.default, type: .default)
-            completionHandler(.close)
-        @unknown default:
-            os_log("[ShieldActionExtension] unknown action for application", log: OSLog.default, type: .default)
-            completionHandler(.close)
-        }
+    // Apps blocked through a selected *category* invoke this variant — it was
+    // previously missing, which left the shield frozen on screen because the
+    // button taps were never answered.
+    override func handle(
+        action: ShieldAction,
+        for category: ActivityCategoryToken,
+        completionHandler: @escaping (ShieldActionResponse) -> Void
+    ) {
+        handleShieldAction(action, context: "category", completionHandler: completionHandler)
     }
 
     override func handle(
@@ -55,32 +52,91 @@ class ShieldActionExtension: ShieldActionDelegate {
         for webDomain: WebDomainToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        os_log("[ShieldActionExtension] handle(action:for webDomain:) called", log: OSLog.default, type: .default)
+        handleShieldAction(action, context: "webDomain", completionHandler: completionHandler)
+    }
+
+    // MARK: - Shared handling
+
+    private func handleShieldAction(
+        _ action: ShieldAction,
+        context: String,
+        completionHandler: @escaping (ShieldActionResponse) -> Void
+    ) {
+        os_log("[ShieldActionExtension] handling %{public}@ action for %{public}@", log: OSLog.default, type: .default, "\(action)", context)
         switch action {
         case .primaryButtonPressed:
-            os_log("[ShieldActionExtension] primaryButtonPressed for webDomain", log: OSLog.default, type: .default)
-            recordPendingDeepLink()
-            store.clearAllSettings()
-
-            let sharedDefaults = UserDefaults(suiteName: "group.app.nextthing")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
-                if let appData = sharedDefaults?.data(forKey: "shielded_app_tokens"),
-                   let appTokens = try? JSONDecoder().decode([ApplicationToken].self, from: appData) {
-                    self?.store.shield.applications = Set(appTokens)
-                }
-                if let catData = sharedDefaults?.data(forKey: "shielded_category_tokens"),
-                   let catTokens = try? JSONDecoder().decode([ActivityCategoryToken].self, from: catData) {
-                    self?.store.shield.applicationCategories = .specific(Set(catTokens))
-                }
-            }
-            os_log("[ShieldActionExtension] closing after primary button for webDomain", log: OSLog.default, type: .default)
-            completionHandler(.close)
+            handlePrimary(completionHandler: completionHandler)
         case .secondaryButtonPressed:
-            os_log("[ShieldActionExtension] secondaryButtonPressed for webDomain", log: OSLog.default, type: .default)
+            // "Go back" — close the shielded app.
             completionHandler(.close)
         @unknown default:
-            os_log("[ShieldActionExtension] unknown action for webDomain", log: OSLog.default, type: .default)
             completionHandler(.close)
         }
+    }
+
+    private func handlePrimary(
+        completionHandler: @escaping (ShieldActionResponse) -> Void
+    ) {
+        let defaults = UserDefaults(suiteName: appGroupID)
+        let now = Date().timeIntervalSince1970
+        let breathUntil = defaults?.double(forKey: breathUntilKey) ?? 0
+
+        if breathUntil <= 0 || now > breathUntil + readyGraceSeconds {
+            // Stage 1: start the breathing pause using the user's configured
+            // duration, then refresh the shield UI into its breathing state.
+            var pause = defaults?.double(forKey: pauseSecondsKey) ?? 0
+            if pause <= 0 { pause = 5 }
+            pause = min(max(pause, 3), 30)
+
+            defaults?.set(now + pause, forKey: breathUntilKey)
+            recordPendingDeepLink(defaults)
+            os_log("[ShieldActionExtension] breathing started (%{public}.0fs)", log: OSLog.default, type: .default, pause)
+            completionHandler(.defer)
+            return
+        }
+
+        if now < breathUntil {
+            // Tapped again before the pause finished — refresh the shield so
+            // the remaining-seconds label updates, but keep it up.
+            os_log("[ShieldActionExtension] continue tapped early (%{public}.0fs left)", log: OSLog.default, type: .default, breathUntil - now)
+            completionHandler(.defer)
+            return
+        }
+
+        // Stage 2: pause complete — unshield and let the user into the app.
+        defaults?.removeObject(forKey: breathUntilKey)
+        defaults?.set(now + unlockWindowSeconds, forKey: reapplyAtKey)
+
+        store.clearAllSettings()
+        os_log("[ShieldActionExtension] shields cleared, unlock window %{public}.0fs", log: OSLog.default, type: .default, unlockWindowSeconds)
+
+        // Best-effort in-process re-apply. The extension may be terminated
+        // before this fires; the main app enforces the persisted deadline as
+        // the reliable fallback.
+        DispatchQueue.main.asyncAfter(deadline: .now() + unlockWindowSeconds) { [weak self] in
+            self?.reapplyShields(defaults)
+        }
+
+        completionHandler(.defer)
+    }
+
+    private func reapplyShields(_ defaults: UserDefaults?) {
+        if let appData = defaults?.data(forKey: shieldedAppsKey),
+           let appTokens = try? JSONDecoder().decode([ApplicationToken].self, from: appData),
+           !appTokens.isEmpty {
+            store.shield.applications = Set(appTokens)
+        }
+        if let catData = defaults?.data(forKey: shieldedCategoriesKey),
+           let catTokens = try? JSONDecoder().decode([ActivityCategoryToken].self, from: catData),
+           !catTokens.isEmpty {
+            store.shield.applicationCategories = .specific(Set(catTokens))
+        }
+        defaults?.removeObject(forKey: reapplyAtKey)
+        os_log("[ShieldActionExtension] shields re-applied after unlock window", log: OSLog.default, type: .default)
+    }
+
+    private func recordPendingDeepLink(_ defaults: UserDefaults?) {
+        defaults?.set("disrupt", forKey: "pendingDeepLink")
+        defaults?.set(Date().timeIntervalSince1970, forKey: "pendingDeepLinkAt")
     }
 }

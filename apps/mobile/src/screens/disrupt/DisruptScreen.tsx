@@ -13,7 +13,7 @@ import Animated, {
 
 import { computeGatewayDuration, formatHHMM, isInFreeWindow } from "@focuslab/shared";
 
-import { SPRING_BOUNCE, SPRING_MAGNETIC } from "../../animations/springs";
+import { SPRING_BOUNCE } from "../../animations/springs";
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
 import { NextThingLogo } from "../../components/NextThingLogo";
 import { SafeAreaView, Text, View } from "../../components/primitives";
@@ -95,17 +95,16 @@ export function DisruptScreen() {
     }
   }, [state?.tasks, keepItems, updateStrategySnapshot]);
 
-  // Check free window
-  const nowHHMM = formatHHMM(new Date());
-  const inFreeWindow = isInFreeWindow(config.freeWindows, nowHHMM);
-
-  // Compute duration based on open count + escalation
   // FamilyControls path has no ?app= param; use aggregate "shielded_apps" id
   const appId = app ?? "shielded_apps";
-  const openCount = getOpenCount(appId);
-  const pauseSeconds = inFreeWindow
-    ? 0
-    : computeGatewayDuration(config, appId, openCount);
+
+  // Compute the pause once on mount (free-window bypass + escalation based on
+  // this open's count). Recomputing on re-render would silently change the
+  // countdown target mid-breath after incrementOpen updates the store.
+  const [pauseSeconds] = useState(() => {
+    if (isInFreeWindow(config.freeWindows, formatHHMM(new Date()))) return 0;
+    return computeGatewayDuration(config, appId, getOpenCount(appId) + 1);
+  });
 
   // Track this open
   useEffect(() => {
@@ -114,9 +113,9 @@ export function DisruptScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const openCount = getOpenCount(appId);
   const [countdown, setCountdown] = useState(pauseSeconds);
   const [phaseLabel, setPhaseLabel] = useState("Breathe in");
-  const [paused, setPaused] = useState(false);
   const startTime = useRef(Date.now());
 
   const breathScale = useSharedValue(1);
@@ -132,7 +131,7 @@ export function DisruptScreen() {
 
   // Breathing circle animation
   useEffect(() => {
-    if (paused || reducedMotion) {
+    if (reducedMotion) {
       cancelAnimation(breathScale);
       breathScale.value = withTiming(1, { duration: 200 });
       return;
@@ -151,13 +150,13 @@ export function DisruptScreen() {
     return () => {
       cancelAnimation(breathScale);
     };
-  }, [breathScale, paused, reducedMotion]);
+  }, [breathScale, reducedMotion]);
 
-  // Countdown and phase label
+  // Countdown and phase label. A single stable interval — recreating it on
+  // every tick (via a `countdown` dependency) causes needless timer churn.
+  const lastHapticSecond = useRef(-1);
   useEffect(() => {
-    if (paused) {
-      return;
-    }
+    if (pauseSeconds <= 0) return;
 
     const timer = setInterval(() => {
       const elapsed = Date.now() - startTime.current;
@@ -166,13 +165,18 @@ export function DisruptScreen() {
       setCountdown(remaining);
       setPhaseLabel(getPhaseLabel(elapsed));
 
-      if (remaining <= 3 && remaining > 0 && remaining !== countdown) {
+      if (remaining <= 3 && remaining > 0 && remaining !== lastHapticSecond.current) {
+        lastHapticSecond.current = remaining;
         lightImpact();
+      }
+
+      if (remaining === 0) {
+        clearInterval(timer);
       }
     }, 250);
 
     return () => clearInterval(timer);
-  }, [paused, countdown, lightImpact]);
+  }, [pauseSeconds, lightImpact]);
 
   const breathStyle = useAnimatedStyle(() => ({
     transform: [{ scale: breathScale.value }],
@@ -259,7 +263,9 @@ export function DisruptScreen() {
         {canContinue && openCount > 0 ? (
           <View className="mt-3">
             <Text className="text-center text-xs text-focuslab-secondary dark:text-dark-text-secondary">
-              {app ? `You've opened ${appLabel} ${openCount} time${openCount !== 1 ? "s" : ""} today` : ""}
+              {app
+                ? `You've opened ${appLabel} ${openCount} time${openCount !== 1 ? "s" : ""} today`
+                : `You've opened your shielded apps ${openCount} time${openCount !== 1 ? "s" : ""} today`}
             </Text>
           </View>
         ) : null}
@@ -297,8 +303,13 @@ export function DisruptScreen() {
                   }
                 }
                 // FamilyControls path or unknown app: shields are temporarily removed,
-                // so the user can swipe back to the app they were trying to open
-                router.back();
+                // so the user can swipe back to the app they were trying to open.
+                // On a cold-start deep link there may be no back stack.
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace("/(tabs)/journey" as never);
+                }
               }}
             >
               <View className="items-center rounded-[14px] py-3">

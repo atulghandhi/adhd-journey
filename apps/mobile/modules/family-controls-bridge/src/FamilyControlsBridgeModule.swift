@@ -11,6 +11,10 @@ import UIKit
 private let appGroupID = "group.app.nextthing"
 private let sharedDefaultsKey = "gateway_shared_data"
 private let shieldedAppsKey = "shielded_app_tokens"
+// Keys shared with the Shield extensions (see ShieldActionExtension.swift).
+private let pauseSecondsKey = "gateway_pause_seconds"
+private let breathUntilKey = "gateway_breath_until"
+private let reapplyAtKey = "gateway_shield_reapply_at"
 
 // MARK: - Module
 
@@ -153,6 +157,11 @@ public class FamilyControlsBridgeModule: Module {
                         if let cats = catTokens, !cats.isEmpty {
                             self.store.shield.applicationCategories = .specific(cats)
                         }
+                        // Explicit apply ends any in-flight breathing pause or
+                        // unlock window.
+                        let defaults = UserDefaults(suiteName: appGroupID)
+                        defaults?.removeObject(forKey: breathUntilKey)
+                        defaults?.removeObject(forKey: reapplyAtKey)
                         NSLog("[FamilyControlsBridge] applyShields: shields applied on main thread")
                         continuation.resume(returning: true)
                     }
@@ -161,12 +170,62 @@ public class FamilyControlsBridgeModule: Module {
             return false
         }
 
+        // Re-apply shields unless the user is inside an earned unlock window
+        // (written by the ShieldAction extension or removeShieldsTemporarily).
+        // Returns "applied", "deferred" (window active — a timer will restore
+        // shields when it ends) or "none" (nothing to shield / unauthorized).
+        AsyncFunction("enforceShields") { () -> String in
+            if #available(iOS 16.0, *) {
+                guard AuthorizationCenter.shared.authorizationStatus == .approved else {
+                    return "none"
+                }
+                let appTokens = self.loadShieldedTokens()
+                let catTokens = self.loadShieldedCategoryTokens()
+                if (appTokens?.isEmpty ?? true) && (catTokens?.isEmpty ?? true) {
+                    return "none"
+                }
+
+                let defaults = UserDefaults(suiteName: appGroupID)
+                let now = Date().timeIntervalSince1970
+                let reapplyAt = defaults?.double(forKey: reapplyAtKey) ?? 0
+
+                if reapplyAt > now {
+                    let remaining = reapplyAt - now
+                    NSLog("[FamilyControlsBridge] enforceShields: unlock window active, %f s left", remaining)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + remaining) { [weak self] in
+                        self?.applyStoredShields()
+                    }
+                    return "deferred"
+                }
+
+                return await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async {
+                        self.applyStoredShields()
+                        continuation.resume(returning: "applied")
+                    }
+                }
+            }
+            return "none"
+        }
+
+        // Persist the user's configured breathing pause so the Shield
+        // extensions can honor it.
+        AsyncFunction("setGatewayPauseSeconds") { (seconds: Double) -> Bool in
+            let defaults = UserDefaults(suiteName: appGroupID)
+            defaults?.set(seconds, forKey: pauseSecondsKey)
+            NSLog("[FamilyControlsBridge] setGatewayPauseSeconds: %f", seconds)
+            return true
+        }
+
         AsyncFunction("removeShields") { () -> Bool in
             NSLog("[FamilyControlsBridge] removeShields called")
             if #available(iOS 16.0, *) {
                 self.store.application.blockedApplications = nil
                 self.store.shield.applications = nil
                 self.store.shield.applicationCategories = nil
+                let defaults = UserDefaults(suiteName: appGroupID)
+                defaults?.removeObject(forKey: breathUntilKey)
+                defaults?.removeObject(forKey: reapplyAtKey)
                 NSLog("[FamilyControlsBridge] removeShields: shields cleared from store")
                 return true
             }
@@ -254,6 +313,8 @@ public class FamilyControlsBridgeModule: Module {
                 let defaults = UserDefaults(suiteName: appGroupID)
                 defaults?.removeObject(forKey: shieldedAppsKey)
                 defaults?.removeObject(forKey: "shielded_category_tokens")
+                defaults?.removeObject(forKey: breathUntilKey)
+                defaults?.removeObject(forKey: reapplyAtKey)
                 self.store.application.blockedApplications = nil
                 self.store.shield.applications = nil
                 self.store.shield.applicationCategories = nil
@@ -268,18 +329,17 @@ public class FamilyControlsBridgeModule: Module {
                 self.store.application.blockedApplications = nil
                 self.store.shield.applications = nil
                 self.store.shield.applicationCategories = nil
+
+                // Persist the deadline so the shields still come back if this
+                // process is suspended before the timer fires (enforceShields
+                // picks it up on next launch/foreground).
+                let defaults = UserDefaults(suiteName: appGroupID)
+                defaults?.set(Date().timeIntervalSince1970 + durationSeconds, forKey: reapplyAtKey)
+                defaults?.removeObject(forKey: breathUntilKey)
                 NSLog("[FamilyControlsBridge] removeShieldsTemporarily: shields cleared, scheduling re-apply")
 
-                // Re-apply after duration
                 DispatchQueue.main.asyncAfter(deadline: .now() + durationSeconds) { [weak self] in
-                    if let tokens = self?.loadShieldedTokens() {
-                        self?.store.shield.applications = tokens
-                        NSLog("[FamilyControlsBridge] removeShieldsTemporarily: apps shielded again")
-                    }
-                    if let cats = self?.loadShieldedCategoryTokens() {
-                        self?.store.shield.applicationCategories = .specific(cats)
-                        NSLog("[FamilyControlsBridge] removeShieldsTemporarily: categories shielded again")
-                    }
+                    self?.applyStoredShields()
                 }
                 return true
             }
@@ -310,16 +370,25 @@ public class FamilyControlsBridgeModule: Module {
                     repeats: true
                 )
 
-                let events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
+                // Thresholds are absolute minutes of usage (matching the
+                // "10-minute" / "30-minute check-in" labels in the UI).
+                // secondMinutes <= firstMinutes means the second check-in is
+                // disabled.
+                var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
                     DeviceActivityEvent.Name("doom_scroll_first"): DeviceActivityEvent(
                         threshold: DateComponents(minute: firstMinutes)
                     ),
-                    DeviceActivityEvent.Name("doom_scroll_second"): DeviceActivityEvent(
-                        threshold: DateComponents(minute: firstMinutes + secondMinutes)
-                    ),
                 ]
+                if secondMinutes > firstMinutes {
+                    events[DeviceActivityEvent.Name("doom_scroll_second")] = DeviceActivityEvent(
+                        threshold: DateComponents(minute: secondMinutes)
+                    )
+                }
 
                 do {
+                    // Restart cleanly — startMonitoring can fail if the
+                    // activity is already being monitored.
+                    center.stopMonitoring([DeviceActivityName("gateway_doom_scroll")])
                     try center.startMonitoring(
                         DeviceActivityName("gateway_doom_scroll"),
                         during: schedule,
@@ -327,6 +396,7 @@ public class FamilyControlsBridgeModule: Module {
                     )
                     return true
                 } catch {
+                    NSLog("[FamilyControlsBridge] startDoomScrollMonitor failed: %@", "\(error)")
                     return false
                 }
             }
@@ -373,6 +443,21 @@ public class FamilyControlsBridgeModule: Module {
     }
 
     // MARK: - Helpers
+
+    /// Re-apply the persisted selection and clear the unlock-window deadline.
+    @available(iOS 16.0, *)
+    private func applyStoredShields() {
+        if let tokens = loadShieldedTokens(), !tokens.isEmpty {
+            store.shield.applications = tokens
+        }
+        if let cats = loadShieldedCategoryTokens(), !cats.isEmpty {
+            store.shield.applicationCategories = .specific(cats)
+        }
+        let defaults = UserDefaults(suiteName: appGroupID)
+        defaults?.removeObject(forKey: reapplyAtKey)
+        defaults?.removeObject(forKey: breathUntilKey)
+        NSLog("[FamilyControlsBridge] applyStoredShields: shields restored")
+    }
 
     @available(iOS 16.0, *)
     private func loadShieldedTokens() -> Set<ApplicationToken>? {

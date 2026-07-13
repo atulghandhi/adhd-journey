@@ -15,9 +15,8 @@ import { ErrorBoundary } from "../src/components/ErrorBoundary";
 import { AppProviders } from "../src/providers/AppProviders";
 import { BootstrapScreen } from "../src/screens/BootstrapScreen";
 import {
-  applyShields,
+  enforceShields,
   isFamilyControlsAvailable,
-  getFamilyControlsStatus,
 } from "../modules/family-controls-bridge";
 
 export default function RootLayout() {
@@ -28,16 +27,12 @@ export default function RootLayout() {
     Montserrat_700Bold,
   });
 
-  // Re-apply shields on cold launch so the user's selection survives
-  // app restarts. ManagedSettings persists across launches, but the
-  // explicit apply is a safety net if anything cleared the store.
+  // Restore shields on cold launch so the user's selection survives app
+  // restarts — but respect an active unlock window (enforceShields defers
+  // instead of instantly re-blocking an app the user just unlocked).
   useEffect(() => {
     if (!isFamilyControlsAvailable()) return;
-    void getFamilyControlsStatus().then((status) => {
-      if (status === "authorized") {
-        void applyShields();
-      }
-    });
+    void enforceShields();
   }, []);
 
   if (!fontsLoaded) {

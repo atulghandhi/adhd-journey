@@ -16,8 +16,6 @@ export function AppDisruptCard() {
   const getOpenCount = useGatewayStore((s) => s.getOpenCount);
   const completedFirstRun = useGatewayStore((s) => s.completedFirstRun);
 
-  const isActive = config.enabled && completedFirstRun;
-
   // Build status line
   let statusLine = "";
   if (!completedFirstRun) {

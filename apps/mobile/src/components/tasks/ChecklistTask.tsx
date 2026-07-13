@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSequence,
   withSpring,
   withTiming,
@@ -126,15 +125,10 @@ export function ChecklistTask({
 }: InteractiveTaskProps) {
   const checklistConfig = normalizeChecklistConfig(config);
   const { completionSequence, lightImpact, selectionChanged } = useHaptics();
-  const { reducedMotion } = useReducedMotion();
   const [checked, setChecked] = useState<boolean[]>(
     () => checklistConfig.items.map(() => false),
   );
   const complete = isChecklistComplete(checked, checklistConfig.minChecked);
-  const prevCompleteRef = useRef(false);
-  const waveScales = useRef(
-    checklistConfig.items.map(() => useSharedValue(1)),
-  ).current;
 
   useEffect(() => {
     onCompletionChange(
@@ -147,23 +141,7 @@ export function ChecklistTask({
           }
         : undefined,
     );
-
-    if (complete && !prevCompleteRef.current && !reducedMotion) {
-      checked.forEach((isChecked, i) => {
-        if (isChecked) {
-          waveScales[i].value = withDelay(
-            i * 50,
-            withSequence(
-              withSpring(1.04, SPRING_BOUNCE),
-              withSpring(1, SPRING_MAGNETIC),
-            ),
-          );
-        }
-      });
-    }
-
-    prevCompleteRef.current = complete;
-  }, [complete, checked, checklistConfig.items, onCompletionChange, reducedMotion, waveScales]);
+  }, [complete, checked, checklistConfig.items, onCompletionChange]);
 
   const toggle = (index: number) => {
     setChecked((current) => {

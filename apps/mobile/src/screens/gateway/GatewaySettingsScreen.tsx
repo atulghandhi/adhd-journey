@@ -21,6 +21,8 @@ import {
   presentAppPicker,
   requestFamilyControlsAuth,
   applyShields,
+  enforceShields,
+  setGatewayPauseSeconds,
   startDoomScrollMonitor,
   stopDoomScrollMonitor,
   getShieldedAppCount,
@@ -61,25 +63,31 @@ export function GatewaySettingsScreen() {
   };
 
   // Sync persisted auth state + shielded count with live native state on mount.
-  // Also re-apply shields so the selection persists across app restarts.
+  // enforceShields restores the selection across restarts without cancelling
+  // an unlock window the user just earned through the shield's breathing flow.
   useEffect(() => {
     if (!isFamilyControlsAvailable()) return;
     void debugFamilyControlsState().then((s) => console.log("[Gateway] mount:", s));
     void getFamilyControlsStatus().then((status) => {
       setFamilyControlsAuthorized(status === "authorized");
       if (status === "authorized") {
-        void applyShields().then(() => {
-          void debugFamilyControlsState().then((s) => console.log("[Gateway] post-shield:", s));
-        });
+        void enforceShields();
       }
     });
     void refreshShieldedCount();
   }, [setFamilyControlsAuthorized]);
 
+  // Keep the native side in sync with the configured pause so the shield
+  // extensions honor the user-set duration.
+  useEffect(() => {
+    if (!isFamilyControlsAvailable()) return;
+    void setGatewayPauseSeconds(config.breathDurationSeconds);
+  }, [config.breathDurationSeconds]);
+
   const handleRemoveShieldedApp = (index: number) => {
     Alert.alert(
       "Remove this app?",
-      "It will no longer be shielded by the Mindful Gateway.",
+      "It will no longer be shielded by App Disrupt.",
       [
         { style: "cancel", text: "Cancel" },
         {
@@ -193,7 +201,7 @@ export function GatewaySettingsScreen() {
     if (value) {
       await startDoomScrollMonitor(
         config.doomScroll.firstThresholdMinutes || 10,
-        config.doomScroll.secondThresholdMinutes || 30,
+        config.doomScroll.secondThresholdMinutes,
       );
     } else {
       await stopDoomScrollMonitor();
@@ -202,14 +210,16 @@ export function GatewaySettingsScreen() {
 
   const handleCheckIn30 = async (value: boolean) => {
     selectionChanged();
-    const nextSeconds = value ? 30 : 0;
+    const nextMinutes = value ? 30 : 0;
     updateConfig({
-      doomScroll: { ...config.doomScroll, secondThresholdMinutes: nextSeconds },
+      doomScroll: { ...config.doomScroll, secondThresholdMinutes: nextMinutes },
     });
     if (config.doomScroll.enabled) {
+      // Passing 0 drops the second check-in; the monitor restarts with just
+      // the first threshold.
       await startDoomScrollMonitor(
         config.doomScroll.firstThresholdMinutes || 10,
-        nextSeconds || 30,
+        nextMinutes,
       );
     }
   };
@@ -228,16 +238,16 @@ export function GatewaySettingsScreen() {
             <ChevronLeft color={iconColor} size={24} />
           </AnimatedPressable>
           <Text className="text-base font-semibold text-focuslab-primaryDark dark:text-dark-text-primary">
-            Mindful Gateway
+            App Disrupt
           </Text>
         </View>
 
         {/* Page title + description */}
         <Text className="text-[34px] font-bold leading-tight text-focuslab-primaryDark dark:text-dark-text-primary">
-          Mindful Gateway
+          App Disrupt
         </Text>
         <Text className="mt-3 text-base leading-7 text-focuslab-secondary dark:text-dark-text-secondary">
-          Mindful gateway adds a short pause before you open selected apps —
+          App Disrupt adds a short pause before you open selected apps —
           giving you a second to make sure the action is intentional and what
           you want.
         </Text>
