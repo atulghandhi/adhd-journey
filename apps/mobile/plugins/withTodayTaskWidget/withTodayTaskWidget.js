@@ -31,6 +31,19 @@ const withTodayTaskWidget = (config) => {
     const currentProjectVersion =
       (config.ios && config.ios.buildNumber) || "1";
 
+    // Running prebuild again without --clean must not add the target twice.
+    // (node-xcode stores target names wrapped in quotes.)
+    const existingTargets = xcodeProject.pbxNativeTargetSection();
+    const alreadyAdded = Object.keys(existingTargets).some(
+      (key) =>
+        !key.endsWith("_comment") &&
+        String(existingTargets[key].name || "").replace(/^"(.*)"$/, "$1") ===
+          WIDGET_TARGET_NAME
+    );
+    if (alreadyAdded) {
+      return mod;
+    }
+
     // --- Copy widget Swift files into ios/<WidgetTarget>/ ---
     const projectRoot = mod.modRequest.projectRoot;
     const iosDir = path.join(projectRoot, "ios");

@@ -1,12 +1,8 @@
 import { Platform } from "react-native";
 
-export type PendingDeepLink = { link: string; at: number };
-
 let WidgetDataBridge: {
   setWidgetData: (jsonString: string) => boolean;
   clearWidgetData: () => boolean;
-  readPendingDeepLink: (clear: boolean) => PendingDeepLink | null;
-  clearPendingDeepLink: () => boolean;
 } | null = null;
 
 if (Platform.OS === "ios") {
@@ -35,18 +31,4 @@ export function setWidgetData(jsonString: string): boolean {
 export function clearWidgetData(): boolean {
   if (!WidgetDataBridge) return false;
   return WidgetDataBridge.clearWidgetData();
-}
-
-/**
- * Read (and optionally consume) a deep-link written by the ShieldAction
- * extension. Returns null if nothing pending or module is unavailable.
- */
-export function readPendingDeepLink(options?: { clear?: boolean }): PendingDeepLink | null {
-  if (!WidgetDataBridge) return null;
-  return WidgetDataBridge.readPendingDeepLink(options?.clear ?? true);
-}
-
-export function clearPendingDeepLink(): boolean {
-  if (!WidgetDataBridge) return false;
-  return WidgetDataBridge.clearPendingDeepLink();
 }

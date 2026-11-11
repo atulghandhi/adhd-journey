@@ -9,6 +9,14 @@ import type {
 } from "@focuslab/shared";
 import { DEFAULT_GATEWAY_CONFIG } from "@focuslab/shared";
 
+import type {
+  GatewayStatus,
+  PendingShieldRequest,
+} from "../../modules/family-controls-bridge";
+
+/** Open counts for Screen Time shields are aggregate, not per app. */
+export const SHIELDED_APPS_ID = "shielded_apps";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -37,9 +45,18 @@ export interface GatewayState {
 
   /** Whether FamilyControls authorization has been granted. */
   familyControlsAuthorized: boolean;
+
+  /** Live device state from the last native sync. Not persisted. */
+  nativeStatus: GatewayStatus | null;
+
+  /** The shield hand-off the breathing screen is serving. Not persisted. */
+  shieldRequest: PendingShieldRequest | null;
 }
 
 export interface GatewayActions {
+  /** Adopt what the native layer reports (auth, open count, session). */
+  applyNativeStatus: (status: GatewayStatus) => void;
+
   /** Get the current open count for an app (0 if new day). */
   getOpenCount: (appId: string) => number;
 
@@ -55,6 +72,9 @@ export interface GatewayActions {
   /** Set the FamilyControls authorization status. */
   setFamilyControlsAuthorized: (authorized: boolean) => void;
 
+  /** Set or clear the shield hand-off being served. */
+  setShieldRequest: (request: PendingShieldRequest | null) => void;
+
   /** Update the full gateway config. */
   updateConfig: (config: Partial<GatewayConfig>) => void;
 
@@ -64,6 +84,33 @@ export interface GatewayActions {
 
 export type GatewayStore = GatewayState & GatewayActions;
 
+/**
+ * Bring a config saved by an older build up to the current shape: fill in
+ * settings added since, and make progressive friction match what its switch
+ * promises (one extra second per open; older builds defaulted to three).
+ */
+export function normalizeGatewayConfig(
+  saved: Partial<GatewayConfig> | undefined,
+): GatewayConfig {
+  const config: GatewayConfig = {
+    ...DEFAULT_GATEWAY_CONFIG,
+    ...saved,
+    doomScroll: { ...DEFAULT_GATEWAY_CONFIG.doomScroll, ...saved?.doomScroll },
+    escalation: { ...DEFAULT_GATEWAY_CONFIG.escalation, ...saved?.escalation },
+  };
+
+  config.escalation.incrementPerOpenSeconds =
+    config.escalation.incrementPerOpenSeconds > 0 ? 1 : 0;
+
+  // Screen Time shields track one aggregate count; the per-app "limit" older
+  // builds stored for them was never editable and no longer means anything.
+  config.openLimits = config.openLimits.filter(
+    (limit) => limit.appId !== SHIELDED_APPS_ID,
+  );
+
+  return config;
+}
+
 export const useGatewayStore = create<GatewayStore>()(
   persist(
     (set, get) => ({
@@ -72,9 +119,21 @@ export const useGatewayStore = create<GatewayStore>()(
       config: { ...DEFAULT_GATEWAY_CONFIG },
       dailyOpenCounts: {},
       familyControlsAuthorized: false,
+      nativeStatus: null,
+      shieldRequest: null,
       strategySnapshot: null,
 
       // Actions
+      applyNativeStatus: (status) =>
+        set((state) => ({
+          dailyOpenCounts: {
+            ...state.dailyOpenCounts,
+            [SHIELDED_APPS_ID]: { count: status.opensToday, date: todayKey() },
+          },
+          familyControlsAuthorized: status.authorized,
+          nativeStatus: status,
+        })),
+
       getOpenCount: (appId: string) => {
         const entry = get().dailyOpenCounts[appId];
         if (!entry || entry.date !== todayKey()) return 0;
@@ -117,6 +176,8 @@ export const useGatewayStore = create<GatewayStore>()(
       setFamilyControlsAuthorized: (authorized) =>
         set({ familyControlsAuthorized: authorized }),
 
+      setShieldRequest: (request) => set({ shieldRequest: request }),
+
       updateConfig: (partial) =>
         set((state) => ({
           config: { ...state.config, ...partial },
@@ -128,6 +189,22 @@ export const useGatewayStore = create<GatewayStore>()(
     {
       name: "gateway-store",
       storage: createJSONStorage(() => AsyncStorage),
+      // Live device state is re-read from native on every launch.
+      partialize: (state) => ({
+        completedFirstRun: state.completedFirstRun,
+        config: state.config,
+        dailyOpenCounts: state.dailyOpenCounts,
+        familyControlsAuthorized: state.familyControlsAuthorized,
+        strategySnapshot: state.strategySnapshot,
+      }),
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<GatewayState>;
+        return {
+          ...current,
+          ...saved,
+          config: normalizeGatewayConfig(saved.config),
+        };
+      },
     },
   ),
 );

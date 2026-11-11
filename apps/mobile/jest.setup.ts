@@ -4,6 +4,7 @@ jest.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
   Stack: ({ children }: { children: ReactNode }) => children,
   useLocalSearchParams: () => ({}),
+  usePathname: () => "/",
   useRouter: () => ({
     back: jest.fn(),
     push: jest.fn(),
@@ -76,28 +77,18 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 jest.mock("./modules/widget-data-bridge", () => ({
   setWidgetData: jest.fn(() => true),
   clearWidgetData: jest.fn(() => true),
-  readPendingDeepLink: jest.fn(() => null),
-  clearPendingDeepLink: jest.fn(() => true),
 }));
 
 jest.mock("./modules/family-controls-bridge", () => ({
   isFamilyControlsAvailable: jest.fn(() => false),
   requestFamilyControlsAuth: jest.fn(() => Promise.resolve(false)),
   getFamilyControlsStatus: jest.fn(() => Promise.resolve("notDetermined")),
-  presentAppPicker: jest.fn(() => Promise.resolve(0)),
-  applyShields: jest.fn(() => Promise.resolve(false)),
-  enforceShields: jest.fn(() => Promise.resolve("none")),
-  setGatewayPauseSeconds: jest.fn(() => Promise.resolve(false)),
-  removeShields: jest.fn(() => Promise.resolve(false)),
-  removeShieldsTemporarily: jest.fn(() => Promise.resolve(false)),
-  getShieldedAppCount: jest.fn(() => Promise.resolve(0)),
+  presentAppPicker: jest.fn(() => Promise.resolve(-1)),
   getShieldedAppTokens: jest.fn(() => Promise.resolve([])),
   removeShieldedAppAt: jest.fn(() => Promise.resolve(false)),
-  clearShieldedApps: jest.fn(() => Promise.resolve(false)),
-  startDoomScrollMonitor: jest.fn(() => Promise.resolve(false)),
-  stopDoomScrollMonitor: jest.fn(() => Promise.resolve(false)),
-  writeSharedGatewayData: jest.fn(() => Promise.resolve(false)),
+  syncGateway: jest.fn(() => Promise.resolve(null)),
+  consumePendingShieldRequest: jest.fn(() => Promise.resolve(null)),
+  unlockForSession: jest.fn(() => Promise.resolve(null)),
   debugFamilyControlsState: jest.fn(() => Promise.resolve("unavailable")),
   ShieldedAppView: () => null,
 }));
-

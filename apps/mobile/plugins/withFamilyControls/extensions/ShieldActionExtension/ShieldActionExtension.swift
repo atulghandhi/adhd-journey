@@ -1,30 +1,22 @@
 import Foundation
 import ManagedSettings
-import ManagedSettingsUI
-import os.log
+import UserNotifications
 
-// Keys shared with the main app + other extensions via the App Group.
-private let appGroupID = "group.app.nextthing"
-private let shieldedAppsKey = "shielded_app_tokens"
-private let shieldedCategoriesKey = "shielded_category_tokens"
-private let pauseSecondsKey = "gateway_pause_seconds"
-private let breathUntilKey = "gateway_breath_until"
-private let reapplyAtKey = "gateway_shield_reapply_at"
-
-// How long the user may use the unlocked app before shields come back.
-private let unlockWindowSeconds: TimeInterval = 60
-// After the breathing pause completes, how long the "ready" state stays valid.
-private let readyGraceSeconds: TimeInterval = 120
-
-/// Two-tap mindful unlock:
-///  1. "Start breathing" — records when the pause will complete and responds
-///     `.defer`, which re-invokes the ShieldConfiguration data source so the
-///     shield switches to its breathing state.
-///  2. "Continue" — once the user-set pause has elapsed, shields are cleared
-///     and `.defer` lets the system dismiss the shield in place, dropping the
-///     user straight into the app they tapped. A re-apply deadline is
-///     persisted so the main app (and a best-effort timer here) restores the
-///     shields after the unlock window.
+// Handles taps on the shield's two buttons.
+//
+// Primary button, in order of preference:
+//  1. Guided pause on iOS 26.5+: ask iOS to open Next Thing, which runs the
+//     animated breathing countdown and then lifts the shield.
+//  2. Guided pause on older iOS: post a notification the user taps to get to
+//     the same screen (extensions could not open their app before 26.5).
+//  3. Quick pause, or whenever the hand-off did not happen: a timed pause on
+//     the shield itself. First tap starts it, a second tap after it completes
+//     lifts the shield.
+//
+// Secondary button: close the app.
+//
+// Shared state and the shield maths live in GatewayCore.swift, which the
+// config plugin copies into this target.
 class ShieldActionExtension: ShieldActionDelegate {
     private let store = ManagedSettingsStore()
 
@@ -33,18 +25,26 @@ class ShieldActionExtension: ShieldActionDelegate {
         for application: ApplicationToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        handleShieldAction(action, context: "application", completionHandler: completionHandler)
+        respond(
+            to: action,
+            kind: "app",
+            tokenData: try? JSONEncoder().encode(application),
+            completionHandler: completionHandler
+        )
     }
 
-    // Apps blocked through a selected *category* invoke this variant — it was
-    // previously missing, which left the shield frozen on screen because the
-    // button taps were never answered.
+    // Apps shielded through a selected *category* arrive here.
     override func handle(
         action: ShieldAction,
         for category: ActivityCategoryToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        handleShieldAction(action, context: "category", completionHandler: completionHandler)
+        respond(
+            to: action,
+            kind: "category",
+            tokenData: try? JSONEncoder().encode(category),
+            completionHandler: completionHandler
+        )
     }
 
     override func handle(
@@ -52,22 +52,27 @@ class ShieldActionExtension: ShieldActionDelegate {
         for webDomain: WebDomainToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        handleShieldAction(action, context: "webDomain", completionHandler: completionHandler)
+        respond(to: action, kind: "all", tokenData: nil, completionHandler: completionHandler)
     }
 
     // MARK: - Shared handling
 
-    private func handleShieldAction(
-        _ action: ShieldAction,
-        context: String,
+    private func respond(
+        to action: ShieldAction,
+        kind: String,
+        tokenData: Data?,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        os_log("[ShieldActionExtension] handling %{public}@ action for %{public}@", log: OSLog.default, type: .default, "\(action)", context)
         switch action {
         case .primaryButtonPressed:
-            handlePrimary(completionHandler: completionHandler)
+            handlePrimary(kind: kind, tokenData: tokenData, completionHandler: completionHandler)
         case .secondaryButtonPressed:
-            // "Go back" — close the shielded app.
+            // "I don't need it": drop any pause in progress and close the app.
+            let defaults = GatewayCore.defaults
+            defaults?.removeObject(forKey: GatewayKeys.breathUntil)
+            defaults?.removeObject(forKey: GatewayKeys.breathSeconds)
+            defaults?.removeObject(forKey: GatewayKeys.handoffAt)
+            defaults?.removeObject(forKey: GatewayKeys.pendingAt)
             completionHandler(.close)
         @unknown default:
             completionHandler(.close)
@@ -75,68 +80,119 @@ class ShieldActionExtension: ShieldActionDelegate {
     }
 
     private func handlePrimary(
+        kind: String,
+        tokenData: Data?,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        let defaults = UserDefaults(suiteName: appGroupID)
-        let now = Date().timeIntervalSince1970
-        let breathUntil = defaults?.double(forKey: breathUntilKey) ?? 0
+        let defaults = GatewayCore.defaults
+        let now = GatewayCore.now
+        let config = GatewayCore.loadConfig()
 
-        if breathUntil <= 0 || now > breathUntil + readyGraceSeconds {
-            // Stage 1: start the breathing pause using the user's configured
-            // duration, then refresh the shield UI into its breathing state.
-            var pause = defaults?.double(forKey: pauseSecondsKey) ?? 0
-            if pause <= 0 { pause = 5 }
-            pause = min(max(pause, 3), 30)
-
-            defaults?.set(now + pause, forKey: breathUntilKey)
-            recordPendingDeepLink(defaults)
-            os_log("[ShieldActionExtension] breathing started (%{public}.0fs)", log: OSLog.default, type: .default, pause)
-            completionHandler(.defer)
+        // Already unlocked for exactly this app (the shield can linger for a
+        // moment after it is lifted): re-assert and let the user through
+        // rather than starting a second pause.
+        if GatewayCore.isUnlocked(),
+           defaults?.string(forKey: GatewayKeys.targetKind) == kind,
+           defaults?.data(forKey: GatewayKeys.targetToken) == tokenData {
+            GatewayCore.applyShields(store: store)
+            completionHandler(.none)
             return
         }
 
-        if now < breathUntil {
-            // Tapped again before the pause finished — refresh the shield so
-            // the remaining-seconds label updates, but keep it up.
-            os_log("[ShieldActionExtension] continue tapped early (%{public}.0fs left)", log: OSLog.default, type: .default, breathUntil - now)
-            completionHandler(.defer)
+        GatewayCore.setTarget(kind: kind, tokenData: tokenData)
+
+        // An in-shield pause is already running or has just completed.
+        let breathUntil = defaults?.double(forKey: GatewayKeys.breathUntil) ?? 0
+        if breathUntil > 0, now <= breathUntil + GatewayCore.readyGraceSeconds {
+            if now < breathUntil {
+                // Tapped early: redraw so the remaining time updates.
+                completionHandler(.defer)
+                return
+            }
+            GatewayCore.beginSession(store: store)
+            completionHandler(.none)
             return
         }
 
-        // Stage 2: pause complete — unshield and let the user into the app.
-        defaults?.removeObject(forKey: breathUntilKey)
-        defaults?.set(now + unlockWindowSeconds, forKey: reapplyAtKey)
+        if config.style != "quick" {
+            // If an earlier hand-off is still unanswered, the app never
+            // opened. Fall through to the in-shield pause instead of
+            // stranding the user.
+            let lastHandoff = defaults?.double(forKey: GatewayKeys.handoffAt) ?? 0
+            let handoffUnanswered =
+                lastHandoff > 0 && now - lastHandoff < GatewayCore.handoffWindowSeconds
 
-        store.clearAllSettings()
-        os_log("[ShieldActionExtension] shields cleared, unlock window %{public}.0fs", log: OSLog.default, type: .default, unlockWindowSeconds)
+            if !handoffUnanswered {
+                defaults?.set(now, forKey: GatewayKeys.pendingAt)
+                defaults?.set(now, forKey: GatewayKeys.handoffAt)
 
-        // Best-effort in-process re-apply. The extension may be terminated
-        // before this fires; the main app enforces the persisted deadline as
-        // the reliable fallback.
-        DispatchQueue.main.asyncAfter(deadline: .now() + unlockWindowSeconds) { [weak self] in
-            self?.reapplyShields(defaults)
+                // iOS 26.5 added ShieldActionResponse.openParentalControlsApp.
+                // It is built from its raw value so this file also compiles
+                // against SDKs that do not name the case yet. If the value is
+                // not recognised, the initialiser returns nil and we carry on
+                // to the notification path.
+                if #available(iOS 26.5, *), let openApp = ShieldActionResponse(rawValue: 3) {
+                    completionHandler(openApp)
+                    return
+                }
+
+                postHandoffNotification { delivered in
+                    if delivered {
+                        // Redraw: "Tap the Next Thing notification".
+                        completionHandler(.defer)
+                    } else {
+                        GatewayCore.defaults?.removeObject(forKey: GatewayKeys.pendingAt)
+                        GatewayCore.defaults?.removeObject(forKey: GatewayKeys.handoffAt)
+                        self.startBreathing(config: config, completionHandler: completionHandler)
+                    }
+                }
+                return
+            }
         }
 
+        startBreathing(config: config, completionHandler: completionHandler)
+    }
+
+    /// Start the timed pause on the shield itself and redraw it.
+    private func startBreathing(
+        config: GatewayConfig,
+        completionHandler: @escaping (ShieldActionResponse) -> Void
+    ) {
+        let defaults = GatewayCore.defaults
+        let pause = GatewayCore.pauseSeconds(
+            config: config, opensSoFar: GatewayCore.opensToday())
+
+        defaults?.removeObject(forKey: GatewayKeys.pendingAt)
+        defaults?.removeObject(forKey: GatewayKeys.handoffAt)
+        defaults?.set(pause, forKey: GatewayKeys.breathSeconds)
+        defaults?.set(GatewayCore.now + pause, forKey: GatewayKeys.breathUntil)
         completionHandler(.defer)
     }
 
-    private func reapplyShields(_ defaults: UserDefaults?) {
-        if let appData = defaults?.data(forKey: shieldedAppsKey),
-           let appTokens = try? JSONDecoder().decode([ApplicationToken].self, from: appData),
-           !appTokens.isEmpty {
-            store.shield.applications = Set(appTokens)
-        }
-        if let catData = defaults?.data(forKey: shieldedCategoriesKey),
-           let catTokens = try? JSONDecoder().decode([ActivityCategoryToken].self, from: catData),
-           !catTokens.isEmpty {
-            store.shield.applicationCategories = .specific(Set(catTokens))
-        }
-        defaults?.removeObject(forKey: reapplyAtKey)
-        os_log("[ShieldActionExtension] shields re-applied after unlock window", log: OSLog.default, type: .default)
-    }
+    /// Older iOS cannot open the app from a shield, so offer a notification
+    /// the user taps to get to the breathing screen.
+    private func postHandoffNotification(completion: @escaping (Bool) -> Void) {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional
+            else {
+                completion(false)
+                return
+            }
 
-    private func recordPendingDeepLink(_ defaults: UserDefaults?) {
-        defaults?.set("disrupt", forKey: "pendingDeepLink")
-        defaults?.set(Date().timeIntervalSince1970, forKey: "pendingDeepLinkAt")
+            let content = UNMutableNotificationContent()
+            content.title = "Take a breath first"
+            content.body = "Tap to start your pause in Next Thing."
+
+            let request = UNNotificationRequest(
+                identifier: "gateway-handoff",
+                content: content,
+                trigger: nil
+            )
+            center.add(request) { error in
+                completion(error == nil)
+            }
+        }
     }
 }

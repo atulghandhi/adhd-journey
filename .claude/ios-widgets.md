@@ -90,6 +90,18 @@ Then:
 4. complete a check-in or foreground the app
 5. confirm the widget refreshes
 
+## Known Issue: the widget target has no sources
+
+`withTodayTaskWidget.js` creates the target with `addTarget` but never gives it
+a Sources build phase, so the generated Xcode project builds an empty
+`TodayTaskWidget.appex` and the widget does not appear in the picker. You can
+see it in Xcode under the target's Build Phases.
+
+`withFamilyControls.js` had the same defect and shows the fix: create the
+Sources, Frameworks and Resources phases and wire each Swift file to them. It
+has not been applied here because the widget's SwiftUI code has never been
+compiled, so wiring it in needs a Mac to confirm it builds.
+
 ## Known Constraints
 
 - Widgets do not work in Expo Go.

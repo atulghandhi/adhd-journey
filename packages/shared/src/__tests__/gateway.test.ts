@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeGatewayDuration,
+  computeShieldPauseSeconds,
   DEFAULT_GATEWAY_CONFIG,
   formatHHMM,
   isInFreeWindow,
+  toNativeGatewayConfig,
 } from "../types/domain";
 import type { GatewayConfig, TimeWindow } from "../types/domain";
 
@@ -82,6 +84,103 @@ describe("computeGatewayDuration", () => {
     expect(computeGatewayDuration(custom, "instagram", 6)).toBe(15);
     // 10th open: 10 + (10-5)*5 = 35 → capped at 30
     expect(computeGatewayDuration(custom, "instagram", 10)).toBe(30);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeShieldPauseSeconds
+// ---------------------------------------------------------------------------
+
+describe("computeShieldPauseSeconds", () => {
+  const withFriction: GatewayConfig = {
+    ...DEFAULT_GATEWAY_CONFIG,
+    breathDurationSeconds: 5,
+    escalation: {
+      baseDurationSeconds: 5,
+      capSeconds: 20,
+      incrementPerOpenSeconds: 1,
+    },
+  };
+
+  it("returns the chosen pause when progressive friction is off", () => {
+    const off: GatewayConfig = {
+      ...withFriction,
+      breathDurationSeconds: 10,
+      escalation: { ...withFriction.escalation, incrementPerOpenSeconds: 0 },
+    };
+    expect(computeShieldPauseSeconds(off, 0)).toBe(10);
+    expect(computeShieldPauseSeconds(off, 40)).toBe(10);
+  });
+
+  it("adds one step for every open earlier today", () => {
+    expect(computeShieldPauseSeconds(withFriction, 0)).toBe(5);
+    expect(computeShieldPauseSeconds(withFriction, 1)).toBe(6);
+    expect(computeShieldPauseSeconds(withFriction, 7)).toBe(12);
+  });
+
+  it("builds on the pause the user chose, not a separate base", () => {
+    const threeSeconds: GatewayConfig = { ...withFriction, breathDurationSeconds: 3 };
+    expect(computeShieldPauseSeconds(threeSeconds, 2)).toBe(5);
+  });
+
+  it("caps the pause", () => {
+    expect(computeShieldPauseSeconds(withFriction, 15)).toBe(20);
+    expect(computeShieldPauseSeconds(withFriction, 200)).toBe(20);
+  });
+
+  it("never caps below the chosen pause", () => {
+    const longPause: GatewayConfig = {
+      ...withFriction,
+      breathDurationSeconds: 30,
+    };
+    expect(computeShieldPauseSeconds(longPause, 0)).toBe(30);
+    expect(computeShieldPauseSeconds(longPause, 9)).toBe(30);
+  });
+
+  it("treats a negative open count as zero", () => {
+    expect(computeShieldPauseSeconds(withFriction, -3)).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toNativeGatewayConfig
+// ---------------------------------------------------------------------------
+
+describe("toNativeGatewayConfig", () => {
+  it("maps the default config", () => {
+    expect(toNativeGatewayConfig(DEFAULT_GATEWAY_CONFIG)).toEqual({
+      checkInMinutes: [10, 30],
+      enabled: false,
+      frictionCapSeconds: 20,
+      frictionStepSeconds: 1,
+      pauseSeconds: 5,
+      sessionMinutes: 5,
+      style: "guided",
+    });
+  });
+
+  it("keeps the 30-minute check-in when the 10-minute one is off", () => {
+    const config: GatewayConfig = {
+      ...DEFAULT_GATEWAY_CONFIG,
+      doomScroll: {
+        enabled: false,
+        firstThresholdMinutes: 10,
+        secondThresholdMinutes: 30,
+      },
+    };
+    expect(toNativeGatewayConfig(config).checkInMinutes).toEqual([30]);
+  });
+
+  it("drops check-ins that are switched off", () => {
+    const config: GatewayConfig = {
+      ...DEFAULT_GATEWAY_CONFIG,
+      doomScroll: {
+        enabled: false,
+        firstThresholdMinutes: 10,
+        secondThresholdMinutes: 0,
+      },
+    };
+    expect(toNativeGatewayConfig(config).checkInMinutes).toEqual([]);
   });
 });
 
@@ -167,12 +266,14 @@ describe("DEFAULT_GATEWAY_CONFIG", () => {
     expect(DEFAULT_GATEWAY_CONFIG.enabled).toBe(false);
     expect(DEFAULT_GATEWAY_CONFIG.breathDurationSeconds).toBe(5);
     expect(DEFAULT_GATEWAY_CONFIG.escalation.baseDurationSeconds).toBe(5);
-    expect(DEFAULT_GATEWAY_CONFIG.escalation.incrementPerOpenSeconds).toBe(3);
+    expect(DEFAULT_GATEWAY_CONFIG.escalation.incrementPerOpenSeconds).toBe(1);
     expect(DEFAULT_GATEWAY_CONFIG.escalation.capSeconds).toBe(20);
     expect(DEFAULT_GATEWAY_CONFIG.doomScroll.enabled).toBe(true);
     expect(DEFAULT_GATEWAY_CONFIG.doomScroll.firstThresholdMinutes).toBe(10);
     expect(DEFAULT_GATEWAY_CONFIG.doomScroll.secondThresholdMinutes).toBe(30);
     expect(DEFAULT_GATEWAY_CONFIG.freeWindows).toEqual([]);
     expect(DEFAULT_GATEWAY_CONFIG.openLimits).toEqual([]);
+    expect(DEFAULT_GATEWAY_CONFIG.pauseStyle).toBe("guided");
+    expect(DEFAULT_GATEWAY_CONFIG.sessionMinutes).toBe(5);
   });
 });

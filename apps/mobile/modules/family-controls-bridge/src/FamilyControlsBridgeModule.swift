@@ -1,22 +1,18 @@
+import DeviceActivity
 import ExpoModulesCore
 import FamilyControls
-import ManagedSettings
-import DeviceActivity
 import Foundation
+import ManagedSettings
 import SwiftUI
 import UIKit
+import UserNotifications
 
-// MARK: - Shared data
-
-private let appGroupID = "group.app.nextthing"
-private let sharedDefaultsKey = "gateway_shared_data"
-private let shieldedAppsKey = "shielded_app_tokens"
-// Keys shared with the Shield extensions (see ShieldActionExtension.swift).
-private let pauseSecondsKey = "gateway_pause_seconds"
-private let breathUntilKey = "gateway_breath_until"
-private let reapplyAtKey = "gateway_shield_reapply_at"
-
-// MARK: - Module
+// JS bridge for App Disrupt (Screen Time shields).
+//
+// The shield logic itself lives in GatewayCore.swift so the app and the three
+// extensions cannot drift apart. This module is the thin layer JS talks to:
+// authorization, the app picker, syncing settings, and the unlock that the
+// in-app breathing screen performs when the user chooses to continue.
 
 public class FamilyControlsBridgeModule: Module {
     private let store = ManagedSettingsStore()
@@ -30,32 +26,27 @@ public class FamilyControlsBridgeModule: Module {
 
         AsyncFunction("requestAuthorization") { () -> Bool in
             if #available(iOS 16.0, *) {
-                // Already authorized — skip the system dialog entirely.
+                // Already authorized: skip the system dialog entirely.
                 if AuthorizationCenter.shared.authorizationStatus == .approved {
-                    NSLog("[FamilyControlsBridge] already authorized")
                     return true
                 }
 
                 do {
                     try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
-                    NSLog("[FamilyControlsBridge] requestAuthorization succeeded")
                 } catch {
                     NSLog("[FamilyControlsBridge] requestAuthorization threw: %@", "\(error)")
                 }
 
-                // The status may lag behind the dialog dismissal on some iOS
+                // The status can lag behind the dialog dismissal on some iOS
                 // versions. Poll for up to 2 seconds before giving up.
-                for i in 1...4 {
+                for _ in 1...4 {
                     if AuthorizationCenter.shared.authorizationStatus == .approved {
-                        NSLog("[FamilyControlsBridge] status approved after %d checks", i)
                         return true
                     }
                     try? await Task.sleep(nanoseconds: 500_000_000)
                 }
 
-                let finalStatus = AuthorizationCenter.shared.authorizationStatus
-                NSLog("[FamilyControlsBridge] final status: %@", "\(finalStatus)")
-                return finalStatus == .approved
+                return AuthorizationCenter.shared.authorizationStatus == .approved
             }
             return false
         }
@@ -72,278 +63,206 @@ public class FamilyControlsBridgeModule: Module {
         }
 
         // ------------------------------------------------------------------
-        // Activity Picker — presents Apple's native FamilyActivityPicker
+        // Activity picker: Apple's native FamilyActivityPicker.
+        // Resolves with the number of selected apps + categories, or -1 if
+        // the user backed out without confirming.
         // ------------------------------------------------------------------
 
         AsyncFunction("presentActivityPicker") { () -> Int in
-            // FamilyActivityPicker is a SwiftUI view. We present it via
-            // a UIHostingController from the root view controller.
             if #available(iOS 16.0, *) {
                 return await withCheckedContinuation { continuation in
                     DispatchQueue.main.async {
-                        guard let rootVC = UIApplication.shared
+                        guard var presenter = UIApplication.shared
                             .connectedScenes
                             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                             .first
                         else {
-                            continuation.resume(returning: 0)
+                            continuation.resume(returning: -1)
                             return
                         }
+                        // Present from whatever is on top (a modal route, say).
+                        while let presented = presenter.presentedViewController {
+                            presenter = presented
+                        }
 
-                        // Preload the picker with the currently-selected tokens so
-                        // the user can see/deselect what they already shielded.
+                        // The continuation must be resumed exactly once,
+                        // whichever way the sheet goes away.
+                        var finished = false
+                        let finish: (Int) -> Void = { value in
+                            guard !finished else { return }
+                            finished = true
+                            continuation.resume(returning: value)
+                        }
+
+                        // Preload the picker so the user sees (and can
+                        // deselect) what is already paused.
                         var initialSelection = FamilyActivitySelection()
-                        if let existingApps = self.loadShieldedTokenArray() {
-                            initialSelection.applicationTokens = Set(existingApps)
-                        }
-                        if let existingCategories = self.loadShieldedCategoryArray() {
-                            initialSelection.categoryTokens = Set(existingCategories)
-                        }
+                        initialSelection.applicationTokens = Set(GatewayCore.loadApps())
+                        initialSelection.categoryTokens = Set(GatewayCore.loadCategories())
+
                         let pickerVC = FamilyActivityPickerViewController(
-                            initialSelection: initialSelection
-                        ) { selection in
-                            // Persist selection as an ordered array so the JS
-                            // side can show per-index chips + remove by index.
-                            let defaults = UserDefaults(suiteName: appGroupID)
-                            let appTokens = Array(selection.applicationTokens)
-                            let categoryTokens = Array(selection.categoryTokens)
-                            let tokenCount = appTokens.count + categoryTokens.count
-                            
-                            if let appData = try? JSONEncoder().encode(appTokens) {
-                                defaults?.set(appData, forKey: shieldedAppsKey)
+                            initialSelection: initialSelection,
+                            onDone: { selection in
+                                // Stored as ordered arrays so JS can show
+                                // per-index chips and remove by index.
+                                let apps = Array(selection.applicationTokens)
+                                let categories = Array(selection.categoryTokens)
+                                GatewayCore.saveApps(apps)
+                                GatewayCore.saveCategories(categories)
+                                finish(apps.count + categories.count)
+                            },
+                            onCancel: {
+                                finish(-1)
                             }
-                            if let catData = try? JSONEncoder().encode(categoryTokens) {
-                                defaults?.set(catData, forKey: "shielded_category_tokens")
-                            }
-                            
-                            rootVC.dismiss(animated: true) {
-                                continuation.resume(returning: tokenCount)
-                            }
-                        }
-                        rootVC.present(pickerVC, animated: true)
+                        )
+                        presenter.present(pickerVC, animated: true)
                     }
                 }
             }
-            return 0
+            return -1
         }
 
         // ------------------------------------------------------------------
-        // Shield management
+        // Selection
         // ------------------------------------------------------------------
 
-        AsyncFunction("applyShields") { () -> Bool in
-            if #available(iOS 16.0, *) {
-                guard AuthorizationCenter.shared.authorizationStatus == .approved else {
-                    NSLog("[FamilyControlsBridge] applyShields: not authorized, skipping")
-                    return false
-                }
-
-                let appTokens = self.loadShieldedTokens()
-                let catTokens = self.loadShieldedCategoryTokens()
-
-                let appCount = appTokens?.count ?? 0
-                let catCount = catTokens?.count ?? 0
-                NSLog("[FamilyControlsBridge] applyShields: %d apps, %d categories", appCount, catCount)
-
-                if appTokens == nil && catTokens == nil { return false }
-
-                // Run store mutations on main thread — ManagedSettingsStore
-                // can behave unpredictably from background threads.
-                return await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async {
-                        self.store.clearAllSettings()
-
-                        self.store.shield.applications = appTokens
-                        if let cats = catTokens, !cats.isEmpty {
-                            self.store.shield.applicationCategories = .specific(cats)
-                        }
-                        // Explicit apply ends any in-flight breathing pause or
-                        // unlock window.
-                        let defaults = UserDefaults(suiteName: appGroupID)
-                        defaults?.removeObject(forKey: breathUntilKey)
-                        defaults?.removeObject(forKey: reapplyAtKey)
-                        NSLog("[FamilyControlsBridge] applyShields: shields applied on main thread")
-                        continuation.resume(returning: true)
-                    }
-                }
-            }
-            return false
-        }
-
-        // Re-apply shields unless the user is inside an earned unlock window
-        // (written by the ShieldAction extension or removeShieldsTemporarily).
-        // Returns "applied", "deferred" (window active — a timer will restore
-        // shields when it ends) or "none" (nothing to shield / unauthorized).
-        AsyncFunction("enforceShields") { () -> String in
-            if #available(iOS 16.0, *) {
-                guard AuthorizationCenter.shared.authorizationStatus == .approved else {
-                    return "none"
-                }
-                let appTokens = self.loadShieldedTokens()
-                let catTokens = self.loadShieldedCategoryTokens()
-                if (appTokens?.isEmpty ?? true) && (catTokens?.isEmpty ?? true) {
-                    return "none"
-                }
-
-                let defaults = UserDefaults(suiteName: appGroupID)
-                let now = Date().timeIntervalSince1970
-                let reapplyAt = defaults?.double(forKey: reapplyAtKey) ?? 0
-
-                if reapplyAt > now {
-                    let remaining = reapplyAt - now
-                    NSLog("[FamilyControlsBridge] enforceShields: unlock window active, %f s left", remaining)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + remaining) { [weak self] in
-                        self?.applyStoredShields()
-                    }
-                    return "deferred"
-                }
-
-                return await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async {
-                        self.applyStoredShields()
-                        continuation.resume(returning: "applied")
-                    }
-                }
-            }
-            return "none"
-        }
-
-        // Persist the user's configured breathing pause so the Shield
-        // extensions can honor it.
-        AsyncFunction("setGatewayPauseSeconds") { (seconds: Double) -> Bool in
-            let defaults = UserDefaults(suiteName: appGroupID)
-            defaults?.set(seconds, forKey: pauseSecondsKey)
-            NSLog("[FamilyControlsBridge] setGatewayPauseSeconds: %f", seconds)
-            return true
-        }
-
-        AsyncFunction("removeShields") { () -> Bool in
-            NSLog("[FamilyControlsBridge] removeShields called")
-            if #available(iOS 16.0, *) {
-                self.store.application.blockedApplications = nil
-                self.store.shield.applications = nil
-                self.store.shield.applicationCategories = nil
-                let defaults = UserDefaults(suiteName: appGroupID)
-                defaults?.removeObject(forKey: breathUntilKey)
-                defaults?.removeObject(forKey: reapplyAtKey)
-                NSLog("[FamilyControlsBridge] removeShields: shields cleared from store")
-                return true
-            }
-            return false
-        }
-
-        // Number of apps currently persisted for shielding.
-        AsyncFunction("getShieldedAppCount") { () -> Int in
-            if #available(iOS 16.0, *) {
-                return self.loadShieldedTokenArray()?.count ?? 0
-            }
-            return 0
-        }
-
-        // Return tokens as base64 strings for the JS side to pass into the native label view.
+        // Tokens as "app:<base64>" / "category:<base64>" strings for the
+        // native label view below.
         AsyncFunction("getShieldedAppTokens") { () -> [String] in
-            if #available(iOS 16.0, *) {
-                var allTokens: [String] = []
-                
-                if let apps = self.loadShieldedTokenArray() {
-                    allTokens.append(contentsOf: apps.compactMap { token in
-                        if let data = try? JSONEncoder().encode(token) {
-                            return "app:" + data.base64EncodedString()
-                        }
-                        return nil
-                    })
+            guard #available(iOS 16.0, *) else { return [] }
+            var tokens: [String] = []
+            for app in GatewayCore.loadApps() {
+                if let data = try? JSONEncoder().encode(app) {
+                    tokens.append("app:" + data.base64EncodedString())
                 }
-                
-                if let cats = self.loadShieldedCategoryArray() {
-                    allTokens.append(contentsOf: cats.compactMap { token in
-                        if let data = try? JSONEncoder().encode(token) {
-                            return "category:" + data.base64EncodedString()
-                        }
-                        return nil
-                    })
-                }
-                
-                return allTokens
             }
-            return []
+            for category in GatewayCore.loadCategories() {
+                if let data = try? JSONEncoder().encode(category) {
+                    tokens.append("category:" + data.base64EncodedString())
+                }
+            }
+            return tokens
         }
 
-        // Remove a single shielded app by its index in the stored array, then
-        // re-apply the shield with the updated set so the change takes effect
-        // immediately.
+        // Remove one entry by its index in the list above and re-apply.
         AsyncFunction("removeShieldedAppAt") { (index: Int) -> Bool in
-            if #available(iOS 16.0, *) {
-                var apps = self.loadShieldedTokenArray() ?? []
-                var cats = self.loadShieldedCategoryArray() ?? []
-                
-                if index < 0 || index >= (apps.count + cats.count) {
-                    return false
-                }
-                
-                if index < apps.count {
-                    apps.remove(at: index)
-                    let defaults = UserDefaults(suiteName: appGroupID)
-                    if let data = try? JSONEncoder().encode(apps) {
-                        defaults?.set(data, forKey: shieldedAppsKey)
-                    }
-                } else {
-                    cats.remove(at: index - apps.count)
-                    let defaults = UserDefaults(suiteName: appGroupID)
-                    if let data = try? JSONEncoder().encode(cats) {
-                        defaults?.set(data, forKey: "shielded_category_tokens")
-                    }
-                }
-                
-                self.store.application.blockedApplications = nil
-                self.store.shield.applications = apps.isEmpty ? nil : Set(apps)
-                if cats.isEmpty {
-                    self.store.shield.applicationCategories = nil
-                } else {
-                    self.store.shield.applicationCategories = .specific(Set(cats))
-                }
+            guard #available(iOS 16.0, *) else { return false }
+            var apps = GatewayCore.loadApps()
+            var categories = GatewayCore.loadCategories()
+            guard index >= 0, index < apps.count + categories.count else { return false }
+
+            if index < apps.count {
+                apps.remove(at: index)
+                GatewayCore.saveApps(apps)
+            } else {
+                categories.remove(at: index - apps.count)
+                GatewayCore.saveCategories(categories)
+            }
+
+            return await self.onMain {
+                GatewayCore.applyShields(store: self.store)
                 return true
             }
-            return false
         }
 
-        // Clear every shielded app.
-        AsyncFunction("clearShieldedApps") { () -> Bool in
-            NSLog("[FamilyControlsBridge] clearShieldedApps called")
-            if #available(iOS 16.0, *) {
-                let defaults = UserDefaults(suiteName: appGroupID)
-                defaults?.removeObject(forKey: shieldedAppsKey)
-                defaults?.removeObject(forKey: "shielded_category_tokens")
-                defaults?.removeObject(forKey: breathUntilKey)
-                defaults?.removeObject(forKey: reapplyAtKey)
-                self.store.application.blockedApplications = nil
-                self.store.shield.applications = nil
-                self.store.shield.applicationCategories = nil
-                return true
+        // ------------------------------------------------------------------
+        // Settings sync + enforcement
+        // ------------------------------------------------------------------
+
+        // Store the settings for the extensions, then make the device match
+        // them: shields on or off, an expired unlock session closed, the
+        // daily monitor (re)started if its inputs changed. Safe to call on
+        // every launch, foreground and settings change.
+        AsyncFunction("syncGateway") { (configJSON: String) -> [String: Any] in
+            guard #available(iOS 16.0, *) else { return [:] }
+            return await self.onMain {
+                GatewayCore.defaults?.set(configJSON, forKey: GatewayKeys.config)
+                return self.enforce()
             }
-            return false
         }
 
-        AsyncFunction("removeShieldsTemporarily") { (durationSeconds: Double) -> Bool in
-            NSLog("[FamilyControlsBridge] removeShieldsTemporarily called for %f seconds", durationSeconds)
-            if #available(iOS 16.0, *) {
-                self.store.application.blockedApplications = nil
-                self.store.shield.applications = nil
-                self.store.shield.applicationCategories = nil
+        // ------------------------------------------------------------------
+        // Hand-off from the shield
+        // ------------------------------------------------------------------
 
-                // Persist the deadline so the shields still come back if this
-                // process is suspended before the timer fires (enforceShields
-                // picks it up on next launch/foreground).
-                let defaults = UserDefaults(suiteName: appGroupID)
-                defaults?.set(Date().timeIntervalSince1970 + durationSeconds, forKey: reapplyAtKey)
-                defaults?.removeObject(forKey: breathUntilKey)
-                NSLog("[FamilyControlsBridge] removeShieldsTemporarily: shields cleared, scheduling re-apply")
+        // Called whenever the app becomes active. Returns the request the
+        // ShieldAction extension left when the user tapped "Take a breath",
+        // or nil. Reading it also tells the extension the hand-off worked.
+        AsyncFunction("consumePendingShieldRequest") { () -> [String: Any]? in
+            guard #available(iOS 16.0, *) else { return nil }
+            guard let defaults = GatewayCore.defaults else { return nil }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + durationSeconds) { [weak self] in
-                    self?.applyStoredShields()
-                }
-                return true
+            let pendingAt = defaults.double(forKey: GatewayKeys.pendingAt)
+            defaults.removeObject(forKey: GatewayKeys.pendingAt)
+            defaults.removeObject(forKey: GatewayKeys.handoffAt)
+            UNUserNotificationCenter.current()
+                .removeDeliveredNotifications(withIdentifiers: ["gateway-handoff"])
+
+            guard pendingAt > 0,
+                  GatewayCore.now - pendingAt < GatewayCore.pendingWindowSeconds
+            else { return nil }
+
+            let kind = defaults.string(forKey: GatewayKeys.targetKind) ?? "all"
+            let opens = GatewayCore.opensToday()
+            var request: [String: Any] = [
+                "at": pendingAt,
+                "kind": kind,
+                "opensToday": opens,
+                "pauseSeconds": GatewayCore.pauseSeconds(
+                    config: GatewayCore.loadConfig(), opensSoFar: opens),
+            ]
+            if let token = GatewayCore.encodeForJS(
+                kind: kind, tokenData: defaults.data(forKey: GatewayKeys.targetToken)) {
+                request["token"] = token
             }
-            return false
+            if let name = defaults.string(forKey: GatewayKeys.targetName) {
+                request["appName"] = name
+            }
+            if let bundleId = defaults.string(forKey: GatewayKeys.targetBundleId) {
+                request["bundleId"] = bundleId
+            }
+            return request
+        }
+
+        // The user finished the pause in the app and chose to continue.
+        // `scope` "target" lifts the shield only for the app they were
+        // opening; "all" lifts every shield (used when there is no specific
+        // shield request, e.g. the Shortcuts path).
+        AsyncFunction("unlockForSession") { (scope: String) -> [String: Any] in
+            guard #available(iOS 16.0, *) else { return [:] }
+            return await self.onMain {
+                let authorized = AuthorizationCenter.shared.authorizationStatus == .approved
+                if authorized, GatewayCore.selectionCount() > 0 {
+                    if scope != "target" {
+                        GatewayCore.setTarget(kind: "all", tokenData: nil)
+                    }
+                    GatewayCore.beginSession(store: self.store)
+                }
+                return self.status(authorized: authorized)
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Diagnostics
+        // ------------------------------------------------------------------
+
+        AsyncFunction("debugState") { () -> String in
+            guard #available(iOS 16.0, *) else { return "unavailable" }
+            let config = GatewayCore.loadConfig()
+            let monitored = DeviceActivityCenter().activities.map { $0.rawValue }
+            return [
+                "auth=\(AuthorizationCenter.shared.authorizationStatus)",
+                "enabled=\(config.enabled)",
+                "style=\(config.style)",
+                "apps=\(GatewayCore.loadApps().count)",
+                "categories=\(GatewayCore.loadCategories().count)",
+                "shieldingApps=\(self.store.shield.applications?.count ?? 0)",
+                "shieldingCategories=\(self.store.shield.applicationCategories != nil)",
+                "opensToday=\(GatewayCore.opensToday())",
+                "unlockedFor=\(Int(max(0, GatewayCore.unlockUntil() - GatewayCore.now)))s",
+                "monitors=\(monitored)",
+                "appGroupOK=\(GatewayCore.defaults != nil)",
+            ].joined(separator: " ")
         }
 
         // ------------------------------------------------------------------
@@ -356,152 +275,49 @@ public class FamilyControlsBridgeModule: Module {
             }
         }
 
-        // ------------------------------------------------------------------
-        // Doom scroll monitor
-        // ------------------------------------------------------------------
-
-        AsyncFunction("startDoomScrollMonitor") { (firstMinutes: Int, secondMinutes: Int) -> Bool in
-            NSLog("[FamilyControlsBridge] startDoomScrollMonitor called (%d m, %d m)", firstMinutes, secondMinutes)
-            if #available(iOS 16.0, *) {
-                let center = DeviceActivityCenter()
-                let schedule = DeviceActivitySchedule(
-                    intervalStart: DateComponents(hour: 0, minute: 0),
-                    intervalEnd: DateComponents(hour: 23, minute: 59),
-                    repeats: true
-                )
-
-                // Thresholds are absolute minutes of usage (matching the
-                // "10-minute" / "30-minute check-in" labels in the UI).
-                // secondMinutes <= firstMinutes means the second check-in is
-                // disabled.
-                var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
-                    DeviceActivityEvent.Name("doom_scroll_first"): DeviceActivityEvent(
-                        threshold: DateComponents(minute: firstMinutes)
-                    ),
-                ]
-                if secondMinutes > firstMinutes {
-                    events[DeviceActivityEvent.Name("doom_scroll_second")] = DeviceActivityEvent(
-                        threshold: DateComponents(minute: secondMinutes)
-                    )
-                }
-
-                do {
-                    // Restart cleanly — startMonitoring can fail if the
-                    // activity is already being monitored.
-                    center.stopMonitoring([DeviceActivityName("gateway_doom_scroll")])
-                    try center.startMonitoring(
-                        DeviceActivityName("gateway_doom_scroll"),
-                        during: schedule,
-                        events: events
-                    )
-                    return true
-                } catch {
-                    NSLog("[FamilyControlsBridge] startDoomScrollMonitor failed: %@", "\(error)")
-                    return false
-                }
-            }
-            return false
-        }
-
-        AsyncFunction("stopDoomScrollMonitor") { () -> Bool in
-            if #available(iOS 16.0, *) {
-                let center = DeviceActivityCenter()
-                center.stopMonitoring([DeviceActivityName("gateway_doom_scroll")])
-                return true
-            }
-            return false
-        }
-
-        // ------------------------------------------------------------------
-        // Diagnostics
-        // ------------------------------------------------------------------
-
-        AsyncFunction("debugState") { () -> String in
-            if #available(iOS 16.0, *) {
-                let authStatus = "\(AuthorizationCenter.shared.authorizationStatus)"
-                let defaults = UserDefaults(suiteName: appGroupID)
-                let appCount = self.loadShieldedTokenArray()?.count ?? -1
-                let catCount = self.loadShieldedCategoryArray()?.count ?? -1
-                let hasShieldApps = self.store.shield.applications != nil
-                let hasBlockedApps = self.store.application.blockedApplications != nil
-                let msg = "auth=\(authStatus) storedApps=\(appCount) storedCats=\(catCount) shieldActive=\(hasShieldApps) blockedActive=\(hasBlockedApps) appGroupOK=\(defaults != nil)"
-                NSLog("[FamilyControlsBridge] debugState: %@", msg)
-                return msg
-            }
-            return "unavailable"
-        }
-
-        // ------------------------------------------------------------------
-        // Shared data (App Group UserDefaults)
-        // ------------------------------------------------------------------
-
-        AsyncFunction("writeSharedData") { (jsonString: String) -> Bool in
-            let defaults = UserDefaults(suiteName: appGroupID)
-            defaults?.set(jsonString, forKey: sharedDefaultsKey)
-            return true
-        }
     }
 
     // MARK: - Helpers
 
-    /// Re-apply the persisted selection and clear the unlock-window deadline.
-    @available(iOS 16.0, *)
-    private func applyStoredShields() {
-        if let tokens = loadShieldedTokens(), !tokens.isEmpty {
-            store.shield.applications = tokens
+    /// ManagedSettingsStore behaves unpredictably off the main thread.
+    private func onMain<T>(_ work: @escaping () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                continuation.resume(returning: work())
+            }
         }
-        if let cats = loadShieldedCategoryTokens(), !cats.isEmpty {
-            store.shield.applicationCategories = .specific(cats)
-        }
-        let defaults = UserDefaults(suiteName: appGroupID)
-        defaults?.removeObject(forKey: reapplyAtKey)
-        defaults?.removeObject(forKey: breathUntilKey)
-        NSLog("[FamilyControlsBridge] applyStoredShields: shields restored")
     }
 
     @available(iOS 16.0, *)
-    private func loadShieldedTokens() -> Set<ApplicationToken>? {
-        if let array = loadShieldedTokenArray() {
-            return Set(array)
+    private func enforce() -> [String: Any] {
+        let authorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        if authorized {
+            let rawUntil = GatewayCore.defaults?.double(forKey: GatewayKeys.unlockUntil) ?? 0
+            if rawUntil > 0, rawUntil <= GatewayCore.now {
+                // The session ran out and nothing else has closed it yet.
+                GatewayCore.endSession(store: store, notice: nil)
+                DeviceActivityCenter().stopMonitoring([GatewayCore.sessionActivity])
+            } else {
+                GatewayCore.applyShields(store: store)
+            }
+            GatewayCore.syncDailyMonitor()
         }
-        return nil
+        return status(authorized: authorized)
     }
 
     @available(iOS 16.0, *)
-    private func loadShieldedCategoryTokens() -> Set<ActivityCategoryToken>? {
-        if let array = loadShieldedCategoryArray() {
-            return Set(array)
+    private func status(authorized: Bool) -> [String: Any] {
+        var canOpenFromShield = false
+        if #available(iOS 26.5, *) {
+            canOpenFromShield = true
         }
-        return nil
-    }
-
-    // The stored selection may have been written as either an ordered Array
-    // (new format) or a Set (legacy format). Try both so older installs keep
-    // working after upgrade.
-    @available(iOS 16.0, *)
-    private func loadShieldedTokenArray() -> [ApplicationToken]? {
-        let defaults = UserDefaults(suiteName: appGroupID)
-        guard let data = defaults?.data(forKey: shieldedAppsKey) else { return nil }
-        if let array = try? JSONDecoder().decode([ApplicationToken].self, from: data) {
-            return array
-        }
-        if let set = try? JSONDecoder().decode(Set<ApplicationToken>.self, from: data) {
-            return Array(set)
-        }
-        return nil
-    }
-
-    @available(iOS 16.0, *)
-    private func loadShieldedCategoryArray() -> [ActivityCategoryToken]? {
-        let defaults = UserDefaults(suiteName: appGroupID)
-        guard let data = defaults?.data(forKey: "shielded_category_tokens") else { return nil }
-        if let array = try? JSONDecoder().decode([ActivityCategoryToken].self, from: data) {
-            return array
-        }
-        if let set = try? JSONDecoder().decode(Set<ActivityCategoryToken>.self, from: data) {
-            return Array(set)
-        }
-        return nil
+        return [
+            "authorized": authorized,
+            "selectionCount": GatewayCore.selectionCount(),
+            "opensToday": GatewayCore.opensToday(),
+            "unlockUntil": GatewayCore.unlockUntil(),
+            "canOpenFromShield": canOpenFromShield,
+        ]
     }
 }
 
@@ -509,15 +325,19 @@ public class FamilyControlsBridgeModule: Module {
 
 @available(iOS 16.0, *)
 private class FamilyActivityPickerViewController: UIViewController {
-    typealias SelectionHandler = (FamilyActivitySelection) -> Void
-
     private var selection: FamilyActivitySelection
-    private let onDone: SelectionHandler
+    private let onDone: (FamilyActivitySelection) -> Void
+    private let onCancel: () -> Void
+    private var didFinish = false
 
-    init(initialSelection: FamilyActivitySelection = FamilyActivitySelection(),
-         onDone: @escaping SelectionHandler) {
+    init(
+        initialSelection: FamilyActivitySelection,
+        onDone: @escaping (FamilyActivitySelection) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
         self.selection = initialSelection
         self.onDone = onDone
+        self.onCancel = onCancel
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -531,16 +351,36 @@ private class FamilyActivityPickerViewController: UIViewController {
             set: { [weak self] newValue in self?.selection = newValue }
         )
         let hostingController = UIHostingController(
-            rootView: FamilyActivityPickerView(selection: binding, onDone: { [weak self] in
-                guard let self else { return }
-                self.onDone(self.selection)
-            })
+            rootView: FamilyActivityPickerView(
+                selection: binding,
+                onDone: { [weak self] in
+                    guard let self, !self.didFinish else { return }
+                    self.didFinish = true
+                    let selection = self.selection
+                    self.dismiss(animated: true) { self.onDone(selection) }
+                },
+                onCancel: { [weak self] in
+                    guard let self, !self.didFinish else { return }
+                    self.didFinish = true
+                    self.dismiss(animated: true) { self.onCancel() }
+                }
+            )
         )
         addChild(hostingController)
         view.addSubview(hostingController.view)
         hostingController.view.frame = view.bounds
-        hostingController.view.autoresizingMask = [UIView.AutoresizingMask.flexibleWidth, UIView.AutoresizingMask.flexibleHeight]
+        hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         hostingController.didMove(toParent: self)
+    }
+
+    // Swiping the sheet away counts as cancelling. Without this the JS
+    // promise would never settle.
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isBeingDismissed, !didFinish {
+            didFinish = true
+            onCancel()
+        }
     }
 }
 
@@ -548,12 +388,17 @@ private class FamilyActivityPickerViewController: UIViewController {
 private struct FamilyActivityPickerView: View {
     @Binding var selection: FamilyActivitySelection
     let onDone: () -> Void
+    let onCancel: () -> Void
 
     var body: some View {
         NavigationView {
             FamilyActivityPicker(selection: $selection)
-                .navigationTitle("Select Apps")
+                .navigationTitle("Apps to pause")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { onCancel() }
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { onDone() }
                     }

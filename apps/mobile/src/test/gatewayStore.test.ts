@@ -1,6 +1,10 @@
 import { DEFAULT_GATEWAY_CONFIG } from "@focuslab/shared";
 
-import { useGatewayStore } from "../stores/gatewayStore";
+import {
+  SHIELDED_APPS_ID,
+  normalizeGatewayConfig,
+  useGatewayStore,
+} from "../stores/gatewayStore";
 
 // Reset store between tests
 beforeEach(() => {
@@ -9,6 +13,8 @@ beforeEach(() => {
     config: { ...DEFAULT_GATEWAY_CONFIG },
     dailyOpenCounts: {},
     familyControlsAuthorized: false,
+    nativeStatus: null,
+    shieldRequest: null,
     strategySnapshot: null,
   });
 });
@@ -185,5 +191,94 @@ describe("gatewayStore", () => {
       useGatewayStore.getState().setFamilyControlsAuthorized(true);
       expect(useGatewayStore.getState().familyControlsAuthorized).toBe(true);
     });
+  });
+
+  // -----------------------------------------------------------------------
+  // Native status
+  // -----------------------------------------------------------------------
+
+  describe("applyNativeStatus", () => {
+    it("adopts the native open count, authorization and session", () => {
+      useGatewayStore.getState().applyNativeStatus({
+        authorized: true,
+        canOpenFromShield: true,
+        opensToday: 4,
+        selectionCount: 2,
+        unlockUntil: 0,
+      });
+
+      const state = useGatewayStore.getState();
+      expect(state.getOpenCount(SHIELDED_APPS_ID)).toBe(4);
+      expect(state.familyControlsAuthorized).toBe(true);
+      expect(state.nativeStatus?.selectionCount).toBe(2);
+    });
+
+    it("leaves per-app Shortcuts counts alone", () => {
+      const store = useGatewayStore.getState();
+      store.incrementOpen("instagram");
+      store.applyNativeStatus({
+        authorized: true,
+        canOpenFromShield: false,
+        opensToday: 9,
+        selectionCount: 1,
+        unlockUntil: 0,
+      });
+
+      expect(useGatewayStore.getState().getOpenCount("instagram")).toBe(1);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Upgrading saved settings
+// ---------------------------------------------------------------------------
+
+describe("normalizeGatewayConfig", () => {
+  it("returns the defaults when nothing was saved", () => {
+    expect(normalizeGatewayConfig(undefined)).toEqual(DEFAULT_GATEWAY_CONFIG);
+  });
+
+  it("fills in settings added after the config was saved", () => {
+    const config = normalizeGatewayConfig({
+      breathDurationSeconds: 3,
+      enabled: true,
+    });
+
+    expect(config.breathDurationSeconds).toBe(3);
+    expect(config.enabled).toBe(true);
+    expect(config.pauseStyle).toBe("guided");
+    expect(config.sessionMinutes).toBe(5);
+  });
+
+  it("makes progressive friction one second per open, as the switch says", () => {
+    const on = normalizeGatewayConfig({
+      escalation: { baseDurationSeconds: 5, capSeconds: 20, incrementPerOpenSeconds: 3 },
+    });
+    const off = normalizeGatewayConfig({
+      escalation: { baseDurationSeconds: 5, capSeconds: 20, incrementPerOpenSeconds: 0 },
+    });
+
+    expect(on.escalation.incrementPerOpenSeconds).toBe(1);
+    expect(off.escalation.incrementPerOpenSeconds).toBe(0);
+  });
+
+  it("drops the hidden open limit older builds stored for shields", () => {
+    const config = normalizeGatewayConfig({
+      openLimits: [
+        { appId: SHIELDED_APPS_ID, dailyLimit: 15, enabled: true },
+        { appId: "instagram", dailyLimit: 5, enabled: true },
+      ],
+    });
+
+    expect(config.openLimits).toEqual([
+      { appId: "instagram", dailyLimit: 5, enabled: true },
+    ]);
+  });
+
+  it("does not modify the shared defaults", () => {
+    normalizeGatewayConfig({
+      escalation: { baseDurationSeconds: 5, capSeconds: 20, incrementPerOpenSeconds: 0 },
+    });
+    expect(DEFAULT_GATEWAY_CONFIG.escalation.incrementPerOpenSeconds).toBe(1);
   });
 });

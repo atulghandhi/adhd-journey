@@ -1,32 +1,58 @@
 import { requireNativeModule, requireNativeViewManager } from "expo-modules-core";
 import { Platform, ViewProps } from "react-native";
 
+import type { NativeGatewayConfig } from "@focuslab/shared";
+
 // ---------------------------------------------------------------------------
-// FamilyControls bridge — wraps native Swift module.
-// On non-iOS or iOS < 16, all methods are no-ops that return safe defaults.
+// FamilyControls bridge: wraps the native Swift module.
+// On non-iOS or iOS < 16, every call resolves to a safe default.
 // ---------------------------------------------------------------------------
 
+export type FamilyControlsAuthStatus = "authorized" | "denied" | "notDetermined";
+
+/** What the device is actually doing right now, as reported by native. */
+export interface GatewayStatus {
+  /** Screen Time permission has been granted. */
+  authorized: boolean;
+  /**
+   * iOS 26.5+: the shield's button can open Next Thing directly. On older
+   * versions the shield falls back to a notification or an in-shield pause.
+   */
+  canOpenFromShield: boolean;
+  /** Paused apps opened today (counted when a pause ends in "continue"). */
+  opensToday: number;
+  /** Number of apps + categories the user has selected. */
+  selectionCount: number;
+  /** Epoch seconds when the current unlock session ends, or 0. */
+  unlockUntil: number;
+}
+
+/** A hand-off from the shield: the user tapped "Take a breath". */
+export interface PendingShieldRequest {
+  /** Display name of the app, when iOS shared it. */
+  appName?: string;
+  /** Epoch seconds when the shield button was tapped. */
+  at: number;
+  /** Bundle id of the app, when iOS shared it. */
+  bundleId?: string;
+  kind: "all" | "app" | "category";
+  opensToday: number;
+  /** The pause to run, computed natively so it matches the shield's text. */
+  pauseSeconds: number;
+  /** Opaque token for `ShieldedAppView` ("app:..." / "category:..."). */
+  token?: string;
+}
+
 interface FamilyControlsModule {
-// ... rest of interface
-  requestAuthorization(): Promise<boolean>;
-  getAuthorizationStatus(): Promise<"authorized" | "denied" | "notDetermined">;
-  presentActivityPicker(): Promise<number>;
-  applyShields(): Promise<boolean>;
-  enforceShields(): Promise<"applied" | "deferred" | "none">;
-  setGatewayPauseSeconds(seconds: number): Promise<boolean>;
-  removeShields(): Promise<boolean>;
-  removeShieldsTemporarily(durationSeconds: number): Promise<boolean>;
-  getShieldedAppCount(): Promise<number>;
-  getShieldedAppTokens(): Promise<string[]>;
-  removeShieldedAppAt(index: number): Promise<boolean>;
-  clearShieldedApps(): Promise<boolean>;
-  startDoomScrollMonitor(
-    firstThresholdMinutes: number,
-    secondThresholdMinutes: number,
-  ): Promise<boolean>;
-  stopDoomScrollMonitor(): Promise<boolean>;
-  writeSharedData(jsonString: string): Promise<boolean>;
+  consumePendingShieldRequest(): Promise<PendingShieldRequest | null>;
   debugState(): Promise<string>;
+  getAuthorizationStatus(): Promise<FamilyControlsAuthStatus>;
+  getShieldedAppTokens(): Promise<string[]>;
+  presentActivityPicker(): Promise<number>;
+  removeShieldedAppAt(index: number): Promise<boolean>;
+  requestAuthorization(): Promise<boolean>;
+  syncGateway(configJSON: string): Promise<Partial<GatewayStatus>>;
+  unlockForSession(scope: "all" | "target"): Promise<Partial<GatewayStatus>>;
 }
 
 let nativeModule: FamilyControlsModule | null = null;
@@ -40,15 +66,29 @@ function getModule(): FamilyControlsModule | null {
   if (nativeModule) return nativeModule;
 
   try {
-    // The native module is registered by its `Name(...)` in the Swift
-    // `ModuleDefinition` — see FamilyControlsBridgeModule.swift.
+    // Registered by its `Name(...)` in FamilyControlsBridgeModule.swift.
     nativeModule = requireNativeModule<FamilyControlsModule>("FamilyControlsBridge");
     return nativeModule;
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn("[FamilyControlsBridge] native module not available:", err);
     return null;
   }
+}
+
+/**
+ * The native layer answers with an empty object when it cannot run (old iOS).
+ * Treat anything without the expected fields as "no status".
+ */
+function toStatus(raw: Partial<GatewayStatus> | null | undefined): GatewayStatus | null {
+  if (!raw || typeof raw.authorized !== "boolean") return null;
+
+  return {
+    authorized: raw.authorized,
+    canOpenFromShield: raw.canOpenFromShield === true,
+    opensToday: raw.opensToday ?? 0,
+    selectionCount: raw.selectionCount ?? 0,
+    unlockUntil: raw.unlockUntil ?? 0,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -56,185 +96,75 @@ function getModule(): FamilyControlsModule | null {
 // ---------------------------------------------------------------------------
 
 export async function requestFamilyControlsAuth(): Promise<boolean> {
-  console.log("[FamilyControlsBridge] JS: requestFamilyControlsAuth called");
   const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.requestAuthorization();
-  console.log(`[FamilyControlsBridge] JS: requestFamilyControlsAuth result: ${result}`);
-  return result;
+  if (!mod) return false;
+  return mod.requestAuthorization();
 }
 
-export async function getFamilyControlsStatus(): Promise<
-  "authorized" | "denied" | "notDetermined"
-> {
-  console.log("[FamilyControlsBridge] JS: getFamilyControlsStatus called");
+export async function getFamilyControlsStatus(): Promise<FamilyControlsAuthStatus> {
   const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning notDetermined");
-    return "notDetermined";
-  }
-  const status = await mod.getAuthorizationStatus();
-  console.log(`[FamilyControlsBridge] JS: getFamilyControlsStatus result: ${status}`);
-  return status;
-}
-
-export async function presentAppPicker(): Promise<number> {
-  console.log("[FamilyControlsBridge] JS: presentAppPicker called");
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning 0");
-    return 0;
-  }
-  const result = await mod.presentActivityPicker();
-  console.log(`[FamilyControlsBridge] JS: presentAppPicker result (tokens): ${result}`);
-  return result;
-}
-
-export async function applyShields(): Promise<boolean> {
-  console.log("[FamilyControlsBridge] JS: applyShields called");
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.applyShields();
-  console.log(`[FamilyControlsBridge] JS: applyShields result: ${result}`);
-  return result;
+  if (!mod) return "notDetermined";
+  return mod.getAuthorizationStatus();
 }
 
 /**
- * Re-apply shields unless the user is inside an earned unlock window.
- * Safe to call on launch/foreground — unlike applyShields, it will not
- * cancel a temporary unlock granted by the shield's breathing flow.
+ * Show Apple's app picker. Resolves with the number of apps and categories
+ * selected, or -1 if the user backed out without confirming.
  */
-export async function enforceShields(): Promise<"applied" | "deferred" | "none"> {
+export async function presentAppPicker(): Promise<number> {
   const mod = getModule();
-  if (!mod) return "none";
-  const result = await mod.enforceShields();
-  console.log(`[FamilyControlsBridge] JS: enforceShields result: ${result}`);
-  return result;
+  if (!mod) return -1;
+  return mod.presentActivityPicker();
 }
 
-/** Persist the configured breathing pause for the Shield extensions. */
-export async function setGatewayPauseSeconds(seconds: number): Promise<boolean> {
-  const mod = getModule();
-  if (!mod) return false;
-  return mod.setGatewayPauseSeconds(seconds);
-}
-
-export async function removeShields(): Promise<boolean> {
-  console.log("[FamilyControlsBridge] JS: removeShields called");
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.removeShields();
-  console.log(`[FamilyControlsBridge] JS: removeShields result: ${result}`);
-  return result;
-}
-
-export async function removeShieldsTemporarily(
-  durationSeconds: number,
-): Promise<boolean> {
-  console.log(`[FamilyControlsBridge] JS: removeShieldsTemporarily called with duration: ${durationSeconds}`);
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.removeShieldsTemporarily(durationSeconds);
-  console.log(`[FamilyControlsBridge] JS: removeShieldsTemporarily result: ${result}`);
-  return result;
-}
-
-export async function getShieldedAppCount(): Promise<number> {
-  console.log("[FamilyControlsBridge] JS: getShieldedAppCount called");
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning 0");
-    return 0;
-  }
-  const count = await mod.getShieldedAppCount();
-  console.log(`[FamilyControlsBridge] JS: getShieldedAppCount result: ${count}`);
-  return count;
-}
-
+/** The selection as opaque tokens for `ShieldedAppView`. */
 export async function getShieldedAppTokens(): Promise<string[]> {
-  console.log("[FamilyControlsBridge] JS: getShieldedAppTokens called");
   const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning empty array");
-    return [];
-  }
-  const tokens = await mod.getShieldedAppTokens();
-  console.log(`[FamilyControlsBridge] JS: getShieldedAppTokens result length: ${tokens.length}`);
-  return tokens;
+  if (!mod) return [];
+  return mod.getShieldedAppTokens();
 }
 
 export async function removeShieldedAppAt(index: number): Promise<boolean> {
-  console.log(`[FamilyControlsBridge] JS: removeShieldedAppAt called for index: ${index}`);
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.removeShieldedAppAt(index);
-  console.log(`[FamilyControlsBridge] JS: removeShieldedAppAt result: ${result}`);
-  return result;
-}
-
-export async function clearShieldedApps(): Promise<boolean> {
-  console.log("[FamilyControlsBridge] JS: clearShieldedApps called");
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.clearShieldedApps();
-  console.log(`[FamilyControlsBridge] JS: clearShieldedApps result: ${result}`);
-  return result;
-}
-
-export async function startDoomScrollMonitor(
-  firstThresholdMinutes: number,
-  secondThresholdMinutes: number,
-): Promise<boolean> {
-  console.log(`[FamilyControlsBridge] JS: startDoomScrollMonitor called (${firstThresholdMinutes}m, ${secondThresholdMinutes}m)`);
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.startDoomScrollMonitor(
-    firstThresholdMinutes,
-    secondThresholdMinutes,
-  );
-  console.log(`[FamilyControlsBridge] JS: startDoomScrollMonitor result: ${result}`);
-  return result;
-}
-
-export async function stopDoomScrollMonitor(): Promise<boolean> {
-  console.log("[FamilyControlsBridge] JS: stopDoomScrollMonitor called");
-  const mod = getModule();
-  if (!mod) {
-    console.log("[FamilyControlsBridge] JS: native module not found, returning false");
-    return false;
-  }
-  const result = await mod.stopDoomScrollMonitor();
-  console.log(`[FamilyControlsBridge] JS: stopDoomScrollMonitor result: ${result}`);
-  return result;
-}
-
-export async function writeSharedGatewayData(
-  jsonString: string,
-): Promise<boolean> {
   const mod = getModule();
   if (!mod) return false;
-  return mod.writeSharedData(jsonString);
+  return mod.removeShieldedAppAt(index);
+}
+
+/**
+ * Hand the settings to the native layer and make the device match them:
+ * shields on or off, an expired unlock session closed, the usage monitor
+ * restarted if its inputs changed. Safe to call on every launch, foreground
+ * and settings change.
+ */
+export async function syncGateway(
+  config: NativeGatewayConfig,
+): Promise<GatewayStatus | null> {
+  const mod = getModule();
+  if (!mod) return null;
+  return toStatus(await mod.syncGateway(JSON.stringify(config)));
+}
+
+/**
+ * Pick up the request the shield left when the user tapped "Take a breath".
+ * Call whenever the app becomes active. Reading it also tells the shield the
+ * hand-off worked.
+ */
+export async function consumePendingShieldRequest(): Promise<PendingShieldRequest | null> {
+  const mod = getModule();
+  if (!mod) return null;
+  return (await mod.consumePendingShieldRequest()) ?? null;
+}
+
+/**
+ * Lift the shield for the configured session length. "target" lifts it only
+ * for the app the user was opening; "all" lifts every shield.
+ */
+export async function unlockForSession(
+  scope: "all" | "target",
+): Promise<GatewayStatus | null> {
+  const mod = getModule();
+  if (!mod) return null;
+  return toStatus(await mod.unlockForSession(scope));
 }
 
 export async function debugFamilyControlsState(): Promise<string> {

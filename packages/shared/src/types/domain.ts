@@ -214,6 +214,13 @@ export interface DoomScrollConfig {
   secondThresholdMinutes: number;
 }
 
+/**
+ * How the pause is delivered when a shielded app is opened:
+ * - "guided": the shield hands off to the app's animated breathing screen.
+ * - "quick": a timed pause on the shield itself, with no app switch.
+ */
+export type GatewayPauseStyle = "guided" | "quick";
+
 export interface GatewayConfig {
   breathDurationSeconds: number;
   doomScroll: DoomScrollConfig;
@@ -221,6 +228,20 @@ export interface GatewayConfig {
   escalation: EscalationConfig;
   freeWindows: TimeWindow[];
   openLimits: OpenLimitConfig[];
+  pauseStyle: GatewayPauseStyle;
+  /** Minutes an app stays open after a pause before the shield returns. */
+  sessionMinutes: number;
+}
+
+/** The settings the native Screen Time layer needs, in the shape it reads. */
+export interface NativeGatewayConfig {
+  checkInMinutes: number[];
+  enabled: boolean;
+  frictionCapSeconds: number;
+  frictionStepSeconds: number;
+  pauseSeconds: number;
+  sessionMinutes: number;
+  style: GatewayPauseStyle;
 }
 
 export interface StrategySnapshot {
@@ -245,11 +266,58 @@ export const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   escalation: {
     baseDurationSeconds: 5,
     capSeconds: 20,
-    incrementPerOpenSeconds: 3,
+    // Matches the "Progressive Friction" setting, which promises one extra
+    // second per open.
+    incrementPerOpenSeconds: 1,
   },
   freeWindows: [],
   openLimits: [],
+  pauseStyle: "guided",
+  sessionMinutes: 5,
 };
+
+/**
+ * The pause for the next open of a shielded app: the base pause plus the
+ * progressive-friction step for every open earlier today, capped.
+ *
+ * Mirrored natively in GatewayCore.swift (`pauseSeconds(config:opensSoFar:)`)
+ * so the shield and the in-app breathing screen always agree.
+ */
+export function computeShieldPauseSeconds(
+  config: GatewayConfig,
+  opensSoFar: number,
+): number {
+  const base = Math.min(Math.max(config.breathDurationSeconds, 1), 60);
+  const step = config.escalation.incrementPerOpenSeconds;
+
+  if (step <= 0) {
+    return base;
+  }
+
+  const cap = Math.max(config.escalation.capSeconds, base);
+  return Math.min(base + step * Math.max(0, opensSoFar), cap);
+}
+
+/**
+ * Project the app's gateway config onto what the native layer consumes.
+ * The two usage check-ins are independent: either can be on without the other.
+ */
+export function toNativeGatewayConfig(config: GatewayConfig): NativeGatewayConfig {
+  const checkInMinutes = [
+    config.doomScroll.enabled ? config.doomScroll.firstThresholdMinutes : 0,
+    config.doomScroll.secondThresholdMinutes,
+  ].filter((minutes) => minutes > 0);
+
+  return {
+    checkInMinutes: [...new Set(checkInMinutes)].sort((a, b) => a - b),
+    enabled: config.enabled,
+    frictionCapSeconds: config.escalation.capSeconds,
+    frictionStepSeconds: config.escalation.incrementPerOpenSeconds,
+    pauseSeconds: config.breathDurationSeconds,
+    sessionMinutes: config.sessionMinutes,
+    style: config.pauseStyle,
+  };
+}
 
 /**
  * Compute the breathing pause duration for a gateway activation.

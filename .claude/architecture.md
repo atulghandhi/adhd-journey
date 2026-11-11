@@ -66,7 +66,7 @@ Mobile app (Expo)            Web app (Next.js)
 
 - Journey progression: `useJourneyState`, `TaskRenderer`, `CheckInSheet`, `StuckSheet`
 - Toolkit: `useToolkit`, `toolkit_items` table, `ProgressScreen`
-- App Disrupt: `gatewayStore`, `DisruptScreen`, `GatewaySettingsScreen`, `GatewayFirstRunFlow`
+- App Disrupt: `gatewayStore`, `DisruptScreen`, `GatewaySettingsScreen`, `AppDisruptSettings` (see `mindful-gateway-ios.md`)
 - Account: theme, notifications, push registration, restart journey, delete account
 
 ## Web Architecture

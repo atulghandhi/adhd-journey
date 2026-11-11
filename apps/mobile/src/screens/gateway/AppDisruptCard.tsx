@@ -5,33 +5,27 @@ import { useColorScheme } from "nativewind";
 import { AnimatedPressable } from "../../animations/AnimatedPressable";
 import { AppCard } from "../../components/ui/AppCard";
 import { Text, View } from "../../components/primitives";
-import { useGatewayStore } from "../../stores/gatewayStore";
+import { SHIELDED_APPS_ID, useGatewayStore } from "../../stores/gatewayStore";
 
 export function AppDisruptCard() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const dark = colorScheme === "dark";
 
-  const config = useGatewayStore((s) => s.config);
-  const getOpenCount = useGatewayStore((s) => s.getOpenCount);
+  const enabled = useGatewayStore((s) => s.config.enabled);
   const completedFirstRun = useGatewayStore((s) => s.completedFirstRun);
+  const selectionCount = useGatewayStore((s) => s.nativeStatus?.selectionCount);
+  const opensToday = useGatewayStore((s) => s.getOpenCount(SHIELDED_APPS_ID));
 
-  // Build status line
-  let statusLine = "";
+  let statusLine: string;
   if (!completedFirstRun) {
-    statusLine =
-      "Add a breathing pause before distracting apps.";
-  } else if (!config.enabled) {
-    statusLine = "Paused";
-  } else if (config.openLimits.length > 0) {
-    const firstLimit = config.openLimits[0];
-    const count = getOpenCount(firstLimit.appId);
-    const label = firstLimit.appId === "shielded_apps"
-      ? "opens"
-      : firstLimit.appId;
-    statusLine = `Active · ${count}/${firstLimit.dailyLimit} ${label} today`;
+    statusLine = "Add a breathing pause before distracting apps.";
+  } else if (!enabled) {
+    statusLine = "Off";
+  } else if (selectionCount === 0) {
+    statusLine = "On · choose apps to pause";
   } else {
-    statusLine = "Active — choose apps to shield";
+    statusLine = `On · ${opensToday} open${opensToday === 1 ? "" : "s"} today`;
   }
 
   return (

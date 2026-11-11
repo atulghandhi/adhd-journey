@@ -1,91 +1,107 @@
-import { useEffect } from "react";
-import { AppState, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+import { usePathname, useRouter } from "expo-router";
 
-import { readPendingDeepLink } from "../../modules/widget-data-bridge";
+import { toNativeGatewayConfig } from "@focuslab/shared";
+
 import {
-  enforceShields,
+  consumePendingShieldRequest,
   isFamilyControlsAvailable,
-  setGatewayPauseSeconds,
 } from "../../modules/family-controls-bridge";
+import { syncGatewayFromStore } from "../lib/gateway";
 import { useGatewayStore } from "../stores/gatewayStore";
 
+/** True once the persisted gateway settings have been read from storage. */
+function useGatewayHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(() =>
+    useGatewayStore.persist.hasHydrated(),
+  );
+
+  useEffect(() => {
+    const unsubscribe = useGatewayStore.persist.onFinishHydration(() =>
+      setHydrated(true),
+    );
+    setHydrated(useGatewayStore.persist.hasHydrated());
+    return unsubscribe;
+  }, []);
+
+  return hydrated;
+}
+
 /**
- * Picks up deep-links written by the ShieldAction extension to the shared
- * App Group UserDefaults ("group.app.nextthing" / key "pendingDeepLink")
- * and routes the app accordingly.
+ * Connects the app to its Screen Time shields.
  *
- * The Shield writes the link when the user taps the primary button on a
- * shielded app/site. Because the action runs inside an app extension it
- * cannot itself open the containing app — so this hook checks on mount
- * and whenever the app comes to the foreground and consumes the link.
+ * 1. Hand-off: when the user taps "Take a breath" on a shield, the
+ *    ShieldAction extension leaves a request in the shared App Group and iOS
+ *    brings Next Thing forward (directly on iOS 26.5+, through a notification
+ *    tap before that). This hook picks the request up whenever the app
+ *    becomes active and opens the breathing screen.
+ *
+ * 2. Enforcement: it keeps the native layer in step with the settings, on
+ *    launch, on every foreground and whenever a setting changes. That covers
+ *    restoring shields after an unlock session whose background timer did
+ *    not fire.
  */
 export function useShieldDeepLink(): void {
   const router = useRouter();
-  const breathDurationSeconds = useGatewayStore(
-    (s) => s.config.breathDurationSeconds,
+  const pathname = usePathname();
+  const hydrated = useGatewayHydrated();
+
+  // Only the settings native cares about; unrelated config edits don't re-sync.
+  const nativeConfigKey = useGatewayStore((s) =>
+    JSON.stringify(toNativeGatewayConfig(s.config)),
   );
 
-  // Keep the shield extensions in sync with the configured pause duration,
-  // even if the user never revisits the gateway settings screen.
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
+  // Settings sync. Waits for hydration: syncing the not-yet-loaded defaults
+  // (App Disrupt off) would briefly drop every shield on each cold launch.
   useEffect(() => {
-    if (Platform.OS !== "ios" || !isFamilyControlsAvailable()) return;
-    void setGatewayPauseSeconds(breathDurationSeconds);
-  }, [breathDurationSeconds]);
+    if (!hydrated) return;
+    void syncGatewayFromStore();
+  }, [hydrated, nativeConfigKey]);
 
   useEffect(() => {
-    if (Platform.OS !== "ios") return;
+    if (!hydrated || !isFamilyControlsAvailable()) return;
 
-    const consume = () => {
-      console.log("[useShieldDeepLink] consume called");
+    let busy = false;
+
+    const handleActive = async () => {
+      if (busy) return;
+      busy = true;
       try {
-        const pending = readPendingDeepLink({ clear: true });
-        console.log("[useShieldDeepLink] pending deep link data:", pending);
-        if (!pending?.link) {
-          console.log("[useShieldDeepLink] no pending link found.");
-          return;
-        }
-        // Only act on links written within the last 3 minutes so we don't
-        // hijack navigation from stale values (e.g. the user finished the
-        // in-shield breathing flow and opens Next Thing for something else).
-        const ageSeconds = Date.now() / 1000 - (pending.at ?? 0);
-        console.log(`[useShieldDeepLink] link age: ${ageSeconds} seconds`);
-        if (ageSeconds > 180) {
-          console.log("[useShieldDeepLink] link is stale, ignoring.");
-          return;
-        }
+        const request = await consumePendingShieldRequest();
+        // Sync first so the breathing screen starts from today's open count.
+        await syncGatewayFromStore();
 
-        if (pending.link === "disrupt") {
-          console.log("[useShieldDeepLink] routing to /disrupt");
-          router.push("/disrupt");
-        } else {
-          console.log(`[useShieldDeepLink] unknown link type: ${pending.link}`);
+        if (request) {
+          useGatewayStore.getState().setShieldRequest(request);
+          const href = `/disrupt?r=${Math.round(request.at)}`;
+          // Replace a breathing screen that is already up instead of
+          // stacking a second one on top of it.
+          if (pathnameRef.current === "/disrupt") {
+            router.replace(href as never);
+          } else {
+            router.push(href as never);
+          }
         }
       } catch (err) {
-        // Swallow — surface in logs for debugging but never crash.
-        console.warn("[useShieldDeepLink] failed to consume pending link:", err);
+        // Never let shield plumbing take the app down.
+        console.warn("[useShieldDeepLink] failed to handle activation:", err);
+      } finally {
+        busy = false;
       }
     };
 
-    // Restore shields whose unlock window has expired. The ShieldAction
-    // extension can be terminated before its own re-apply timer fires, so
-    // the main app enforces the persisted deadline whenever it comes alive.
-    const enforce = () => {
-      if (isFamilyControlsAvailable()) void enforceShields();
-    };
+    // Cold start (the shield opened the app) ...
+    void handleActive();
 
-    // On mount (cold start after user tapped Disrupt from the shield).
-    consume();
-    enforce();
-
-    // On foreground (user tapped shield, then swiped back to our app).
+    // ... and every return to the foreground.
     const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active") {
-        consume();
-        enforce();
-      }
+      if (next === "active") void handleActive();
     });
 
     return () => subscription.remove();
-  }, [router]);
+  }, [hydrated, router]);
 }
