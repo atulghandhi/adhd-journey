@@ -55,7 +55,7 @@ jobs:
           version: latest
 
       - name: Start Supabase
-        run: supabase start -x realtime,storage,imgproxy,inbucket,studio,edge-runtime,logflare,vector,supavisor
+        run: supabase start -x realtime,storage-api,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Run pgTAP tests
         run: supabase test db
@@ -66,7 +66,8 @@ jobs:
 
   web-e2e:
     name: Web E2E Tests
-    runs-on: ubuntu-latest
+    # Playwright does not support ubuntu-latest (now 26.04) yet; pin until it does.
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [typecheck-and-unit]
     steps:
@@ -88,7 +89,7 @@ jobs:
           version: latest
 
       - name: Start Supabase
-        run: supabase start -x realtime,storage,imgproxy,inbucket,studio,edge-runtime,logflare,vector,supavisor
+        run: supabase start -x realtime,storage-api,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Run Playwright tests
         run: |
